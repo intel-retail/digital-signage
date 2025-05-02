@@ -6,13 +6,52 @@ It describes the functionalities and package organization of the Product Identif
 
 Content:
 
+- [Intel Hardware Drivers](#intel-hardware-drivers)
 - [Scripts](#initialization-scipt)
 - [Conceptual Approach and Container Initialization](#conceptual-approach-and-container-initialization)
 - [Testing EVAM](#testing-evam)
 - [How to Download YOLOv11 and Export it to OpenVINO format](#how-to-download-yolov11-and-export-it-to-openvino-format)
 
+## Intel Hardware Drivers
+
+It is critical to set up and install proper drivers to ensure the full benefits of the hardware on top of which the containers run.
+
+### iGPU/dGPU Drivers
+
+You can check the driver version and related information using the clinfo utility. If not installed, you can install it by running the following command:
+
+```bash
+sudo apt install clinfo (if not installed)
+clinfo | fgrep "Driver Version"
+```
+
+You can check the last available release and installation procedure from the [compute-runtime Github repository](https://github.com/intel/compute-runtime/releases/). Supported Operating Systems could change over versions. For example, the version [25.13.33276.16](https://github.com/intel/compute-runtime/releases/tag/25.13.33276.16) is available for Ubuntu 22.04/24.04.
+
+### NPU Drivers
+
+You can check the driver version and related information for NPU drivers from the [linux-npu-driver repository](https://github.com/intel/linux-npu-driver/). Before installing any new driver, you need to uninstall the older existing ones.
+
+```bash
+sudo dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu
+```
+
+Different Operating Systems (OS) are supported over the driver versions. You can check the available versions [here](https://github.com/intel/linux-npu-driver/releases/) and decide on the best suited for your hardware and OS. For example, the [version 1.16.0](https://github.com/intel/linux-npu-driver/releases/tag/v1.16.0) for Linux is available for Ubuntu 22.04 and 24.04 and drivers were validated for [Meteor Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/90353/products-formerly-meteor-lake.html), Arrow Lake [https://www.intel.com/content/www/us/en/ark/products/codename/225837/products-formerly-arrow-lake.html], and Lunar Lake [https://ark.intel.com/content/www/us/en/ark/products/codename/213792/products-formerly-lunar-lake.html].
+
+**Important**: Read carefully [instructions](https://github.com/intel/linux-npu-driver/releases/tag/v1.16.0) for user access to the device when you need to use the accelerator in non-root users.
+
+Check the installed version by dmesg as follows:
+
+```bash
+sudo dmesg | fgrep -i "vpu"
+```
+
+You will see an output with a format similar to "YYYYMMDD*MTL..." where YYYY is the year, MM the month (1-12) and DD the release day.
+
+**Tip:** Remember to review the DETECTION_DEVICE and CLASSIFICATION_DEVICE properties in the [docker-compose.yaml](./docker-compose.yml) file, and update them accordingly based on the host hardware. A technical article for your reference of [Ultralytics YOLO and Intel AI PC](https://www.ultralytics.com/blog/running-ultralytics-yolo-models-on-intels-ai-pc-with-openvino) from Yolo Vision 2024 (YV2024).
+
 ## Initialization Scipt
 
+B the following:
 Detect installation [option to stop container and remove]
 install / venv etc
 run the container (MQTT and EVAM)

@@ -32,7 +32,7 @@ services:
     environment:
       # MQTT
       - MQTT_HOST="mqtt"
-      - MQTT_PORT=${MQTT_PORT}
+      - MQTT_PORT=1883
       #RTSP
       - ENABLE_RTSP=true
       - RTSP_PORT=8554

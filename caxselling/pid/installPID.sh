@@ -68,12 +68,12 @@ clear
 NDEPENDENCIES_GPU=${#gpu_dependencies[*]}
 mess_inf "iGPU/dGPU Driver > Dependencies ($NDEPENDENCIES_GPU)"
 for idx in "${gpu_dependencies[@]}"; do
-    if isInstalled "$idx" -ge 1 &> /dev/null; then
+    if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
         mess_oki "\t $idx"
     else
         sudo apt install "$idx" -y
 
-        if isInstalled "$idx" -ge 1 &> /dev/null; then
+        if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
                 mess_oki "\t $idx"
         else
                 mess_err "$idx could not be installed"
@@ -146,12 +146,12 @@ dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu int
       # Dependencies 
 mess_inf "\tIntel NPU (Neural Processing Unit) Linux Driver > Installing Dependencies"
 for idx in "${npu_dependencies[@]}"; do
-    if isInstalled "$idx" -ge 1 &> /dev/null; then
+    if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
         mess_oki "\t\t $idx"
     else
         sudo apt install "$idx" -y
 
-        if isInstalled "$idx" -ge 1 &> /dev/null; then
+        if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
                 mess_oki "\t\t $idx"
         else
                 mess_err "\t$idx could not be installed"

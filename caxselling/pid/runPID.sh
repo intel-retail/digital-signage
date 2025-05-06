@@ -7,7 +7,7 @@ source ./scripts/utilities.sh
 
 # Functions
 error() {
-    mess_err "The indicated action is not recognized."
+    mess_war "The indicated action is not recognized."
     help
     exit 1
 }
@@ -23,7 +23,7 @@ check() {
     fi
     #Drivers
     mess_inf "Checking [Drivers] ..."
-    if isInstalled "clinfo" -ge 1 &> /dev/null; then
+    if isInstalled "clinfo" &> /dev/null; then
         CLINFO=$(clinfo -v)   
         mess_oki "\t$CLINFO"
     else
@@ -150,12 +150,12 @@ stop() {
 e2e() { 
     #Tools
     for idx in "${test_tools[@]}"; do
-        if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
+        if isInstalled "$idx" &> /dev/null; then
             mess_oki "\t $idx"
         else
             sudo apt install "$idx" -y &> /dev/null
 
-            if isInstalled "$idx" -ge 1 &> /dev/null; then
+            if isInstalled "$idx" &> /dev/null; then
                     mess_oki "\t $idx"
             else
                     mess_err "$idx could not be installed"
@@ -224,11 +224,11 @@ help() {
     mess_inf "Usage: "
     mess_op1 "\t./runPID.sh [start | stop | check | e2e | help]"
     mess_op1 "\nOptions:"
-    mess_op2 "\tstart: " "Start the PID containers"
-    mess_op2 "\tstop: " "Stop the PID containers"
-    mess_op2 "\tcheck: " "It verifies the docker installation and installed drivers. "
-    mess_op2 "\te2e: " "It triggers a pipeline and consumes MQTT message for detections. "    
-    mess_op2 "\thelp: " "Show this help message"
+    mess_op2 "\tstart: " "Start the PID containers."
+    mess_op2 "\tstop: " "Stop the PID containers."
+    mess_op2 "\tcheck: " "It verifies the docker installation and installed drivers."
+    mess_op2 "\te2e: " "It triggers a pipeline using Yolo v11 for detection and consumes it through MQTT messages."    
+    mess_op2 "\thelp: " "Show this help message."
 }
 
 # Actions

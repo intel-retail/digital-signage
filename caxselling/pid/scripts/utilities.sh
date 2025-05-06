@@ -23,6 +23,10 @@ mess_oki() {
         printf "${GREEN}\u2705 ${NOCOLOR} $1\n"
 }
 
+mess_ok2() {
+        printf "${BWHITE} $1 ${GREEN} $2\n"
+}
+
 mess_war() {
         printf "${YELLOW}\u26A0 ${BWHITE} $1\n"
 }
@@ -49,7 +53,46 @@ mess_op2() {
 
 isInstalled() {
         mess_inf "Verifying $1 package"
-        return dpkg-query -Wf'${Status}' $1 2>/dev/null | grep 'ok installed' | wc -l
+        found=$(dpkg-query -Wf'${Status}' $1 2>/dev/null | grep 'ok installed' | wc -l)
+        if [ $found -ge 1 ]; then
+                return 0
+        fi
+        return 1 
+}
+
+is_array() {
+  declare -p "$1" 2>/dev/null | grep -q "declare -a"
+}
+
+#It returns the names of the libraries as an array from the URL indicated as an array
+getDriverNames() {
+        array_return=() #Initialize the array to store the names
+        if is_array "$1"; then 
+                local -n array_name="$1" #creates a reference to the array passed as the first argument
+        else
+                mess_err "The variable $1 is not an array."
+                array_return
+        fi
+
+        for idx in "${array_name[@]}"; do
+                 reversed_string=$(rev <<< "$idx")
+                index_from_end=$(expr index "$reversed_string" "/")
+
+                if [[ -n "$index_from_end" ]]; then
+
+                        index_from_start=$(( ${#string} - index_from_end + 1 ))
+                        first=${idx:index_from_start}
+                        #mess_inf "Indentified: ${first}"
+
+                        if [[ "$first" =~ (.*)(-|_)([0-9]+) ]]; then
+                                extracted_string="${BASH_REMATCH[1]}" # This captures the number after the - or _
+
+                                array_return+=("$extracted_string") #Append the element in the array
+                        fi        
+                fi    
+        done
+ 
+        echo "${array_return[@]}"
 }
 
 declare -a essential_packages=("git" "git-lfs" "gcc" "python3-venv" "python3-dev" "ffmpeg")
@@ -67,3 +110,4 @@ declare -a npu_files_driver_ubuntu24=("https://github.com/oneapi-src/level-zero/
 
 # Test Utilities
 declare -a test_tools=("mosquitto-clients" "curl" "ffmpeg" "vlc-bin")
+

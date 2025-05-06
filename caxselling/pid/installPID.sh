@@ -58,9 +58,12 @@ else
 fi
 
 #
+mess_inf "Verifying essential dependencies..."
 sudo apt --fix-broken install
+mess_inf "Updating apt..."
 sudo apt update &> /dev/null
-sudo apt upgrade -y
+mess_inf "Upgrading libraries..."
+sudo apt upgrade -y &> /dev/null
 clear
 
 #GPU Driver Installation
@@ -68,12 +71,12 @@ clear
 NDEPENDENCIES_GPU=${#gpu_dependencies[*]}
 mess_inf "iGPU/dGPU Driver > Dependencies ($NDEPENDENCIES_GPU)"
 for idx in "${gpu_dependencies[@]}"; do
-    if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
+    if isInstalled "$idx" &> /dev/null; then
         mess_oki "\t $idx"
     else
-        sudo apt install "$idx" -y
+        sudo apt install "$idx" -y &> /dev/null
 
-        if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
+        if isInstalled "$idx" &> /dev/null; then
                 mess_oki "\t $idx"
         else
                 mess_err "$idx could not be installed"
@@ -146,12 +149,12 @@ dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu int
       # Dependencies 
 mess_inf "\tIntel NPU (Neural Processing Unit) Linux Driver > Installing Dependencies"
 for idx in "${npu_dependencies[@]}"; do
-    if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
+    if isInstalled "$idx" &> /dev/null; then
         mess_oki "\t\t $idx"
     else
         sudo apt install "$idx" -y
 
-        if [ isInstalled "$idx" -ge 1 &> /dev/null ]; then
+        if isInstalled "$idx" &> /dev/null; then
                 mess_oki "\t\t $idx"
         else
                 mess_err "\t$idx could not be installed"

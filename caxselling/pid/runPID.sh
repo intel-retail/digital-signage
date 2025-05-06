@@ -83,11 +83,11 @@ start() {
         exit 1
     fi
 
-    #It Verifies yto avoid twice the same container
+    #It Verifies to avoid twice the same container
     COUNTER=0
     readarray -t containers <<< $(fgrep container_name: ./docker-compose.yml | sed 's/^.*: //')
     for idcontainer in "${containers[@]}"; do
-        running_status=$(docker inspect -f '{{.State.Running}}' $idcontainer)
+        running_status=$(docker inspect -f '{{.State.Running}}' $idcontainer 2> /dev/null)
         if [ "$running_status" == "true" ]; then
             COUNTER=$((COUNTER+1))
         fi            
@@ -98,7 +98,7 @@ start() {
         exit 0
     fi
 
-    if docker compose up -d > /dev/null; then
+    if docker compose up -d &> /dev/null; then
         mess_oki "Docker containers are up and running."
     else
         mess_err "Docker containers failed to start. Please check your Docker Compose configuration."
@@ -108,11 +108,11 @@ start() {
     #It verifies the container Status. 
     readarray -t containers <<< $(fgrep container_name: ./docker-compose.yml | sed 's/^.*: //')
     for idcontainer in "${containers[@]}"; do
-        running_status=$(docker inspect -f '{{.State.Running}}' $idcontainer)
+        running_status=$(docker inspect -f '{{.State.Running}}' $idcontainer 2> /dev/null)
         if [ "$running_status" == "true" ]; then
-            mess_oki "$idcontainer: Running"
+            mess_op2 "\t$idcontainer: " "Running"
         else
-            mess_war "$idcontainer: Not Running"
+            mess_er2 "\t$idcontainer:  " "Unavailable"
         fi            
     done    
 }
@@ -121,7 +121,7 @@ stop() {
     ##Stopping Process
     mess_inf "Stopping PID containers ..."
 
-    if docker compose down > /dev/null; then
+    if docker compose down &> /dev/null; then
         mess_oki "Docker containers are stopped."
     else
         mess_err "Docker containers failed to stop. Please check your Docker Compose configuration."

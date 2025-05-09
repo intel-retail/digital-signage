@@ -3,50 +3,100 @@
 # Script: Mario Divan
 # ------------------------------------------
 
-source ./utilities.sh
+source ./scripts/utilities.sh
 
-mess_inf "Configuring NPU access for Non-root users"
+USER=$(whoami)
+ACCELERATOR="/dev/accel/accel0"
+UDEV_RULES="/etc/udev/rules.d/10-intel-vpu.rules"
 
-if test -e /dev/accel/accel0; then
-    mess_oki "\tNPU device found."
-else
-    mess_err "\tNPU device not found. Please check the NPU installation and reboot your system."
-    exit 1
-fi
+function NPUsetup() {
+    if [[ -n $1 ]]; then
+        mess_inf "Verifying NPU Access Setup for: $1"
+        USER=$1
+    else
+        mess_inf "Verifying NPU Access Setup for: $USER"
+    fi
 
-mess_inf "\nSetting up NPU access for user: $(whoami)"
-# set the render group for accel device
-sudo chown root:render /dev/accel/accel0
-sudo chmod g+rw /dev/accel/accel0
-# add user to the render group
-if sudo usermod -a -G render $(whoami); then
-    mess_oki "User $(whoami) added to render group. Add any other users to the render group as needed!!!"
-else
-    mess_err "Failed to add user $(whoami) to render group."
-    exit 1
-fi
+    if existUser $USER; then
+        mess_ok2 "\tUser: " "OK"
+    else
+        mess_er2 "\tUser: " "Not found"
+        return 1
+    fi
 
-# user needs to restart the session to use the new group (log out and log in)
-mess_inf "\tDefining udev rule for the accelerator device"
-if sudo bash -c "echo 'SUBSYSTEM==\"accel\", KERNEL==\"accel*\", GROUP=\"render\", MODE=\"0660\"' > /etc/udev/rules.d/10-intel-vpu.rules"; then
-    mess_oki "\tUdev rule created successfully."
-else
-    mess_err "\tFailed to create udev rule."
-    exit 1
-fi
+    if test -e "$ACCELERATOR"; then
+        mess_ok2 "\tNPU Device: " "Found."
+    else
+        mess_wa2 "\tNPU Device: " "Not Found"
+        return 1
+    fi
 
-if sudo udevadm control --reload-rules; then
-    mess_oki "\tUdev rules reloaded successfully."
-else
-    mess_err "\tFailed to reload udev rules."
-    exit 1
-fi
+    # set the render group for accel device
+    if [ "$(stat -c %U $ACCELERATOR)" == "root" ]; then
+      if [ "$(stat -c %G $ACCELERATOR)" == "render" ]; then
+        mess_ok2 "\tNPU Device Owner: " "root:render"
+      else
+        if sudo chown root:render "$ACCELERATOR"; then
+            mess_ok2 "\tNPU Device Owner: " "root:render"
+        else
+            mess_wa2 "\tNPU Device Owner: " "Failed!"
+            return 1
+        fi
+      fi
+    else
+        if sudo chown root:render "$ACCELERATOR"; then
+            mess_ok2 "\tNPU Device Owner: " "root:render"
+        else
+            mess_wa2 "\tNPU Device Owner: " "Failed!"
+            return 1
+        fi
+    fi
 
-if sudo udevadm trigger --subsystem-match=accel; then
-    mess_oki "\tUdev rules triggered successfully."
-else
-    mess_err "\tFailed to trigger udev rules."
-    exit 1
-fi
+    if [[ -g "$ACCELERATOR" ]] && [[ -r "$ACCELERATOR" ]] && [[ -w "$ACCELERATOR" ]]; then
+        mess_ok2 "\tNPU Device - Group Permissions: " "OK"
+    else
+        if sudo chmod g+rw "$ACCELERATOR"; then
+            mess_ok2 "\tNPU Device - Group Permissions: " "OK"
+        else
+            mess_wa2 "\tNPU Device - Group Permissions: " "Failed!"
+            return 1
+        fi
+    fi
 
-mess_oki "\nNPU access is configured successfully. Restart the user session for the changes to take effect."
+    # add user to the render group
+    if sudo usermod -a -G render "$USER"; then
+        mess_ok2 "\tNPU Device - Group: " "$USER > Found"
+    else
+        mess_wa2 "\tNPU Device - Group: " "$USER > Not Found"
+        return 1
+    fi
+
+    # user needs to restart the session to use the new group (log out and log in)
+     if test -e "$UDEV_RULES"; then
+        mess_ok2 "\tNPU Device - udev rules: " "Found"
+    else
+        if sudo bash -c "echo 'SUBSYSTEM==\"accel\", KERNEL==\"accel*\", GROUP=\"render\", MODE=\"0660\"' > $UDEV_RULES"; then
+            mess_ok2 "\tNPU Device - udev rules: " "Registered"
+        else
+            mess_wa2 "\tNPU Device - udev rules: " "Failed"
+            return 1
+        fi
+    fi   
+
+    if sudo udevadm control --reload-rules; then
+        mess_ok2 "\tNPU Device - udev rules reload: " "OK"
+    else
+        mess_wa2 "\tNPU Device - udev rules reload: " "Failed"
+        retrun 1
+    fi
+
+    if sudo udevadm trigger --subsystem-match=accel; then
+        mess_ok2 "\tNPU Device - udev rules triggering: " "OK"
+    else
+        mess_wa2 "\tNPU Device - udev rules triggering: " "Failed"
+        retrun 1
+    fi
+
+    mess_oki "The NPU Device Access for $USER has been successfully completed."
+    return 0
+}

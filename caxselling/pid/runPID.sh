@@ -4,6 +4,7 @@
 # ------------------------------------------
 
 source ./scripts/utilities.sh
+source ./scripts/cfgNPUAccess.sh
 
 # Functions
 error() {
@@ -70,12 +71,18 @@ start() {
     mess_inf "Starting PID containers ..."
 
     if check; then
-        mess_oki "Docker and drivers."
+        mess_ok2 "Docker and Drivers: " "OK"
     else
-        mess_err "Docker or drivers are not installed correctly. Please check your installation."
+        mess_wa2 "Docker and Drivers: " "Failed"
         exit 1
     fi
 
+    if NPUsetup; then
+        mess_oki "NPU setup"
+    else
+        mess_err "NPU setup failed. Please check your NPU installation."
+    fi
+    
     if test -e ./docker-compose.yml; then
         mess_oki "\tDocker compose file found"
     else

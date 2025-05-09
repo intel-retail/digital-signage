@@ -64,6 +64,19 @@ is_array() {
   declare -p "$1" 2>/dev/null | grep -q "declare -a"
 }
 
+existUser() {
+        if [ -z "$1" ]; then
+                mess_err "No user provided"
+                return 1
+        fi
+
+        if id -u "$1" &>/dev/null; then
+                return 0
+        else
+                return 1
+        fi
+}
+
 #It returns the names of the libraries as an array from the URL indicated as an array
 getDriverNames() {
         array_return=() #Initialize the array to store the names

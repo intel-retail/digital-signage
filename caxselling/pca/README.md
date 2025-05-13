@@ -7,3 +7,11 @@ It describes the functionalities and package organization of the Product Consump
 ## Conceptual Approach
 
 To be completed.
+
+1. Go to ~/CACS_SignageApproach/caxselling/pca
+1. docker images (Review)
+1. Alternatives:
+    1. docker rmi <image> -f
+    1. docker compose -f ./docker/docker-compose.yml up -d 
+1. docker compose -f ./docker/docker-compose.yml down
+docker 

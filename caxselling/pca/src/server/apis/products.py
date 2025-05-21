@@ -7,26 +7,14 @@ from database.db_manager import DatabaseConnection
 import logging
 logger = logging.getLogger(__name__)
 
-api = Namespace('PCA_Products', description='Operations related to Products (Definition and transactions)')
+api = Namespace('PCA - Products', description='Operations related to Products (Definition and transactions)')
 
 ## Schemas
 product_sch = api.model('Product', {
-    'idproduct': fields.Integer(required=True, 
-                            readonly=True,
-                            description="ID Product.",
-                            example="1050"),
-    'pname': fields.String(required=True, 
-                         readonly=True,
-                         description="Short product name", 
-                         example="Banana"),
-    'pdescription': fields.String(required=False, 
-                         readonly=True,
-                         description="Product Descriptive characterization.", 
-                         example="Tasted and sweet banana grown in Ecuador."),                         
-    'price': fields.Float(required=False, 
-                         readonly=True,
-                         description="Reference price for the product expressed in the sale unit.", 
-                         example="0.5"),                        
+    'idproduct': fields.Integer(required=True,  default=None, description="ID Product.",  example="1050"),
+    'pname': fields.String(required=True, default=None, description="Short product name",  example="Banana"),
+    'pdescription': fields.String(required=False, default=None, description="Product Descriptive characterization.",  example="Tasted and sweet banana grown in Ecuador."),                         
+    'price': fields.Float(required=False,  default=None, description="Reference price for the product expressed in the sale unit.", example="0.5"),                        
 })
 
 class Product_sch(object):
@@ -37,31 +25,51 @@ class Product_sch(object):
 
 # Define the model for a list of products
 products_list_sch = api.model('ProductsList', {
-    'products': fields.List(fields.Nested(product_sch), required=True, description="List of products")
+    'products': fields.List(fields.Nested(product_sch), required=True, description="List of products", 
+         example="""
+            [
+                {
+                "idproduct": 1050,
+                "pname": "Banana",
+                "pdescription": "Tasted and sweet banana grown in Ecuador.",
+                "price": 0.5
+                },
+                {
+                "idproduct": 1051,
+                "pname": "Apple",
+                "pdescription": "Red apple from Chile.",
+                "price": 0.7
+                }
+            ]
+        """),
 })
 
 producttrx_sch = api.model('ProductTrx', {
-    'idtransaction': fields.Integer(required=True, 
-                            readonly=True,
-                            description="ID Transaction",
-                            example="587469"),
-    'idproduct': fields.Integer(required=True, 
-                            readonly=True,
-                            description="ID Product",
-                            example="1050"),
-    'quantity': fields.Integer(required=True, 
-                         readonly=True,
-                         description="Quanty of the product sold in this transaction", 
-                         example="1"),
-    'unitaryprice': fields.Float(required=False, 
-                         readonly=True,
-                         description="Product Unitary Price in this transaction", 
-                         example="0.57")
+    'idtransaction': fields.Integer(required=True, default=None, description="ID Transaction",example="587469"),
+    'idproduct': fields.Integer(required=True, default=None, description="ID Product", example="1050"),
+    'quantity': fields.Integer(required=True, default=None, description="Quanty of the product sold in this transaction",  example="1"),
+    'unitaryprice': fields.Float(required=False, default=None, description="Product Unitary Price in this transaction",  example="0.57")
 })
 
 # Define the model for a list of products
 productstrx_list_sch = api.model('ProductsTrxList', {
-    'transactions': fields.List(fields.Nested(producttrx_sch), required=True, description="List of product transactions")
+    'transactions': fields.List(fields.Nested(producttrx_sch), required=True, description="List of product transactions",
+            example="""
+                [
+                    {
+                    "idtransaction": 587469,
+                    "idproduct": 1050,
+                    "quantity": 2,
+                    "unitaryprice": 0.57
+                    },
+                    {
+                    "idtransaction": 587469,
+                    "idproduct": 1051,
+                    "quantity": 1,
+                    "unitaryprice": 0.70
+                    }
+                ]
+            """)
 })
 
 class Producttrx_sch(object):
@@ -71,13 +79,13 @@ class Producttrx_sch(object):
     unitaryprice:float=None
 
 ## Products API
-@api.route('/prd/')
+@api.route('/prd/',
+           doc={"description":"Operations related to Products (Definition and transactions)"})
 class Products(Resource):
-    @api.doc('Register a list of products')
     @api.response(200, 'Success')
     @api.response(204, 'No Products to register')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(products_list_sch, validate=True)
+    @api.expect(products_list_sch, validate=True, description="List of products to register")
     def post(self):
         data = api.payload # data['products'] will be a list of product dicts
         products = data.get('products')
@@ -145,11 +153,10 @@ class Products(Resource):
         
         return "Success", 200
     
-    @api.doc('Delete a list of products')
     @api.response(200, 'Success')
     @api.response(204, 'No Products to delete')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(products_list_sch, validate=True)
+    @api.expect(products_list_sch, validate=True, description="List of products to delete")
     def delete(self):
         data = api.payload # data['products'] will be a list of product dicts
         products = data.get('products')
@@ -194,10 +201,10 @@ class Products(Resource):
         return "Success", 200
 
 ## Products API
-@api.route('/prd/<string:filtername>')
+@api.route('/prd/<string:filtername>', 
+           doc={"description":"Get a list of products that match a filter for the product name (Limited to 50)"})
 @api.param('filtername', 'Filter for the product name')
 class ProductsQuery(Resource):
-    @api.doc('Get a list of products that match a filter for the product name (Limited to 50)')
     @api.response(200, 'Success')
     @api.response(404, 'No Products found')
     @api.response(500, 'Accepted but it could not be processed/stored')
@@ -251,13 +258,13 @@ class ProductsQuery(Resource):
 
 ###ACA
 ## Products API
-@api.route('/prd/trx/')
+@api.route('/prd/trx/', 
+           doc={"description":"Operations related to Product Transactions"})
 class ProductTrx(Resource):
-    @api.doc('Register a list of product transactions')
     @api.response(200, 'Success')
     @api.response(204, 'No transactions to register')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(productstrx_list_sch, validate=True)
+    @api.expect(productstrx_list_sch, validate=True, description="List of product transactions to register")
     def post(self):
         data = api.payload # data['transactions'] will be a list of product dicts
         transactions = data.get('transactions')
@@ -324,11 +331,10 @@ class ProductTrx(Resource):
                         
         return "Success", 200
     
-    @api.doc('Delete a list of product transactions')
     @api.response(200, 'Success')
     @api.response(204, 'No Product transactions to delete')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(productstrx_list_sch, validate=True)
+    @api.expect(productstrx_list_sch, validate=True, description="List of product transactions to delete")
     def delete(self):
         data = api.payload # data['products'] will be a list of product dicts
         transactions = data.get('transactions')
@@ -375,10 +381,10 @@ class ProductTrx(Resource):
         return "Success", 200
 
 ## Product Transactions API
-@api.route('/prd/<int:idtrx>')
+@api.route('/prd/<int:idtrx>', 
+           doc={"description":"Get a list of products that match a filter for the idtransaction (Limited to 50)"})
 @api.param('idtrx', 'IDtransaction to get the items')
 class ProductTrxQuery(Resource):
-    @api.doc('Get a list of products for the idtransaction (Limited to 50)')
     @api.response(200, 'Success')
     @api.response(404, 'No Products found')
     @api.response(500, 'Accepted but it could not be processed/stored')

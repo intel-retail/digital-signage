@@ -4,12 +4,20 @@ import psycopg2
 # Logging
 import logging
 #Modin
+import os
+os.environ["MODIN_CPUS"] = "4"
 import modin.pandas as pd
+from modin.db_conn import ModinDatabaseConnection
+
+# Logging
 logger = logging.getLogger(__name__)
 
 class DatabaseConnection:
     @staticmethod
     def connect():
+        """
+        Connect to the database using psycopg2 (Directly)
+        """
         pghost=os.getenv('POSTGRES_HOST')
         pgdb=os.getenv('POSTGRES_DB')
         pguser=os.getenv('POSTGRES_USER')
@@ -18,10 +26,171 @@ class DatabaseConnection:
         try:
             conn = psycopg2.connect(f"dbname='{pgdb}' user='{pguser}' host='{pghost}' password='{pgpwd}'")
         except Exception as e:
-            logger.error(f"Database connection error: {str(e)}")
+            logger.error(f"[psycopg2] Database connection error: {str(e)}")
             return None
         
         return conn
+    
+    @staticmethod
+    def connect_using_modin():
+        """
+        Connect to the database using Modin with psycopg2
+        """
+        pghost=os.getenv('POSTGRES_HOST')
+        pgdb=os.getenv('POSTGRES_DB')
+        pguser=os.getenv('POSTGRES_USER')
+        pgpwd=os.getenv('POSTGRES_PASSWORD')
+
+
+        try:
+            conn = ModinDatabaseConnection('psycopg2',
+                host=pghost,
+                database=pgdb,
+                user=pguser,
+                password=pgpwd)
+        except Exception as e:
+            logger.error(f"[Modin] Database connection error: {str(e)}")
+            return None
+        
+        return conn
+
+    @staticmethod
+    def get_pg_connection_string():
+        """
+        Return to the PG connection string
+        """
+        pghost=os.getenv('POSTGRES_HOST')
+        pgdb=os.getenv('POSTGRES_DB')
+        pguser=os.getenv('POSTGRES_USER')
+        pgpwd=os.getenv('POSTGRES_PASSWORD')
+
+        connectionString=f"postgresql://{pguser}:{pgpwd}@{pghost}:5432/{pgdb}"
+
+        return connectionString
+    
+    @staticmethod
+    def existTable(table_name:str):
+        if table_name is None or table_name == "":
+            logger.error(f"Table name is None or empty")
+            return False
+        
+        conn=None
+        errorMessage=None
+        try:        
+            conn = DatabaseConnection().connect()
+            if conn is None:
+                logger.error(f"PG Connection Error")
+                return False
+            
+            with conn.cursor() as curs:
+                query="""
+                        SELECT 1
+                        FROM information_schema.tables 
+                        WHERE table_name = lower(%s)
+                        limit 1
+                """
+                values=(table_name,)
+                curs.execute(query,values)
+                exists = curs.fetchall()
+                if len(exists) > 0:
+                    #Table exists
+                    errorMessage = None
+                else:
+                    #Table does not exist
+                    errorMessage = f"Table {table_name} does not exist. Query: {query} Values: {values}"
+                    logger.error(f"Table {table_name} does not exist")
+                    
+        except Exception as e:
+            errorMessage = f"Error checking table existence ({table_name}): {str(e)}"
+            logger.error(errorMessage)
+        finally:
+            if conn is not None:
+                conn.close()
+
+        return errorMessage is None
+
+    @staticmethod
+    def existColumnsInTable(table_name:str, table_columns:list):
+        if table_name is None or table_name == "":
+            logger.error(f"Table name is None or empty")
+            return False
+
+        if table_columns is None or len(table_columns) == 0:
+            logger.error(f"Table columns is None or empty")
+            return False
+        
+        colnames=""
+        for item in table_columns:
+            if not isinstance(item,str):
+                logger.error(f"Table columns ({item}) is not a string")
+                return False
+            else:
+                if colnames == "":
+                    colnames = item
+                else:
+                    colnames = colnames + "," + item
+            
+        conn=None
+        errorMessage=None
+        try:        
+            conn = DatabaseConnection().connect()
+            if conn is None:
+                logger.error(f"PG Connection Error")
+                return False
+            
+            with conn.cursor() as curs:
+                query=f"SELECT {colnames} FROM {table_name} limit 1"
+
+                curs.execute(query)
+                exists = curs.fetchall()
+                if len(exists) > 0:
+                    #Table exists
+                    errorMessage = None
+                else:
+                    #Table does not exist
+                    errorMessage = f"Table {table_name} does not exist. Query: {query}"
+                    logger.error(f"Table {table_name} does not exist")
+        except Exception as e:
+            errorMessage = f"Error checking table existence ({table_name}): {str(e)}"
+            logger.error(errorMessage)
+        finally:
+            if conn is not None:
+                conn.close()
+
+        return errorMessage is None    
+    
+    @staticmethod
+    def sql_to_dataframe(query:str, colnames:list=None):
+        """
+        Convert a SQL query to a modin dataframe using psycopg2
+        """
+        if colnames is None or len(colnames) == 0:
+            logger.error(f"No columns")
+            return None
+        
+        conn = None
+        df = None
+        try:
+            conn = DatabaseConnection.connect()
+            if conn is None:
+                logger.error(f"PG Connection Error")
+                return None
+
+            with conn.cursor() as curs:
+                curs.execute(query)
+                tuples = curs.fetchall()
+                curs.close()
+
+            df = pd.DataFrame(tuples, columns=colnames)
+            
+        except Exception as e:
+            logger.error(f"Error converting SQL to dataframe: {str(e)}")
+            return None
+        finally:
+            if conn is not None:
+                conn.close()
+
+        return df
 
 def createTrxTables():
     logger.info(f"Reading PG Metadata")
@@ -232,6 +401,22 @@ def createTrxTables():
                 $$;
 		    """)                         
 
+            logger.info(f"Creating table ARules")
+            curs.execute("""
+                CREATE TABLE IF NOT EXISTS ARules(
+                        uuid serial primary key,
+                        antecedentItemsets bytea not null,
+                        consequentItemsets bytea not null,
+                        confidence bytea not null,
+                        largeItemsets bytea not null,
+                        largeItemsetsSupport bytea not null,
+                        min_confidence float not null default 0.7,
+                        min_support float not null default 0.001,
+                        ntransactions integer not null default 0,
+                        constraint chk_arule_support check (min_support >= 0 and min_support <= 1),
+                        constraint chk_arule_confidence check (min_confidence >= 0 and min_confidence <= 1)
+                );
+            """)    		
 
             conn.commit()
             conn.close()

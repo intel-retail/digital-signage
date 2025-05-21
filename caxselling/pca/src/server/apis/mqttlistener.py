@@ -8,27 +8,15 @@ from database.mqtt_manager import MqttManager
 import logging
 logger = logging.getLogger(__name__)
 
-api = Namespace('PCA_MQTT', description='Listener definition related operations')
+api = Namespace('PCA - MQTT', description='Listener definition related operations')
 
 ## Schemas
     ##Status
-mqtttopic_sch = api.model('mqttdefinition', {
-    'host': fields.String(required=True, 
-                            readonly=True,
-                            description="The MQTT Broker Host.",
-                            example="http://192.168.1.2"),
-    'port': fields.Integer(required=True, 
-                         readonly=True,
-                         description="The port number in the MQTT Broker Host.", 
-                         example="1883"),
-    'topic': fields.String(required=True, 
-                         readonly=True,
-                         description="Topic to listen in the MQTT Broker.", 
-                         example="mytopic"),                         
-    'status': fields.String(required=False, 
-                         readonly=True,
-                         description="Last Known Status for the Topic in the MQTT Broker.", 
-                         example="[YYYY-MM-DD HH:MM:SS] - Active {#Elements/min}"),                        
+mqtttopic_sch = api.model('mqttdefinitions', {
+    'host': fields.String(required=True, default=None, description="The MQTT Broker Host.",example="http://192.168.1.2"),
+    'port': fields.Integer(required=True, default=1883, description="The port number in the MQTT Broker Host.", example="1883"),
+    'topic': fields.String(required=True, default=None, description="Topic to listen in the MQTT Broker.", example="mytopic"),                         
+    'status': fields.String(required=False, default=None, description="Last Known Status for the Topic in the MQTT Broker.", example="[YYYY-MM-DD HH:MM:SS] - Active {#Elements/min}"),                        
 })
 
 class Mqtttopic_sch(object):
@@ -37,13 +25,13 @@ class Mqtttopic_sch(object):
     topic:str=None
     status:str=None
 
-@api.route('/mqtt/')
+@api.route('/mqtt/',
+           doc={"description": "Manage topics to listen given a MQTT broker."})
 class Mqtttopic(Resource):
-    @api.doc('Define a new topic to listen given a MQTT broker - Put')
     @api.response(200, 'Success')
     @api.response(202, 'Accepted request but existent')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(mqtttopic_sch, validate=True)
+    @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to listen in the MQTT Broker.")
     @api.marshal_with(mqtttopic_sch)
     def post(self):
         data = api.payload
@@ -106,7 +94,7 @@ class Mqtttopic(Resource):
     @api.response(200, 'Success')
     @api.response(404, 'No Topics for the mentioned MQTT broker:port and topic')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
-    @api.expect(mqtttopic_sch, validate=True)
+    @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to delete from the listening list in the MQTT Broker.")
     @api.marshal_with(mqtttopic_sch)
     def delete(self):
         data = api.payload
@@ -169,7 +157,7 @@ class Mqtttopic(Resource):
     @api.response(200, 'Success')
     @api.response(404, 'Inexistent MQTT client for the mentioned MQTT broker:port and topic')
     @api.response(500, 'Accepted but it could not be processed/stored')
-    @api.expect(mqtttopic_sch, validate=True)
+    @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to update and regenerate the In-memory MQTT client (hard restart) from the listening list in the MQTT Broker.")
     @api.marshal_with(mqtttopic_sch)
     def put(self):
         data = api.payload 
@@ -215,10 +203,10 @@ class Mqtttopic(Resource):
         return data, 200
 
     
-@api.route('/mqtt/<string:host>')
+@api.route('/mqtt/<string:host>', 
+           doc={"description": "It returns the list of all topics to listen for the mentioned MQTT broker (Host). Hard limit to 50 topics."})
 @api.param('host','MQTT Broker Host to filter the topics')
 class MqtttopicQuery(Resource):
-    @api.doc('It returns the list of all topics to listen for the mentioned MQTT broker (Host). Hard limit to 50 topics.')
     @api.response(200, 'Success')
     @api.response(404, 'No Topics for the mentioned MQTT broker')
     @api.response(500, 'Accepted but it could not be processed/recovered')    

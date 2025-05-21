@@ -5,6 +5,7 @@ from .version import api as pca_version
 from .mqttlistener import api as pca_mqttlistener
 from .products import api as pca_products
 from .productsProb import api as pca_productsProb
+from .association_rules import api as pca_productsARU
 
 #API DOC
 api = Api(
@@ -20,3 +21,4 @@ api.add_namespace(pca_version, path='/pca')
 api.add_namespace(pca_mqttlistener, path='/pca')
 api.add_namespace(pca_products, path='/pca')
 api.add_namespace(pca_productsProb, path='/pca')
+api.add_namespace(pca_productsARU, path='/pca')

@@ -19,3 +19,4 @@ daal-static == 2024.7.0
 daal4py == 2024.7.0
 modin[all] == 0.32.0
 psycopg2-binary == 2.9.10
+sqlalchemy == 2.0.41

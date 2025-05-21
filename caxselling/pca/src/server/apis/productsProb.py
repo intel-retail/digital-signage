@@ -8,44 +8,18 @@ from database.mqtt_manager import MqttManager
 import logging
 logger = logging.getLogger(__name__)
 
-api = Namespace('PCA_MQTT_PROB', description='Product Probabilities related operations based on MQTT messages (Last 6 months)')
+api = Namespace('PCA - MQTT: Object-Detection-based Probabilities', description='Product Probabilities related operations based on MQTT messages (Last 6 months)')
 
 ## Schemas
 productProbability_sch = api.model('productProbability', {
-    'host': fields.String(required=True, 
-                            readonly=True,
-                            description="The MQTT Broker Host.",
-                            example="http://192.168.1.2"),
-    'port': fields.Integer(required=True, 
-                         readonly=True,
-                         description="The port number in the MQTT Broker Host.", 
-                         example="1883"),
-    'topic': fields.String(required=True, 
-                         readonly=True,
-                         description="Topic to listen in the MQTT Broker.", 
-                         example="mytopic"),                         
-    'dow': fields.Integer(required=True, 
-                         readonly=True,
-                         description="Day of Week. From monday (1) to Sunday (7).", 
-                         example="1"),                        
-    'hh24': fields.Integer(required=False, 
-                         readonly=True,
-                         description="Hour in the day. From 0 to 23.", 
-                         example="13"),                        
-    'label_class': fields.String(required=False, 
-                         readonly=True,
-                         description="Product name", 
-                         example="banana"),                        
-    'label_id': fields.String(required=False, 
-                         readonly=True,
-                         description="Product ID", 
-                         example="46"),                        
-    'probability': fields.Float(required=False, 
-                         readonly=True,
-                         description="Probability [0, 1] for the product in a given day of week (and hour when correspond).", 
-                         example="0.69"),                        
-
-
+    'host': fields.String(required=True, default=None, description="The MQTT Broker Host.", example="http://192.168.1.2"),
+    'port': fields.Integer(required=True, default=1883, description="The port number in the MQTT Broker Host.", example="1883"),
+    'topic': fields.String(required=True, default=None,  description="Topic to listen in the MQTT Broker.",  example="mytopic"),                         
+    'dow': fields.Integer(required=True, default=None, description="Day of Week. From monday (1) to Sunday (7).", example="1"),
+    'hh24': fields.Integer(required=False, default=None, description="Hour in the day. From 0 to 23.", example="13"),                        
+    'label_class': fields.String(required=False, default=None, description="Product name",  example="banana"),                        
+    'label_id': fields.String(required=False, default=None, description="Product ID",  example="46"),                        
+    'probability': fields.Float(required=False, default=None, description="Probability [0, 1] for the product in a given day of week (and hour when correspond).",   example="0.69"),                        
 })
 
 class ProductProbability_sch(object):
@@ -58,12 +32,12 @@ class ProductProbability_sch(object):
     label_id:str=None
     probability:float=None
 
-@api.route('/mqtt/probweek/')
+@api.route('/mqtt/probweek/',
+           doc={"description":"It returns the Top Ten Product Probability for the indicated day in localhost:port/topic based on detected items."})
 class Top10WeeklyProb(Resource):
-    @api.doc('It returns the Top Ten Product Probability for the indicated day based on detected items.')
     @api.response(200, 'Success')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
-    @api.expect(productProbability_sch, validate=True)
+    @api.expect(productProbability_sch, validate=True, description="It expects the localhost:port/topic and day of week (dow) to filter the product probabilities based on detection.")
     @api.marshal_list_with(productProbability_sch)
     def post(self):
         #To Do
@@ -122,12 +96,12 @@ class Top10WeeklyProb(Resource):
                         
         return list, 200
 
-@api.route('/mqtt/probweekhh24/')
+@api.route('/mqtt/probweekhh24/', 
+           doc={"description":"It returns the Top Ten Product Probability for the indicated day and hour in localhost:port/topic based on detected items."})
 class Top10WeeklyHHProb(Resource):
-    @api.doc('It returns the Top Ten Product Probability for the indicated day and hour based on detected items.')
     @api.response(200, 'Success')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
-    @api.expect(productProbability_sch, validate=True)
+    @api.expect(productProbability_sch, validate=True, description="It expects the localhost:port/topic, day of week (dow) and hour (24-hours format) to filter the product probabilities based on detection.")
     @api.marshal_list_with(productProbability_sch)
     def post(self):
         #To Do
@@ -194,9 +168,9 @@ class Top10WeeklyHHProb(Resource):
                         
         return list, 200
 
-@api.route('/mqtt/prob/')
+@api.route('/mqtt/prob/',
+           doc={"description":"It updates all probabilities based on the detected objects."})
 class ProductWeeklyProb(Resource):
-    @api.doc('It updates all probabilities based on the detected objects.')
     @api.response(200, 'Success')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
     def get(self):

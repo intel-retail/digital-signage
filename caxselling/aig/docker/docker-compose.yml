@@ -1,0 +1,97 @@
+#
+# Apache v2 license
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+services:
+  aig-server:
+    image: aig-server-restx:0.0.1
+    hostname: aig-server
+    container_name: aig-server
+    read_only: true
+    security_opt:
+      - no-new-privileges
+    build:
+      context: ..
+      target: aig-server
+      args:
+        UID: ${UID} 
+        USER: ${AIG_SERVER_USER} 
+        BASE_IMAGE: "ubuntu:22.04"
+        no_proxy: ${no_proxy}
+        http_proxy: ${http_proxy}
+        https_proxy: ${https_proxy}
+    privileged: true # Enable privileged mode to access GPU and other devices
+    stdin_open: true
+    tty: true
+    entrypoint: ["./run.sh"]
+    ports:
+      - '${AIG_PORT}:5003'
+    networks: 
+      - app_network
+    environment:
+      - no_proxy=$no_proxy
+      - http_proxy=$http_proxy
+      - https_proxy=$https_proxy
+      # Default Detection and Classification Device
+      - DETECTION_DEVICE=GPU
+      - CLASSIFICATION_DEVICE=GPU
+      - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
+      - REST_SERVER_PORT=${AIG_PORT}      
+      - SERVICE_NAME=aig-server
+      - ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so
+      - AIG_PORT=${AIG_PORT}
+      - AIG_LOGO_PATH=${AIG_LOGO_PATH}
+      - AIG_FONT_PATH=${AIG_FONT_PATH}
+      - AIG_MODEL_PATH=${AIG_MODEL_PATH}
+      - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
+      - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
+      - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model
+      - "LIBVA_DRIVER_NAME=iHD" #OpenVINO & OneAPI
+      - "VIDEO_GROUP_ID=44" #OpenVINO & OneAPI
+      - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
+    volumes:
+      - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
+      - "/run/udev:/run/udev:ro"
+      - "/dev:/dev"
+      - "/tmp:/tmp"
+      - ./sharedata:/opt/sharedata
+      - ./models:/opt/models
+      - "/usr/lib/wsl:/usr/lib/wsl" #WSL2 specific, Mandatory if you run in WSL2 th container initialzation
+    group_add: #Align IDs and names with Dockerfile
+      # adm group ID for ubuntu 22.04 host OS (check it with: "getent group adm" on your host)
+      - "4"
+      # video group ID for ubuntu 22.04 host OS (Confirm it with: "getent group video" on your host)
+      - "44"
+      # audio group ID for ubuntu 22.04 host OS (Confirm it with: "getent group audio" on your host)
+      - "29"
+      # users group ID for ubuntu 22.04 host OS (Confirm it with: "getent group users" on your host)
+      - "100"
+      # render group ID for ubuntu 22.04 host OS (Confirm it with: "getent group render" on your host)
+      - "992"
+      # plugdev group ID for ubuntu 22.04 host OS (Confirm it with: "getent group plugdev" on your host)
+      - "46"
+      # It provides access to the GPU devices
+      #- $(stat -c "%g" /dev/dri/render*) #992
+      #- $(stat -c "%g" /dev/accel/accel*)  #NPU (It could fail in WSL2)
+    device_cgroup_rules:
+      # Default run - device-cgroup-rule='c 189:* rmw'
+      # Selective rules can be applied for deployment
+      - 'c 189:* rmw'
+      - 'c 209:* rmw'
+      - 'a 189:* rwm'
+    devices:
+      # Following devices under /dev filesystem will be needed based on usecase
+      - "/dev:/dev"
+
+networks:
+  app_network:
+    external: true
+
+volumes:
+  vol_pipeline_root:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs 

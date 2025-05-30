@@ -7,3 +7,7 @@ It describes functionalities and package organization for the Advertise Image Ge
 ## Conceptual Approach
 
 To be completed.
+
+Howto: Download a new model from HF, convert to Ovino and store in models folder
+Scripts
+API

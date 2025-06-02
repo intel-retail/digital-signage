@@ -65,4 +65,83 @@ else
     exit 1
 fi
 
+mess_inf "Creating Virtual Environment for Model Download and Conversion ..."
+if [ -d docker ]; then
+    cd docker || exit 1
+else
+    mess_er2 "docker folder does not exist"
+fi
+
+if [ -d .modelenv ]; then
+    if rm -rf .modelenv; then
+        mess_ok2 "\tVirtual Environment: " "Removed"
+    else
+        mess_er2 "\tVirtual Environment: " "Failed to remove"
+        exit 1
+    fi
+fi
+
+if python3 -m venv .modelenv; then
+    mess_ok2 "\tVirtual Environment: " "Created"
+else
+    mess_er2 "\tVirtual Environment: " "Failed to recreate"
+    exit 1
+fi
+
+if source ./.modelenv/bin/activate; then
+    mess_ok2 "\tVirtual Environment: " "Activated"
+else
+    mess_er2 "\tVirtual Environment: " "Failed to activate"
+    exit 1
+fi
+
+if pip install --upgrade pip 1>/dev/null 2>&1; then
+    mess_ok2 "\tPip: " "Upgraded"
+else
+    mess_er2 "\tPip: " "Failed to upgrade"
+    exit 1
+fi
+
+# Start pip install in the background
+pip install --upgrade-strategy eager -r export-requirements.txt 1>/dev/null 2>&1 & 
+pip_pid=$!
+
+# Spinner animation
+spin='-\|/'
+i=0
+mess_op2 "\tRequirements: " "Installing..."
+while kill -0 $pip_pid 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    printf "\r ${spin:$i:1}"
+    sleep 0.2
+done
+
+wait $pip_pid
+pip_status=$?
+
+if [ $pip_status -eq 0 ]; then
+    mess_ok2 "\tRequirements: " "Installed"
+else
+    mess_er2 "\tRequirements: " "Failed to install"
+    exit 1
+fi
+
+if [ -d ./models/dreamlike_anime_1_0_ov ]; then
+    if rm -rf ./models/dreamlike_anime_1_0_ov; then
+        mess_ok2 "\tOld Model: " "Removed"
+    else
+        mess_er2 "\tOld Model: " "Failed to remove"
+        exit 1
+    fi
+fi
+
+if optimum-cli export openvino --model dreamlike-art/dreamlike-anime-1.0 --task stable-diffusion --weight-format fp16 ./models/dreamlike_anime_1_0_ov/FP16 1>/dev/null 2>&1; then
+    mess_ok2 "\tModel: " "Downloaded and converted"
+else
+    mess_er2 "\tModel: " "Failed to download and convert"
+    exit 1
+fi
+
+cd ..
+
 mess_oki "All Containers are available and ready for execution!"

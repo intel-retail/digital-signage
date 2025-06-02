@@ -34,9 +34,6 @@ services:
       - no_proxy=$no_proxy
       - http_proxy=$http_proxy
       - https_proxy=$https_proxy
-      # Default Detection and Classification Device
-      - DETECTION_DEVICE=GPU
-      - CLASSIFICATION_DEVICE=GPU
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
       - REST_SERVER_PORT=${AIG_PORT}      
       - SERVICE_NAME=aig-server
@@ -45,6 +42,7 @@ services:
       - AIG_LOGO_PATH=${AIG_LOGO_PATH}
       - AIG_FONT_PATH=${AIG_FONT_PATH}
       - AIG_MODEL_PATH=${AIG_MODEL_PATH}
+      - AIG_MODEL_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU, NPU)
       - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
       - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
       - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model

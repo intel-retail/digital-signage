@@ -5,7 +5,7 @@ from flask import send_file
 from flask_restx import Namespace, Resource, fields
 # GenAI
 import openvino_genai
-from PIL import Image, ImageDraw, ImageFont, ImageColor
+from PIL import Image
 #Logging
 import math
 import logging
@@ -191,10 +191,18 @@ class ModelInference_Img(Resource):
         
         try:
             # Model
-            model=AigServerMetadata.get_t2i_model_path()
+            model=AigServerMetadata.get_t2i_model_path() # Model Path only
             description=data.get('description')
             device=data.get('device', 'CPU')
-            pipe = openvino_genai.Text2ImagePipeline(model, device)
+
+            pipe=None
+            if str(device).upper() == AigServerMetadata.get_t2i_model_device():
+                # Use the preloaded model if the device matches
+                pipe = AigServerMetadata().get_preloaded_model()
+
+            if pipe is None:
+                pipe = openvino_genai.Text2ImagePipeline(model, device)
+
             image_tensor =  pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
                                             num_inference_steps=AigServerMetadata.get_model_inference_steps(), num_images_per_prompt=1)
             image = Image.fromarray(image_tensor.data[0])

@@ -129,6 +129,7 @@ celerybeat.pid
 
 # Environments
 .env
+.modelenv
 .env_aig
 .venv
 env/

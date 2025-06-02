@@ -45,7 +45,7 @@ fi
 
 # Stop containers (if required)
 mess_inf "Stopping AIG containers"
-if ./runPCA.sh stop; then
+if ./runAIG.sh stop; then
     mess_ok2 "\tAIG Containers: " "Stopped"
 else
     mess_err "\tAIG Containers: " "No Stopped"
@@ -58,6 +58,24 @@ if removeImages; then
 else
     mess_er2 "\tAIG Containers: " "Not Removed"
     exit 1
+fi
+
+mess_inf "Removing the Virtual Environment of Models"
+if [ -d ./docker/.modelenv ]; then
+    if rm -rf ./docker/.modelenv; then
+        mess_ok2 "\tModels Virtual Environment: " "Removed"
+    else
+        mess_er2 "\tModels Virtual Environment: " "Not Removed"
+        exit 1
+    fi
+else
+    mess_ok2 "\tModels Virtual Environment: " "Removed"
+fi
+
+if rm -rf ./docker/models/* ./docker/models/.[!.]*; then
+    mess_ok2 "\tModels Directory: " "Cleaned"
+else
+    mess_wa2 "\tModels Directory: " "Not Removed"
 fi
 
 mess_oki "AIG Removal Completed"

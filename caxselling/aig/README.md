@@ -21,7 +21,7 @@ The folder organization is as follows:
 
 ```bash
 ├ docker
-│   └─ model # Folder containing the text2image model to be used for image generation
+│   └─ models # Folder containing the text2image model to be used for image generation
 │   └─ sharedata # Shared folder between the host and AIG Server for data exchange (for example, company logo to be included in images)
 ├ src # AIG Server (Source Code)
 ├ Dockerfile #It defines how to build and start the AIG Server
@@ -119,9 +119,10 @@ Expected outcome:
 
 Models to be used with the AIG Server must be converted to OpenVINO format and installed under the [models folder](./docker/models/). The models folder is mounted in the [docker-compose.yaml](./docker/docker-compose.yml) file at "/opt/models".
 
-To download and convert a model in OpenVino format follow the following steps:
+The [installAIG.sh](./installAIG.sh) script creates the virtual environment under the docker folder to download and convert to openvino the models from Hugginface. You can reuse it and jump to step 3.
+However, if you want to install a new virtual environment on a different machine to download and convert a model in OpenVino format, follow the next steps:
 
-1. Create a virtual environment. It is created by the [installAIG.sh](./installAIG.sh) script under the docker folder. You can reuse it and jump to the next step.
+1. Create a virtual environment.
 
     ```bash
         python -m venv .modelenv
@@ -168,6 +169,8 @@ To download and convert a model in OpenVino format follow the following steps:
         Remember that the models directory under docker folder is mounted at /opt/models in the container. Thus, you could refer to your model as indicated in the example.
 
     1. Start (or restart) the AIG Server to load the new model in memory.
+
+[&uarr; Top](#advertise-image-generator-aig) | [&uarr; Management Scripts](#management-scripts)
 
 ## AIG Server Test
 
@@ -228,4 +231,4 @@ You should see an output similar to the following one:
 
 ![aig_figure04_test](../../imgs/aig_figure04_test.png)
 
-[&uarr; Top](#advertise-image-generator-aig) | [&uarr; Management Scripts](#management-scripts)
+[&uarr; Top](#advertise-image-generator-aig) | [&uarr; Model Download](#model-download)

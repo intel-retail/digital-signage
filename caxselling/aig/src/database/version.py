@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 import chromadb
 # numpy
 import numpy as np
+# Utils 
+from database.utils import SharedUtils
 
 class Version_sch(object):
     """
@@ -199,8 +201,18 @@ class AseServerMetadata:
             else:
                 logger.error("[ChromaDB] Failed to initialize Chroma client.")
                 self.collection = None
+            
+            #Load the Default Ad image
+            self.default_ad_image = None
+            try:
+                self.default_ad_image=Image.open(AseServerMetadata.get_ase_default_ad_img())
+            except Exception as e:
+                logger.error(f"[ChromaDB] Error loading default ad image: {e}")
+                self.default_ad_image = None
 
-            self.test_chromadb()  # Test the ChromaDB connection  and Embeddings
+            self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
+            
+            self.process_sample_data()  # Load sample data if they are not available
             
     
     def chromadb_heartbeat(self):
@@ -212,36 +224,68 @@ class AseServerMetadata:
         else:            
             return None
     
-    def test_chromadb(self):
+    def process_sample_data(self):
         """
-        Test the ChromaDB connection by inserting a dummy document.
+        Load sample data into the ChromaDB collection if it is enabled.
         """
-        if self.collection is not None:
+        if not AseServerMetadata.get_ase_enable_sampledata():
+            return
+        path_sample_data = os.getenv('ASE_ENABLE_SAMPLEDATA_DIR', '/opt/sharedata/sample')
+        if path_sample_data is None or not os.path.exists(path_sample_data):
+            logger.error(f"[ChromaDB] Sample data directory {path_sample_data} does not exist.")
+            return
+        
+        results=SharedUtils.load_sampledata(self.collection, path_sample_data)  # Ensure the image path exists
+
+        if results is None:
+            logger.error("[ChromaDB] No sample data found or failed to load sample data.")
+            return
+        
+        count = 0
+        total = 0
+        for result in results:
             try:
-
-                self.collection.add(
-                    documents=["This is a test defining citrics and their variety."],
-                    metadatas=[{"source": "test"}],
-                    ids=["test_doc_1"]
-                )
-                self.collection.add(
-                    documents=["This is another test document describing apples and bananas."],
-                    metadatas=[{"source": "test2"}],
-                    ids=["test_doc_2"]
-                )                
-
-                results=self.collection.query(
-                    query_texts=["What is the document most related to oranges?"],
-                    n_results=2
-                )  # Query the collection
-
-                logger.warning(f"[ChromaDB] Query results: {results}")
-                logger.warning("[ChromaDB] Test document added successfully.")
+                id = result['id'] #int
+                description = result['description']
+                image = result['image']
+                source = result.get('source', 'ase')  # Default source is 'ase'
+                
+                if not self.chromadb_exists(id):
+                    self.chromadb_add(id, description, image, source)
+                    count = count +1
+                
+                total = total + 1
             except Exception as e:
-                logger.error(f"[ChromaDB] Error adding test document: {e}")
-        else:
-            logger.error("[ChromaDB] Collection is not initialized.")
+                logger.error(f"[ChromaDB] Error processing sample data: {e}")
 
+        logger.warning(f"[ChromaDB] {count} of {total} Sample data loaded successfully.")
+        
+
+    @staticmethod
+    def get_ase_enable_sampledata() ->  bool:
+        """
+        Get the ASE enable sample data flag.
+        Default is 'False'.
+        """
+        val = None
+        try:
+            val=int(os.getenv('ASE_ENABLE_SAMPLEDATA', 0))
+        except ValueError:
+            return False
+        
+        return (not val == 0)
+    
+    @staticmethod
+    def get_ase_distance_threshold() -> float:
+        """
+        Get the ASE distance threshold for image similarity.
+        Default is '0.5'.
+        """
+        try:
+            return float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 1.5))  # Default distance threshold
+        except ValueError:
+            return 1.5
+        
     @staticmethod
     def get_ase_img_id():
         """
@@ -280,6 +324,14 @@ class AseServerMetadata:
         Default is 'ase-chromadb'.
         """
         return os.getenv('ASE_CHROMADB_HOST', 'ase-chromadb') # Default host for Chroma DB        
+    
+    @staticmethod
+    def get_ase_default_ad_img():
+        """
+        Get the default ad image path.
+        Default is '/opt/sharedata/imgs/ase_default_ad.jpg'.
+        """
+        return os.getenv('ASE_IMG_DEFAULT_AD', '/opt/sharedata/default_ad.jpg')
     
     @staticmethod
     def get_ase_img_path():
@@ -354,6 +406,13 @@ class AseServerMetadata:
             return False
         
         return True
+
+    def get_logo(self):
+        """
+        Returns the logo image for the ASE server.
+        If the logo path is not set, it returns None.
+        """
+        return self.logo
 
     def chromadb_add(self,id:int, description:str,image:Image, source:str="ase"):
         if self.collection is None:

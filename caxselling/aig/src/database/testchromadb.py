@@ -47,8 +47,9 @@ def test_query_chromadb():
     if collection is not None:
         try:
             results = collection.query(
-                query_texts=["What is the document most related to oranges?"],
-                n_results=10
+                #query_texts=["What is the document most related to oranges?"],
+                query_texts=["content related to dairy?"],
+                n_results=3
             )  # Query the collection
 
             print(f"[ChromaDB] Query results: {results}")
@@ -67,17 +68,22 @@ def test_query_chromadb():
             
             ids = results.get('ids',[])
             metadatas = results.get('metadatas',[])
+            distances = results.get('distances',[])
 
-            for query_index, (id_list, metadata_list) in enumerate (zip(ids, metadatas)):
+            for query_index, (id_list, metadata_list,distance_list) in enumerate (zip(ids, metadatas, distances)):
                 for doc_index, doc_id in enumerate(id_list):
                     try:
-                        doc_metadata = metadata_list[doc_index]
-                        
-                        id_int = int(doc_id)
-                        description = doc_metadata.get('description',None)
-                        img_path = doc_metadata.get('img_path',None)
+                        doc_metadata = metadata_list[doc_index]                        
+                        doc_distance = distance_list[doc_index]
 
-                        print(f"[ChromaDB] Document ID: {id_int}, Description: {description}, Image Path: {img_path}")                    
+                        if doc_distance is not None and doc_distance < 0.75:
+                            id_int = int(doc_id)
+                            description = doc_metadata.get('description',None)
+                            img_path = doc_metadata.get('img_path',None)
+
+                            print(f"[ChromaDB] Document ID: {id_int}, Description: {description}, Image Path: {img_path}")
+                        else:
+                            print(f"[ChromaDB] Document ID: {doc_id}, discarded by distance: {doc_distance}")
                     except Exception as e:
                         print(f"[ChromaDB] ID is not integer {doc_id}: {e}")
 
@@ -133,4 +139,4 @@ def test_query_chromadb_get(id):
 if  __name__ == "__main__":
     print(f"Collection #{collection_name} initialized. Elements: {collection.count()}")
 
-    test_query_chromadb_get('2')  # Run the test function to check ChromaDB functionality
+    test_query_chromadb()

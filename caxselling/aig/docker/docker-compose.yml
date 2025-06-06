@@ -66,6 +66,10 @@ services:
       - ASE_CHROMADB_PORT=${ASE_CHROMADB_PORT} # Port for ChromaDB service      
       - ASE_CHROMADB_HOST=ase-chromadb # Hostname for ChromaDB service
       - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
+      - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available
+      - ASE_ENABLE_SAMPLEDATA=${ASE_ENABLE_SAMPLEDATA} # Enable sample data for the ASE service
+      - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
+      - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
     depends_on:
       - ase-chromadb
     volumes:

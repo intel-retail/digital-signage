@@ -21,7 +21,7 @@ Additionally, this approach allows it to contrast the buying intention with the 
 
 The following component diagram describes the high-level approach to implement a Proof-of-Concept (POC), reusing as many Intel Building Blocks (BB) as possible.
 
-![Figure 2](./imgs/AIPOC-MainComponents_v0.6.0.png)
+![Figure 2](./imgs/AIPOC-MainComponents_v0.6.5.png)
 **Figure 2**. High-Level Architecture and Components' Approach
 
 It is possible to identify six main components:
@@ -43,7 +43,7 @@ Table 1 describes BB used per component and their purpose as following:
 | [Product Consumption Analyzer (PCA)](./caxselling/pca/README.md) |                 ---                 |      ---       |  Association Rules   |        ---         | Optimized DataTable Management |
 | [Business Offer Recommender (BOR)](./caxselling/bor/README.md)   |                 ---                 |      ---       | Guidelines Analysis  |        ---         |              ---               |
 | [Advertise Image Generator (AIG)](./caxselling/aig/README.md)    |                 ---                 |      ---       |         ---          |     Text2Image     |              ---               |
-| [Advertise Searcher (ASe)](./caxselling/ase/README.md)           |                 ---                 |      ---       |         ---          |        ---         |       Similarity Search        |
+| [Advertise Searcher (ASe)](./caxselling/ase/README.md) *Embedded into AIG*          |                 ---                 |      ---       |         ---          |        ---         |       Similarity Search        |
 | [Signage Manager (SMg)](./caxselling/smg/README.md)              |                 ---                 |      ---       |         ---          |        ---         |              ---               |
 
 Under the caxselling folder ([See the corresponding README.md file](./caxselling/README.md)), you could find a set of folders per component with the corresponding source code,

@@ -3,6 +3,7 @@ from PIL import Image
 import requests
 import base64, io
 import os
+import json
 
 def test_ase_add_ad():
     image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcStMP8S3VbNCqOQd7QQQcbvC_FLa1HlftCiJw&s"
@@ -33,6 +34,27 @@ def test_ase_predef_query():
         filename=f"test_{item['id']}.jpg"
         filepath = os.path.join(directory, filename)
         image.save(filepath)
+        print(f"Image saved to {filepath}")
+
+def test_ase_predef_query_with_adhoc():
+    query_data = None
+    with open("./caxselling/aig/src/database/samplequery.json", "r", encoding="utf-8") as f:
+        query_data = json.load(f)
+
+    res = requests.post("http://localhost:5003/ase/predef/query/ad", json=query_data)
+    items = res.json()
+
+    directory = os.path.expanduser("~")  # Uncomment to run the ad addition test
+    
+    res_counter=0
+    for item in items:
+        print(f"Result ID: {res_counter}")
+        img_bytes = base64.b64decode(item['imgb64'])
+        image = Image.open(io.BytesIO(img_bytes))
+        filename = f"ad_with_addons_{res_counter}.jpg"
+        filepath = os.path.join(directory, filename)
+        image.save(filepath)
+        res_counter += 1
         print(f"Image saved to {filepath}")
 
 def get_unique_filenames(directory):
@@ -73,4 +95,5 @@ def test_load_sampledata():
 if __name__ == "__main__":
     #test_ase_add_ad()
     #test_ase_predef_query()  # Run the test function to check ASE predefined ads query functionality
-    test_load_sampledata()  # Run the test function to check loading sample data
+    #test_load_sampledata()  # Run the test function to check loading sample data
+    test_ase_predef_query_with_adhoc()

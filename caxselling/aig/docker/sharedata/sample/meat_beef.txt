@@ -1,7 +1,0 @@
-Meat. Beef Products.
-Description: Meat from cattle, available in cuts like steak, ground beef, and roasts.
-Benefits:
-High in protein, which supports muscle growth and repair.
-Rich in iron, especially heme iron, which is easily absorbed by the body.
-Contains vitamin B12, essential for nerve function and red blood cell production.
-Provides zinc, important for immune health.

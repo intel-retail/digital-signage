@@ -1,0 +1,84 @@
+primary_product,price,unit,weight,cross_sell_discount,promo_details,slogan,associated_cross_sell,dynamic_ad_prompt,pre_defined_ad_image
+banana,0.59,/lb,1,10%,Buy 1 lb Banana Get 10% off Apples,Fresh Pairs Better Together!,apple,E-commerce style product photo of fresh banana and apple together on white background with soft lighting,apple_banana.jpg
+banana,0.59,/lb,1,15%,Get 15% off Bowl Set with Banana Purchase,Serve It Fresh!,bowl,E-commerce style product photo of fresh banana in ceramic bowl on white background with natural lighting,
+apple,1.29,/lb,1,10%,Mix & Match Fruits - 10% off Bananas,An Apple a Day Plus More!,banana,E-commerce style product photo of red apple and banana arranged together on white background,apple_banana.jpg
+apple,1.29,/lb,1,10%,Fruit Combo Deal - 10% off Oranges,Citrus & Crisp Delight,orange,E-commerce style product photo of fresh apple and orange side by side on white background,apple_orange.jpg
+orange,0.99,/lb,1,10%,Orange Lovers Get 10% off Apples,Vitamin C Powerhouse!,apple,E-commerce style product photo of orange and apple together on white background with vibrant colors,apple_orange.jpg
+orange,0.99,/lb,1,5%,Stay Hydrated - 5% off Bottles,Squeeze the Day!,bottle,E-commerce style product photo of fresh orange next to water bottle on white background,
+broccoli,1.99,/lb,1,15%,Veggie Bundle - 15% off Carrots,Eat Your Greens!,carrot,E-commerce style product photo of fresh broccoli and carrots arranged together on white background,brocoli_carrot.jpg
+broccoli,1.99,/lb,1,20%,Complete Your Kitchen - 20% off Forks,Fresh Cooked Right,fork,E-commerce style product photo of fresh broccoli with fork on white background,
+carrot,0.89,/lb,1,15%,Garden Fresh Deal - 15% off Broccoli,Crunchy & Nutritious,broccoli,E-commerce style product photo of fresh carrots and broccoli together on white background,brocoli_carrot.jpg
+carrot,0.89,/lb,1,20%,Prep Kit Discount - 20% off Knife Set,Chop Chop Savings!,knife,E-commerce style product photo of fresh carrots with kitchen knife on white background,
+sandwich,5.99,/each,8.0 oz,10%,Meal Deal - 10% off Any Bottle,Lunch Made Easy,bottle,E-commerce style product photo of fresh sandwich next to drink bottle on white background,
+sandwich,5.99,/each,8.0 oz,15%,Complete Your Meal - 15% off Cup Set,Grab & Go Goodness,cup,E-commerce style product photo of sandwich with cup on white background,
+hot_dog,4.99,/pack,16.0 oz,10%,Hot Dog Combo - 10% off Bottles,All-American Favorite,bottle,E-commerce style product photo of hot dog with drink bottle on white background,
+hot_dog,4.99,/pack,16.0 oz,20%,Game Day Special - 20% off Pizza,Party Time Savings!,pizza,E-commerce style product photo of hot dog and pizza slice together on white background,hot_dog_pizza.jpg
+pizza,8.99,/each,24.0 oz,10%,Pizza Night Deal - 10% off Drinks,Every Slice Is Nice,bottle,E-commerce style product photo of pizza slice with drink bottle on white background,
+pizza,8.99,/each,24.0 oz,25%,Double the Fun - 25% off Hot Dogs,Feast Mode Activated!,hot-dog,E-commerce style product photo of pizza and hot dog together on white background,hot_dog_pizza.jpg
+pizza,8.99,/each,24.0 oz,15%,Dining Essentials - 15% off Fork Sets,Slice It Right,fork,E-commerce style product photo of pizza slice with fork on white background,
+pizza,8.99,/each,24.0 oz,15%,Complete Your Set - 15% off Knives,Cut Perfect Every Time,knife,E-commerce style product photo of pizza with knife on white background,
+bottle,1.99,/each,16.9 oz,10%,Hydration Bundle - 10% off Cup Sets,Refresh Your Day!,cup,E-commerce style product photo of water bottle and cup together on white background,cup_bottle_spoon.jpg
+bottle,1.99,/each,16.9 oz,15%,Quick Lunch - 15% off Sandwiches,Thirst Meets Taste,sandwich,E-commerce style product photo of drink bottle next to fresh sandwich on white background,
+wine glass,9.99,/set,4 pack,10%,Elegant Pairing - 10% off Wine Bottles,Cheers to Quality!,bottle,E-commerce style product photo of elegant wine glass with wine bottle on white background,
+cup,6.99,/set,4 pack,10%,Beverage Bundle - 10% off Bottles,Sip in Style,bottle,E-commerce style product photo of cup set with drink bottle on white background,cup_bottle_spoon.jpg
+cup,6.99,/set,4 pack,20%,Utensil Match - 20% off Spoon Sets,Complete Your Collection,spoon,E-commerce style product photo of cup and spoon set together on white background,
+fork,12.99,/set,24 pack,15%,Cutlery Combo - 15% off Knife Set,Dine with Distinction,knife,E-commerce style product photo of fork and knife set arranged on white background,
+fork,12.99,/set,24 pack,15%,Perfect Pair - 15% off Spoons,Set Your Table Right,spoon,E-commerce style product photo of fork and spoon set together on white background,
+knife,14.99,/set,12 pack,15%,Kitchen Essential Bundle - 15% off Forks,Sharp Deals Sharp Quality,fork,E-commerce style product photo of knife and fork set on white background,
+knife,14.99,/set,12 pack,15%,Complete Flatware - 15% off Spoons,Precision in Every Cut,spoon,E-commerce style product photo of knife and spoon set arranged together on white background,
+spoon,11.99,/set,24 pack,15%,Flatware Special - 15% off Fork Sets,Scoop the Savings!,fork,E-commerce style product photo of spoon and fork set on white background,
+spoon,11.99,/set,24 pack,15%,Cutlery Collection - 15% off Knives,Stir Up Some Savings,knife,E-commerce style product photo of spoon and knife set together on white background,
+spoon,11.99,/set,24 pack,20%,Breakfast Bundle - 20% off Bowl Sets,Morning Made Better,bowl,E-commerce style product photo of spoon set with ceramic bowl on white background,
+spoon,11.99,/set,24 pack,20%,Serve in Style - 20% off Cup Sets,Every Meal Matters,cup,E-commerce style product photo of spoon set with cup on white background,cup_bottle_spoon.jpg
+donut,4.99,/box,12 pack,15%,Sweet Combo - 15% off Cup Sets,Dunkin Good Deals!,cup,E-commerce style product photo of glazed donut with coffee cup on white background,
+donut,4.99,/box,12 pack,30%,Dessert Lovers - 30% off Cake,Double the Sweetness!,cake,E-commerce style product photo of donut and cake slice together on white background,
+cake,12.99,/each,32.0 oz,20%,Celebration Bundle - 20% off Fork Sets,Life Is Sweet!,fork,E-commerce style product photo of cake slice with fork on white background,
+cake,12.99,/each,32.0 oz,30%,Bakery Special - 30% off Donuts,Indulge Every Moment,donut,E-commerce style product photo of cake and donut together on white background,
+microwave,89.99,/each,1 unit,25%,Kitchen Upgrade - 25% off Oven,Cook Smart Save More,oven,E-commerce style product photo of modern microwave and oven together on white background,oven_microwave.jpg
+microwave,89.99,/each,1 unit,20%,Morning Bundle - 20% off Toaster,Heat It Up!,toaster,E-commerce style product photo of microwave and toaster side by side on white background,
+oven,299.99,/each,1 unit,15%,Appliance Combo - 15% off Microwave,Bake Your Best,microwave,E-commerce style product photo of modern oven with microwave on white background,oven_microwave.jpg
+oven,299.99,/each,1 unit,20%,Kitchen Essentials - 20% off Toaster,From Oven to Table,toaster,E-commerce style product photo of oven and toaster together on white background,
+toaster,29.99,/each,1 unit,20%,Breakfast Power - 20% off Microwave,Rise & Shine Savings,microwave,E-commerce style product photo of toaster with microwave on white background,
+toaster,29.99,/each,1 unit,15%,Complete Kitchen - 15% off Oven,Golden Brown Perfect,oven,E-commerce style product photo of toaster and oven together on white background,
+book,14.99,/each,1 unit,10%,Reader's Bundle - 10% off Scissors,Knowledge Is Power!,scissors,E-commerce style product photo of book with scissors on white background,
+scissors,3.99,/each,1 unit,10%,Craft Kit - 10% off Books,Cut Above the Rest,book,E-commerce style product photo of scissors next to book on white background,
+toothbrush,2.99,/each,1 unit,15%,Oral Care Bundle - 15% off Cup Sets,Smile Bright Every Day,cup,E-commerce style product photo of toothbrush in cup on white background,
+umbrella,19.99,/each,1 unit,10%,Weather Combo - 10% off Bottles,Rain or Shine Ready!,bottle,E-commerce style product photo of umbrella with water bottle on white background,
+bowl,8.99,/set,4 pack,20%,Dining Set - 20% off Spoon Sets,Serve with Style,spoon,E-commerce style product photo of ceramic bowl with spoon set on white background,
+bowl,8.99,/set,4 pack,10%,Fresh Start - 10% off Bananas,Bowl Full of Goodness,banana,E-commerce style product photo of bowl filled with fresh bananas on white background,
+bowl,8.99,/set,4 pack,10%,Healthy Choice - 10% off Apples,Fill It Up Right!,apple,E-commerce style product photo of bowl with fresh apples on white background,
+frisbee,12.99,/each,1 unit,15%,Outdoor Fun - 15% off Sports Balls,Catch the Savings!,sports ball,E-commerce style product photo of frisbee with sports ball on white background,
+frisbee,12.99,/each,1 unit,10%,Active Bundle - 10% off Bottles,Play Hard Stay Fresh,bottle,E-commerce style product photo of frisbee with water bottle on white background,
+skis,249.99,/pair,1 unit,20%,Winter Sports Bundle - 20% off Snowboard,Hit the Slopes!,snowboard,E-commerce style product photo of skis and snowboard together on white background,
+skis,249.99,/pair,1 unit,15%,Gear Up Deal - 15% off Sports Ball,Powder Perfect,sports ball,E-commerce style product photo of skis with sports ball on white background,
+snowboard,199.99,/each,1 unit,20%,Mountain Duo - 20% off Skis,Shred the Mountain!,skis,E-commerce style product photo of snowboard with skis on white background,
+snowboard,199.99,/each,1 unit,10%,Winter Ready - 10% off Bottles,Ride or Die,bottle,E-commerce style product photo of snowboard with water bottle on white background,
+sports ball,19.99,/each,1 unit,15%,Game Time - 15% off Frisbee,Play Ball Win Big,frisbee,E-commerce style product photo of sports ball and frisbee together on white background,
+sports ball,19.99,/each,1 unit,20%,Athletic Combo - 20% off Baseball Bat,Champions Choose Quality,baseball bat,E-commerce style product photo of sports ball with baseball bat on white background,
+sports ball,19.99,/each,1 unit,10%,Stay Hydrated - 10% off Bottles,Game On!,bottle,E-commerce style product photo of sports ball next to water bottle on white background,
+kite,24.99,/each,1 unit,15%,Flying High - 15% off Frisbee,Soar to Savings!,frisbee,E-commerce style product photo of colorful kite with frisbee on white background,
+kite,24.99,/each,1 unit,10%,Outdoor Adventure - 10% off Sports Ball,Let Dreams Fly,sports ball,E-commerce style product photo of kite and sports ball together on white background,
+baseball_bat,49.99,/each,1 unit,25%,Complete Set - 25% off Baseball-Glove,Home Run Deals!,baseball glove,E-commerce style product photo of baseball bat with baseball glove on white background,
+baseball_bat,49.99,/each,1 unit,15%,Team Sport Bundle - 15% off Sports Ball,Swing for Success,sports ball,E-commerce style product photo of baseball bat and sports ball together on white background,
+baseball_glove,39.99,/each,1 unit,25%,Perfect Match - 25% off Baseball-Bat,Catch Every Moment,baseball bat,E-commerce style product photo of baseball glove with baseball bat on white background,
+baseball_glove,39.99,/each,1 unit,15%,Player's Choice - 15% off Sports Ball,Ready Set Play!,sports ball,E-commerce style product photo of baseball glove holding sports ball on white background,
+skateboard,79.99,/each,1 unit,20%,Extreme Sports - 20% off Surfboard,Roll with Style,surfboard,E-commerce style product photo of skateboard and surfboard together on white background,
+skateboard,79.99,/each,1 unit,15%,Urban Rider - 15% off Sports Ball,Street Certified,sports ball,E-commerce style product photo of skateboard with sports ball on white background,
+surfboard,299.99,/each,1 unit,20%,Board Sports Combo - 20% off Skateboard,Ride the Wave!,skateboard,E-commerce style product photo of surfboard with skateboard on white background,
+surfboard,299.99,/each,1 unit,10%,Beach Essentials - 10% off Bottles,Ocean Calling,bottle,E-commerce style product photo of surfboard with water bottle on white background,
+tennis_racket,89.99,/each,1 unit,20%,Court Ready - 20% off Sports Ball,Ace Your Game!,sports ball,E-commerce style product photo of tennis racket with sports ball on white background,
+tennis_racket,89.99,/each,1 unit,10%,Active Lifestyle - 10% off Bottles,Love Means Everything,bottle,E-commerce style product photo of tennis racket with water bottle on white background,
+tv,499.99,/each,1 unit,15%,Entertainment Hub - 15% off Remote,Stream Your Dreams,remote,E-commerce style product photo of modern TV with remote control on white background,
+tv,499.99,/each,1 unit,20%,Smart Home Bundle - 20% off Laptop,Bigger Better Binge,laptop,E-commerce style product photo of TV screen displaying content with laptop nearby on white background,
+laptop,899.99,/each,1 unit,20%,Productivity Pack - 20% off Mouse,Work Smarter Not Harder,mouse,E-commerce style product photo of open laptop with wireless mouse on white background,
+laptop,899.99,/each,1 unit,20%,Tech Essentials - 20% off Keyboard,Power Your Potential,keyboard,E-commerce style product photo of laptop with keyboard on white background,laptop_keyboard.jpg
+laptop,899.99,/each,1 unit,15%,Complete Setup - 15% off TV,Innovation Unlimited,tv,E-commerce style product photo of laptop with TV screen in background on white background,
+mouse,29.99,/each,1 unit,20%,Perfect Pair - 20% off Keyboard,Click Your Way to Success,keyboard,E-commerce style product photo of wireless mouse with keyboard on white background,
+mouse,29.99,/each,1 unit,25%,Workspace Combo - 25% off Laptop,Precision Matters,laptop,E-commerce style product photo of mouse next to laptop on white background,
+remote,19.99,/each,1 unit,15%,Control Center - 15% off TV,Command Your Comfort,tv,E-commerce style product photo of remote control with TV in background on white background,
+remote,19.99,/each,1 unit,10%,Smart Bundle - 10% off Cell Phone,Click Relax Repeat,cell phone,E-commerce style product photo of remote control with smartphone on white background,
+keyboard,59.99,/each,1 unit,20%,Typing Duo - 20% off Mouse,Type Like a Pro,mouse,E-commerce style product photo of keyboard with wireless mouse on white background,
+keyboard,59.99,/each,1 unit,25%,Office Bundle - 25% off Laptop,Keys to Success,laptop,E-commerce style product photo of keyboard with laptop on white background,laptop_keyboard.jpg
+cell_phone,699.99,/each,1 unit,15%,Connected Life - 15% off Laptop,Stay Connected Stay Ahead,laptop,E-commerce style product photo of smartphone next to laptop on white background,
+cell_phone,699.99,/each,1 unit,20%,Mobile Office - 20% off Keyboard,Your World in Hand,keyboard,E-commerce style product photo of smartphone with keyboard on white background,
+cell_phone,699.99,/each,1 unit,10%,Smart Control - 10% off Remote,Always Within Reach,remote,E-commerce style product photo of smartphone with remote control on white background,

@@ -1,0 +1,43 @@
+{
+    "config": {
+        "pipelines": [
+            {
+                "name": "items_detection",
+                "source": "gstreamer",
+                "queue_maxsize": 50,
+               "pipeline": "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/test_shopping_items.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+                "auto_start": true,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "detection-properties": {
+                            "element": {
+                                "name": "detection",
+                                "format": "element-properties"
+                            }
+                        }
+                    }
+                },
+                "payload": {
+                    "destination": {
+                        "metadata": {
+                            "type": "mqtt",
+                            "topic": "yolo_od_results"
+                        },
+                        "frame": {
+                            "type": "webrtc",
+                            "peer-id": "samplestream",
+                            "overlay": false
+                        }
+                    },
+                    "parameters": {
+                        "detection-properties": {
+                            "model": "/home/pipeline-server/yolo_models/yolo11s/INT8/yolo11s.xml",
+                            "device": "CPU"
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}

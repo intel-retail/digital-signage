@@ -1,6 +1,0 @@
-Meat. Chicken products
-Description: Poultry meat, commonly consumed as breast, thighs, wings, or ground.
-Benefits:
-Lean source of protein, especially chicken breast.
-Lower in fat compared to red meats.
-Contains niacin (vitamin B3) and selenium, which support metabolism and immune function.

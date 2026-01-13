@@ -1,0 +1,284 @@
+#
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.21
+    hostname: ia-mqtt-broker
+    container_name: ia-mqtt-broker
+    volumes:
+      - ./pid/mosquitto/config:/mosquitto/config
+    ports:
+      - "1883:1883"
+    networks:
+      - app_network
+  
+  dlstreamer-pipeline-server:
+    image: intel/dlstreamer-pipeline-server:2025.2.0-ubuntu24
+    hostname: dlstreamer-pipeline-server
+    container_name: dlstreamer-pipeline-server
+    read_only: true
+    security_opt:
+      - no-new-privileges
+    privileged: false
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - app_network
+    depends_on:
+      - mediamtx
+    environment:
+      AppName: "DLStreamerPipelineServer"
+      ENABLE_WEBRTC: true
+      WEBRTC_SIGNALING_SERVER: http://mediamtx:8889
+      ENABLE_RTSP: true
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      no_proxy: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,ia-mqtt-broker
+      NO_PROXY: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,ia-mqtt-broker
+      GST_DEBUG: "1"
+      REST_SERVER_PORT: ${REST_SERVER_PORT}
+      S3_STORAGE_HOST: ${MR_MINIO_HOSTNAME:-"minio-server"}
+      S3_STORAGE_PORT: ${MR_MINIO_SERVER_PORT:-9000}
+      S3_STORAGE_USER: ${MR_MINIO_ACCESS_KEY:-""}
+      S3_STORAGE_PASS: ${MR_MINIO_SECRET_KEY:-""}
+      SERVICE_NAME: "dlstreamer-pipeline-server"
+      ENABLE_OPEN_TELEMETRY: true
+      OTEL_COLLECTOR_HOST: ${OTEL_COLLECTOR_HOST}
+      OTEL_COLLECTOR_PORT: ${OTEL_COLLECTOR_PORT}
+      OTEL_EXPORT_INTERVAL_MILLIS: ${OTEL_EXPORT_INTERVAL_MILLIS}
+      OPCUA_SERVER_IP: ${OPCUA_SERVER_IP:-"ia-opcua-server"}
+      OPCUA_SERVER_PORT: ${OPCUA_SERVER_PORT:-4840}
+      OPCUA_SERVER_USERNAME: ${OPCUA_SERVER_USERNAME:-""}
+      OPCUA_SERVER_PASSWORD: ${OPCUA_SERVER_PASSWORD:-""}
+      # Model Registry Microservice
+      MR_URL: ${MR_URL:-""}
+      MR_SAVED_MODELS_DIR: ${MR_URL:-""}
+      MR_REQUEST_TIMEOUT: ${MR_REQUEST_TIMEOUT:-""}
+      MR_VERIFY_CERT: ${MR_VERIFY_CERT:-""}
+      MQTT_HOST: ia-mqtt-broker
+      MQTT_PORT: 1883
+    volumes:
+      - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
+      - "./pid/certificates:/MqttCerts:ro"
+      - "./pid/certificates/ssl_server/:/run/secrets/DLStreamerPipelineServer_Server:ro"
+      - "./pid/certificates/model_registry/:/run/secrets/ModelRegistry_Server:ro"
+      - "/run/udev:/run/udev:ro"
+      - "/dev:/dev"
+      - "/tmp:/tmp"
+      - "./pid/models/object_detection:/home/pipeline-server/yolo_models"
+      - "./pid/resources/videos:/home/pipeline-server/resources/externalvideos"
+      - ./pid/config.json:/home/pipeline-server/config.json
+    group_add:
+      # render group ID for ubuntu 20.04 host OS
+      - "109"
+      # render group ID for ubuntu 22.04 host OS
+      - "110"
+      # render group ID for ubuntu 24.04 host OS
+      - "992"
+    device_cgroup_rules:
+      # Default run - device-cgroup-rule='c 189:* rmw'
+      # Selective rules can be applied for deployment
+      - "c 189:* rmw"
+      - "c 209:* rmw"
+      - "a 189:* rwm"
+    devices:
+      # Following devices under /dev filesystem will be needed based on usecase
+      # dri - GPU
+      # USB camera devices
+      # Selective mount can be done for deployment as mounting whole /dev is not recommended
+      - "/dev:/dev"
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.11.3
+    container_name: mediamtx
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+    - no-new-privileges
+    ports:
+      - ${WHIP_SERVER_PORT}:8889   # WebRTC
+      - 8554:8554   # RTSP
+    environment:
+      - MTX_LOGLEVEL=info
+      - MTX_RTSP=yes
+      - MTX_RTMP=no
+      - MTX_HLS=no
+      - NO_PROXY=mediamtx,coturn,${no_proxy},${HOST_IP}
+      - no_proxy=mediamtx,coturn,${no_proxy},${HOST_IP}
+      # Path settings for cam1
+      - MTX_PATHS_CAM1_PUBLISHUSER=publisher
+      - MTX_PATHS_CAM1_PUBLISHPASS=pubpass
+      - MTX_PATHS_CAM1_READUSER=viewer
+      - MTX_PATHS_CAM1_READPASS=viewpass
+      - MTX_WEBRTCTRACKGATHERTIMEOUT=20s
+      - MTX_WEBRTC=yes
+      - MTX_WEBRTCICESERVERS2_0_URL=turn:${HOST_IP}:${COTURN_UDP_PORT}
+      - MTX_WEBRTCICESERVERS2_0_USERNAME=${MTX_WEBRTCICESERVERS2_0_USERNAME}
+      - MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD}
+    networks:
+    - app_network
+
+  coturn:
+    image: coturn/coturn:4.7.0
+    container_name: coturn
+    ports:
+      - "${COTURN_UDP_PORT}:3478"
+      - "${COTURN_UDP_PORT}:3478/udp"
+    command: ["-v"]  # Verbose mode for logging
+    networks:
+    - app_network
+
+  ase-chromadb:
+    image: chromadb/chroma:1.3.7
+    hostname: ase-chromadb
+    container_name: ase-chromadb
+    ports:
+      - '${ASE_CHROMADB_PORT}:8000'
+    networks: 
+      - app_network
+    environment:
+      - no_proxy=${no_proxy}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+    volumes:
+      - chroma_data:/data
+
+  aig-server:
+    image: aig-server-restx:1.0.0
+    hostname: aig-server
+    container_name: aig-server
+    security_opt:
+      - no-new-privileges
+    build:
+      context: $PWD/aig
+      dockerfile: $PWD/aig/Dockerfile
+      target: aig-server
+      args:
+        UID: ${UID} 
+        USER: ${AIG_SERVER_USER} 
+        BASE_IMAGE: "ubuntu:22.04"
+        no_proxy: ${no_proxy}
+        http_proxy: ${http_proxy}
+        https_proxy: ${https_proxy}
+    privileged: true # Enable privileged mode to access GPU and other devices
+    stdin_open: true
+    restart: unless-stopped
+    tty: true
+    entrypoint: ["./run.sh"]
+    ports:
+      - '${AIG_PORT}:5003'
+    networks: 
+      - app_network
+    environment:
+      - no_proxy=${no_proxy},ase-chromadb,web-ui
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
+      - REST_SERVER_PORT=${AIG_PORT}      
+      - SERVICE_NAME=aig-server
+      - ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so
+      - AIG_PORT=${AIG_PORT}
+      - AIG_LOGO_PATH=${AIG_LOGO_PATH}
+      - AIG_FONT_PATH=${AIG_FONT_PATH}
+      - AIG_MODEL_PATH=${AIG_MODEL_PATH}
+      - AIG_MODEL_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU, NPU)
+      - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
+      - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
+      - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model
+      - LIBVA_DRIVER_NAME=iHD #OpenVINO & OneAPI
+      - VIDEO_GROUP_ID=44 #OpenVINO & OneAPI
+      - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
+      - ASE_COLLECTION_NAME=${ASE_COLLECTION_NAME} # Name of the ASE collection to use
+      - ASE_CHROMADB_PORT=${ASE_CHROMADB_PORT} # Port for ChromaDB service      
+      - ASE_CHROMADB_HOST=ase-chromadb # Hostname for ChromaDB service
+      - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
+      - ASE_MODEL_PATH=${ASE_MODEL_PATH}
+      - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available
+      - ASE_ENABLE_SAMPLEDATA=${ASE_ENABLE_SAMPLEDATA} # Enable sample data for the ASE service
+      - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
+      - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
+    depends_on:
+      - ase-chromadb
+    volumes:
+      - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
+      - "/run/udev:/run/udev:ro"
+      - "/dev:/dev"
+      - "/tmp:/tmp"
+      - ./aig/sharedata:/opt/sharedata
+      - ./aig/src:/home/aigserver/src
+      - ./aig/models:/opt/models
+      - "/usr/lib/wsl:/usr/lib/wsl" #WSL2 specific, Mandatory if you run in WSL2 th container initialzation
+    group_add: #Align IDs and names with Dockerfile
+      # adm group ID for ubuntu 22.04 and 24.04 host OS (check it with: "getent group adm" on your host)
+      - "4"
+      # video group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group video" on your host)
+      - "44"
+      # render group ID for ubuntu 22.04 host OS (GPU access)
+      - "109"
+      # audio group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group audio" on your host)
+      - "29"
+      # users group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group users" on your host)
+      - "100"
+      # render group ID for ubuntu 24.04 host OS (Confirm it with: "getent group render" on your host)
+      - "992"
+      # plugdev group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group plugdev" on your host)
+      - "46"
+      # It provides access to the GPU devices
+      #- $(stat -c "%g" /dev/dri/render*) #992
+      #- $(stat -c "%g" /dev/accel/accel*)  #NPU (It could fail in WSL2)
+    device_cgroup_rules:
+      # Default run - device-cgroup-rule='c 189:* rmw'
+      # Selective rules can be applied for deployment
+      - 'c 189:* rmw'
+      - 'c 209:* rmw'
+      - 'a 189:* rwm'
+    devices:
+      # Following devices under /dev filesystem will be needed based on usecase
+      - "/dev:/dev"
+
+  web-ui:
+    image: digital-signage-webui:1.0.0
+    hostname: web-ui
+    container_name: web-ui
+    security_opt:
+      - no-new-privileges
+    build:
+      context: $PWD/web-ui
+      dockerfile: $PWD/web-ui/Dockerfile
+      args:
+        no_proxy: ${no_proxy}
+        http_proxy: ${http_proxy}
+        https_proxy: ${https_proxy}
+    ports:
+      - "5000:5000"
+    networks:
+      - app_network
+    environment:
+      - no_proxy=${no_proxy},mediamtx,aig-server,ia-mqtt-broker
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    depends_on:
+      - mediamtx
+      - aig-server
+    restart: unless-stopped
+    volumes:
+      - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
+      - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  vol_pipeline_root:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  chroma_data:

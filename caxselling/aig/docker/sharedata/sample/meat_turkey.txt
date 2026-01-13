@@ -1,6 +1,0 @@
-Meat. Turkey products.
-Description: Poultry meat, often consumed during holidays or as deli meat.
-Benefits:
-Lean protein source, especially the breast.
-Contains tryptophan, an amino acid linked to serotonin production.
-Rich in B vitamins and selenium.

@@ -1,0 +1,47 @@
+{
+  "query": "content related to beauty, skincare, haircare, cosmetics, and personal care products",
+  "n_results": 3,
+  "use_default_ad_onempty": true,
+  "price_details": {
+    "price": "10.57 $/lb",
+    "align": "right",
+    "valign": "bottom",
+    "marperc_from_border": 10,
+    "font_size": 24,
+    "line_width": 5,
+    "price_color": "white",
+    "price_in_circle": true,
+    "price_circle_color": "black"
+  },
+  "promo_details": {
+    "promo_text": "Get one pound and get 50% in the second!",
+    "text_color": "white",
+    "rect_color": "black",
+    "rect_padding": 10,
+    "rect_radius": 20,
+    "align": "left",
+    "valign": "bottom",
+    "marperc_from_border": 10,
+    "font_size": 20,
+    "line_width": 10
+  },
+  "logo_details": {
+    "align": "left",
+    "valign": "top",
+    "logo_percentage": 15,
+    "margin_px": 10
+  },
+  "slogan_details": {
+    "slogan_text": "The best price in town!!!",
+    "text_color": "yellow",
+    "align": "right",
+    "valign": "top",
+    "marperc_from_border": 5,
+    "font_size": 18,
+    "line_width": 20
+  },
+  "framed_details": {
+    "activate": true,
+    "marperc_from_border": 2
+  }
+}

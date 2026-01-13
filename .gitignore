@@ -128,7 +128,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+#.env
 .modelenv
 .env_aig
 .env_bor
@@ -176,3 +176,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 caxselling/pid/e2e_detections.json
+aig/models
+pid/.modelenv
+pid/models/
+pid/downloadAndQuantizeModel.sh
+aig/sharedata/imgs/

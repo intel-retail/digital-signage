@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signage - Video Stream</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #87CEEB 100%);
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(32, 182, 242, 0.9);
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: white;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .video-section {
+            flex: 0 0 60%;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(135, 206, 235, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(135, 206, 235, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(135, 206, 235, 0.3);
+        }
+
+        .video-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #3ba6ed;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: rgba(135, 206, 235, 0.2);
+            border: 1px solid rgba(135, 206, 235, 0.4);
+            border-radius: 8px;
+            color: #3ba6ed;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: rgba(135, 206, 235, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .video-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .video-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .product-section {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(135, 206, 235, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(135, 206, 235, 0.2);
+            display: flex;
+            flex-direction: column;
+            
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(135, 206, 235, 0.2);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .product-card h3 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #3ba6ed;
+            text-align: center;
+        }
+        .product-frame {
+            margin-top: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 10px solid rgba(135, 206, 235, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .product-frame-header {
+            padding: 15px;
+            background: rgba(135, 206, 235, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .product-frame-label {
+            color: #87CEEB;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #87CEEB;
+            font-size: 12px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(135, 206, 235, 0.3);
+            border-top: 2px solid #87CEEB;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .product-image-container {
+            position: relative;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .product-image {
+            width: 95%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: #888;
+            font-size: 14px;
+            text-align: center;
+            
+        }
+
+        .placeholder-text {
+            color: #888;
+            font-style: italic;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-card h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: hsl(180, 60%, 49%);
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            color: #aaa;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(135, 206, 235, 0.9);
+            padding: 10px 30px;
+            text-align: center;
+            font-size: 12px;
+            color: white;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 16px;
+        }
+
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a9eff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .video-section {
+                flex: 0 0 60%;
+            }
+            
+            .product-section {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CONTEXT-AWARE CROSS-SELLING DIGITAL SIGNAGE</h1>
+        <div class="status-indicator">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="video-section">
+            <div class="video-header">
+                <div class="video-title">Video Stream</div>
+                <div class="control-buttons">
+                    <button id="reconnectBtn" class="btn">Reconnect</button>
+                    <button id="fullscreenBtn" class="btn">Fullscreen</button>
+                </div>
+            </div>
+            <div class="video-container" id="videoContainer">
+                <iframe id="myframe"
+                        style="width:100%; height:100%; border:0;"
+                        allow="autoplay; encrypted-media"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+                </iframe>
+                <div class="video-overlay" id="videoOverlay">
+                </div>
+            </div>
+        </div>
+
+        <div class="product-section" id="myContainer">
+            <div id="productFrame" class="product-frame">
+                <div class="product-frame-header">
+                    <div class="product-frame-label">Generated Advertisement</div>
+                </div>
+                <div class="product-image-container" id="product-image-container">
+                    <div id="aigServerLoading" class="image-placeholder" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="spinner" style="width: 40px; height: 40px; border-width: 3px;"></div>
+                        <span class="placeholder-text">Waiting for initialization to complete...</span>
+                    </div>
+                    <img id="productImage" class="product-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                    <div id="generationTime" style="display: none; position: absolute; top: 0; left: 0; right: 0; padding: 10px; background: rgba(0, 0, 0, 0.7); color: white; text-align: center; font-size: 12px; z-index: 10;">Advertisement generated in 0s</div>
+                    <div id="imagePlaceholder" class="image-placeholder" />
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        CACS Digital Signage System
+    </div>
+
+    <script>
+        let pollingInterval = null;
+        let currentProduct = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            // Load Stream
+            const host = window.location.hostname;
+            const STREAM_PORT = "8889";
+            document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
+            updateConnectionStatus(true);
+            // Start polling for advertisements
+            startPolling();
+        });
+
+        function setupEventListeners() {
+            document.getElementById("reconnectBtn").addEventListener("click", reconnectStream);
+            document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
+        }
+
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollForAdvertisement();
+            pollingInterval = setInterval(pollForAdvertisement, 2000);
+        }
+
+        function getBrowserFingerprint() {
+            // Generate a simple client fingerprint based on browser characteristics
+            const userAgent = navigator.userAgent;
+            const screenResolution = `${screen.width}x${screen.height}`;
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const timestamp = performance.timeOrigin; // Unique per tab/window
+            const random = Math.random().toString(36).substring(2); // Random component
+            
+            // Store or retrieve a unique tab ID from sessionStorage (unique per tab)
+            let tabId = sessionStorage.getItem('tabId');
+            if (!tabId) {
+                tabId = `${Date.now()}_${random}`;
+                sessionStorage.setItem('tabId', tabId);
+            }
+            
+            const fingerprint = `${userAgent}_${screenResolution}_${timezone}_${timestamp}_${tabId}`;
+            
+            // Create a simple hash
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        function pollForAdvertisement() {
+            const container = document.getElementById("product-image-container");
+            const rect = container.getBoundingClientRect();
+            const width = Math.floor(rect.width);
+            const height = Math.floor(rect.height);
+
+            const timestamp = new Date().getTime();
+            const clientId = getBrowserFingerprint();
+            fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
+                .then(res => {
+                    if (res.status === 200) {
+                        res.blob().then(imageBlob => {
+                            // Get generation time from response header
+                            const xgenerationTime = res.headers.get('X-Generation-Time');
+
+                            // Create object URL for the image
+                            const imageUrl = URL.createObjectURL(imageBlob);
+
+                            // Update generation time display if header exists
+                            if (xgenerationTime) {
+                                const generationTimeElement = document.getElementById('generationTime');
+                                generationTimeElement.textContent = `${xgenerationTime}`;
+                                generationTimeElement.style.display = 'block';
+                            }
+                            // Display the generated image
+                            const productImage = document.getElementById('productImage');
+                            
+                            const aigServerLoading = document.getElementById('aigServerLoading');
+                        
+                            productImage.src = imageUrl;
+                            productImage.style.display = 'block';
+                            
+                            aigServerLoading.style.display = 'none';
+                            
+                        });
+                    }
+                    return;
+                })
+        }
+
+        function generateProductAdvertisement(product) {
+            // This function is now deprecated, handled by polling
+            pollForAdvertisement();
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        function reconnectStream() {
+            const btn = document.getElementById('reconnectBtn');
+            btn.textContent = 'Reconnecting...';
+            btn.disabled = true;
+
+            const iframe = document.getElementById("myframe");
+
+            // Reload stream
+            iframe.src = iframe.src;
+
+            setTimeout(() => {
+                btn.textContent = 'Reconnect';
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        function toggleFullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
+            
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(err => {
+                    console.error('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function toggleOverlay() {
+            const overlay = document.getElementById('videoOverlay');
+            overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

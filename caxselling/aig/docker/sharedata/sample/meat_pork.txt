@@ -1,6 +1,0 @@
-Meat. Pork Products.
-Description: Meat from pigs, available in forms like chops, bacon, ham, and sausage.
-Benefits:
-Good source of thiamine (vitamin B1), which helps convert food into energy.
-Contains high-quality protein and essential amino acids.
-Rich in B vitamins, especially B6 and B12.

@@ -126,3 +126,18 @@ From the `digital-signage` repo directory:
 ```bash
 make down
 ```
+
+### How to configure RTSP Camera as Source
+
+To use RTSP Camera as Source update the following
+
+   - Update the below pipeline with updated `USERNAME`, `PASSWORD`, and `RTSP CAMERA URL` in `config.json` file in `[WORKDIR]/pid` directory.
+
+      ```sh
+      "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination"
+      ```
+   - Update the Camera's IP Address in `.env` for `RTSP_CAMERA_IP`
+
+> **Note:** 
+>   1. The RTSP URI of the physical camera depends on how it is configured using the camera software. You can use VLC Network Stream to verify the RTSP URI to confirm the RTSP source. 
+>   2. For more information on the RTSP URI please refer to the website/tool of the camera software which is used to configure the RTSP camera. For information on RTSP protocol refer to <https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol>

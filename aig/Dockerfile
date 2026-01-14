@@ -13,9 +13,15 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
     apt-get update && \
-    apt-get install -y -q --no-install-recommends intel-gpu-tools gnupg wget python3-pip \
+    apt-get install -y -q --no-install-recommends intel-gpu-tools gnupg wget python3-pip unzip fontconfig  \
     python3-venv libraqm-dev && \
+    wget https://github.com/intel/intel-one-mono/releases/download/V1.4.0/ttf.zip && \
+    unzip ttf.zip -d /usr/share/fonts && \
+    fc-cache -f -v && \
+    rm ttf.zip && \
+    apt-get remove -y unzip fontconfig && \
     apt-get clean && \
+
     rm -rf /var/lib/apt/lists/*
 
 # Install Intel GPU tools and clean up

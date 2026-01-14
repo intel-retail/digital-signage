@@ -191,9 +191,9 @@ class Ad_Generator(threading.Thread):
                     "valign": "bottom",
 
                     # same as working JSON → scaled
-                    "marperc_from_border": 3,
-                    "font_size": 20,
-                    "line_width": 5,
+                    "marperc_from_border": 2,
+                    "font_size": 18,
+                    "line_width": (len(associations[association_index]['price']) + 1) if associations else 5,
 
                     "price_color": "white",
                     "price_in_circle": True,
@@ -235,7 +235,7 @@ class Ad_Generator(threading.Thread):
                     "valign": "top",
 
                     # 👇 MUST be higher than promo
-                    "marperc_from_border": 1,
+                    "marperc_from_border": 2,
 
                     "font_size":  self.scaled(factor["normal"] * base_dim, 1.0, min_val=12, max_val=18),
                     "line_width": self.scaled(factor["small"] * base_dim, 1.0, min_val=12, max_val=18)

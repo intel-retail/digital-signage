@@ -99,7 +99,7 @@ rm ./downloadAndQuantizeModel.sh && \
 deactivate && \
 cd ..
 ```
-The quantized model will be saved to `./pid/models/yolo11s`.
+The quantized model will be saved to `./pid/models/object_detection/yolo11s`.
 
 ### b. Download SDXL-Turbo and MiniLM Models (for AIG)
 

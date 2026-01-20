@@ -7,6 +7,7 @@ services:
   broker:
     image: eclipse-mosquitto:2.0.21
     hostname: ia-mqtt-broker
+    read_only: true
     container_name: ia-mqtt-broker
     volumes:
       - ./pid/mosquitto/config:/mosquitto/config
@@ -125,6 +126,7 @@ services:
   coturn:
     image: coturn/coturn:4.7.0
     container_name: coturn
+    read_only: true
     ports:
       - "${COTURN_UDP_PORT}:3478"
       - "${COTURN_UDP_PORT}:3478/udp"
@@ -151,6 +153,7 @@ services:
     image: aig-server:1.0.0
     hostname: aig-server
     container_name: aig-server
+    read_only: true
     security_opt:
       - no-new-privileges
     build:
@@ -244,6 +247,7 @@ services:
     image: digital-signage-webui:1.0.0
     hostname: web-ui
     container_name: web-ui
+    read_only: true
     security_opt:
       - no-new-privileges
     build:

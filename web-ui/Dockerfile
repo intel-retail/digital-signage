@@ -26,8 +26,16 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 RUN apt-get remove --purge -y --allow-remove-essential perl-base
 
+ARG USER
+ARG UID
+
+RUN groupadd $USER -g $UID && \
+    useradd -r -u $UID -g $USER $USER
+
 COPY main.py .
 COPY templates/ ./templates/
+
+USER ${USER}
 
 HEALTHCHECK --interval=5m CMD exit 0
 

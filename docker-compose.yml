@@ -162,7 +162,7 @@ services:
       target: aig-server
       args:
         UID: ${UID} 
-        USER: ${AIG_SERVER_USER} 
+        USER: ${USER} 
         BASE_IMAGE: "ubuntu:22.04"
         no_proxy: ${no_proxy}
         http_proxy: ${http_proxy}
@@ -258,6 +258,8 @@ services:
         no_proxy: ${no_proxy}
         http_proxy: ${http_proxy}
         https_proxy: ${https_proxy}
+        UID: ${UID} 
+        USER: ${USER} 
     ports:
       - "5000:5000"
     networks:

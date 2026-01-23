@@ -115,24 +115,9 @@ License-Identifier: Apache License 2.0 / Apache Software License
 openvino-tokenizers==2025.4.1.0
 optimum-intel[nncf]==1.26.1
 diffusers==0.33.1
-timm==1.0.15
-transformers==4.55.4
 hf_transfer==0.1.9
 huggingface-hub==0.36.0
 ----------------------------------------------------------------------
-
-License-Identifier:  BSD-3-Clause License
-numpy==2.2.6
-torchvision==0.24.1
-
-----------------------------------------------------------------------
-
-License-Identifier: MIT License
-einops==0.8.1
-transformers_stream_generator==0.0.5
-backoff==2.2.1
-
----------------------------------------------------------------------------------------------------------------------------
 
 pid/model_download_requirements.txt
 ====================================

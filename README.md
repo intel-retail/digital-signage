@@ -111,6 +111,7 @@ rm -rf .modelenv && \
 python3 -m venv .modelenv && \
 source ./.modelenv/bin/activate && \
 pip3 install -r export-requirements.txt && \
+export HF_HUB_ENABLE_HF_TRANSFER=1 && \
 optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
 huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
 deactivate && \

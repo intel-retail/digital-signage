@@ -11,8 +11,6 @@ services:
     container_name: ia-mqtt-broker
     volumes:
       - ./pid/mosquitto/config:/mosquitto/config
-    ports:
-      - "1883:1883"
     networks:
       - app_network
   
@@ -26,7 +24,7 @@ services:
     privileged: false
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     networks:
       - app_network
     depends_on:
@@ -68,7 +66,8 @@ services:
       - "./pid/certificates/ssl_server/:/run/secrets/DLStreamerPipelineServer_Server:ro"
       - "./pid/certificates/model_registry/:/run/secrets/ModelRegistry_Server:ro"
       - "/run/udev:/run/udev:ro"
-      - "/dev:/dev"
+      - "/dev/dri:/dev/dri"
+      - "/dev/accel:/dev/accel"
       - "/tmp:/tmp"
       - "./pid/models/object_detection:/home/pipeline-server/yolo_models"
       - "./pid/resources/videos:/home/pipeline-server/resources/externalvideos"
@@ -87,11 +86,12 @@ services:
       - "c 209:* rmw"
       - "a 189:* rwm"
     devices:
-      # Following devices under /dev filesystem will be needed based on usecase
+       # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
-      # USB camera devices
+       # accel - NPU
       # Selective mount can be done for deployment as mounting whole /dev is not recommended
-      - "/dev:/dev"
+      - "/dev/dri:/dev/dri"
+      - "/dev/accel:/dev/accel"
 
   mediamtx:
     image: bluenviron/mediamtx:1.11.3
@@ -102,7 +102,6 @@ services:
     - no-new-privileges
     ports:
       - ${WHIP_SERVER_PORT}:8889   # WebRTC
-      - 8554:8554   # RTSP
     environment:
       - MTX_LOGLEVEL=info
       - MTX_RTSP=yes
@@ -138,8 +137,6 @@ services:
     image: chromadb/chroma:1.3.7
     hostname: ase-chromadb
     container_name: ase-chromadb
-    ports:
-      - '${ASE_CHROMADB_PORT}:8000'
     networks: 
       - app_network
     environment:
@@ -167,13 +164,13 @@ services:
         no_proxy: ${no_proxy}
         http_proxy: ${http_proxy}
         https_proxy: ${https_proxy}
-    privileged: true # Enable privileged mode to access GPU and other devices
+    privileged: false
     stdin_open: true
     restart: unless-stopped
     tty: true
     entrypoint: ["./run.sh"]
     ports:
-      - '${AIG_PORT}:5003'
+      - '127.0.0.1:${AIG_PORT}:5003'
     networks: 
       - app_network
     environment:
@@ -188,7 +185,7 @@ services:
       - AIG_LOGO_PATH=${AIG_LOGO_PATH}
       - AIG_FONT_PATH=${AIG_FONT_PATH}
       - AIG_MODEL_PATH=${AIG_MODEL_PATH}
-      - AIG_MODEL_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU, NPU)
+      - AIG_MODEL_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU)
       - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
       - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
       - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model
@@ -210,39 +207,31 @@ services:
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - "/run/udev:/run/udev:ro"
-      - "/dev:/dev"
+      - "/dev/dri:/dev/dri"
       - "/tmp:/tmp"
       - ./aig/sharedata:/opt/sharedata
       - ./aig/src:/home/aigserver/src
       - ./aig/models:/opt/models
       - "/usr/lib/wsl:/usr/lib/wsl" #WSL2 specific, Mandatory if you run in WSL2 th container initialzation
-    group_add: #Align IDs and names with Dockerfile
-      # adm group ID for ubuntu 22.04 and 24.04 host OS (check it with: "getent group adm" on your host)
-      - "4"
-      # video group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group video" on your host)
-      - "44"
-      # render group ID for ubuntu 22.04 host OS (GPU access)
+    group_add:
+      # render group ID for ubuntu 20.04 host OS
       - "109"
-      # audio group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group audio" on your host)
-      - "29"
-      # users group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group users" on your host)
-      - "100"
-      # render group ID for ubuntu 24.04 host OS (Confirm it with: "getent group render" on your host)
+      # render group ID for ubuntu 22.04 host OS
+      - "110"
+      # render group ID for ubuntu 24.04 host OS
       - "992"
-      # plugdev group ID for ubuntu 22.04 and 24.04 host OS (Confirm it with: "getent group plugdev" on your host)
-      - "46"
-      # It provides access to the GPU devices
-      #- $(stat -c "%g" /dev/dri/render*) #992
-      #- $(stat -c "%g" /dev/accel/accel*)  #NPU (It could fail in WSL2)
     device_cgroup_rules:
       # Default run - device-cgroup-rule='c 189:* rmw'
       # Selective rules can be applied for deployment
-      - 'c 189:* rmw'
-      - 'c 209:* rmw'
-      - 'a 189:* rwm'
+      - "c 189:* rmw"
+      - "c 209:* rmw"
+      - "a 189:* rwm"
     devices:
       # Following devices under /dev filesystem will be needed based on usecase
-      - "/dev:/dev"
+      # dri - GPU
+       # accel - NPU
+      # Selective mount can be done for deployment as mounting whole /dev is not recommended
+      - "/dev/dri:/dev/dri"
 
   web-ui:
     image: digital-signage-webui:1.0.0

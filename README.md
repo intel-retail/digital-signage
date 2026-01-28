@@ -2,7 +2,10 @@
 
 ## Overview
 
-The Context-Aware, Cross-Selling Approach is an end-to-end, containerized solution for intelligent digital signage. It leverages AI-based product identification, real-time video analytics, and generative AI to display contextually relevant advertisements in retail or similar environments. The system is modular, scalable, and designed for edge deployment.
+The **Digital Signage: Context-Aware, Cross-Selling** sample app is a fully containerized,end-to-end solution 
+for deploying intelligent digital signage.It leverages AI-based product identification, real-time video analytics, 
+and generative AI to display contextually relevant advertisements in retail or similar environments. 
+The system is modular, scalable, and designed for edge deployment.
 
 **Key Features:**
 - Real-time product detection and classification from video streams

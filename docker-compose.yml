@@ -69,8 +69,8 @@ services:
       - "./pid/certificates/ssl_server/:/run/secrets/DLStreamerPipelineServer_Server:ro"
       - "./pid/certificates/model_registry/:/run/secrets/ModelRegistry_Server:ro"
       - "/run/udev:/run/udev:ro"
-      - "/dev/dri:/dev/dri"
-      - "/dev/accel:/dev/accel"
+      - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
+      - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
       - "/tmp:/tmp"
       - "./pid/models/object_detection:/home/pipeline-server/yolo_models"
       - "./pid/resources/videos:/home/pipeline-server/resources/externalvideos"
@@ -89,12 +89,12 @@ services:
       - "c 209:* rmw"
       - "a 189:* rwm"
     devices:
-       # Following devices under /dev filesystem will be needed based on usecase
+      # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
-       # accel - NPU
+      # accel - NPU
       # Selective mount can be done for deployment as mounting whole /dev is not recommended
-      - "/dev/dri:/dev/dri"
-      - "/dev/accel:/dev/accel"
+      - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
+      - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
     image: bluenviron/mediamtx:1.11.3

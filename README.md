@@ -65,21 +65,18 @@ digital-signage/
 
 ## Quick Start
 
-### 1. Clone Source Code
-
-
-## Clone source code
+### Clone Source Code
 
 ```bash
 git clone https://github.com/intel-sandbox/CACS_SignageApproach.git digital-signage
 cd digital-signage
 ```
 
-## 2. Build & Prepare Models
+### Build & Prepare Models
 
-> **NOTE:** Run all commands as a regular user (no `sudo`).
+> **NOTE:** Run all commands as a regular user (not as `sudo` user).
 
-### a. Download YOLO11s Model (for PID)
+#### 1. Download YOLO11s Model (for PID)
 
 > Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE).
 
@@ -101,7 +98,7 @@ cd ..
 ```
 The quantized model will be saved to `./pid/models/object_detection/yolo11s`.
 
-### b. Download SDXL-Turbo and MiniLM Models (for AIG)
+#### 2. Download SDXL-Turbo and MiniLM Models (for AIG)
 
 > Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md).
 
@@ -119,13 +116,13 @@ cd ../
 ```
 Models will be downloaded to `./aig/models/`.
 
-### c. Build Docker Images
+### Build Docker Images
 
 ```bash
 make build
 ```
 
-## Configuration
+### Configuration
 
 1. Edit the `.env` file and configure the following variables (refer to the comments in the file for additional guidance):
 
@@ -137,36 +134,39 @@ make build
 2. *(Optional)* To enable pre-defined advertisements, update the [web-ui/ProductAssociations.csv](web-ui/ProductAssociations.csv) file and the [web-ui/pre-defined-ads/](web-ui/pre-defined-ads/) directory accordingly. The CSV file should reference image filenames located in the `pre-defined-ads` directory. Please note that only JPEG/JPG image formats are supported.
 
 
-## 4. Deploy the Application
+### Deploy the Application
 
 ```bash
 make up
 ```
+
 This will validate your environment, check models, and start all containers.
 
-## 5. Access the Web Interface
+### Access the Web Interface
 
 Open Google Chrome and navigate to:
 
 ```
 http://<HOST_IP>:5000
 ```
+
 You should see the live video stream and dynamic advertisements.
 
-## 6. Verify & Monitor
+### Verify & Monitor
 
 Check container status:
 
 ```bash
 docker ps
 ```
+
 If any container is restarting, check logs:
 
 ```bash
 docker logs -f <container_name>
 ```
 
-## 7. Undeploy
+### Undeploy
 
 To stop and remove all containers and volumes:
 
@@ -184,7 +184,6 @@ By default, the PID component performs inference on the `CPU`, while the AIG com
 
 - **Configuration:** Update the `device` parameter within `pid/config.json`.
 - **Example:**
-   ```json
 
    ```json
    "parameters": {

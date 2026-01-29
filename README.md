@@ -71,10 +71,7 @@ digital-signage/
 
 ## Quick Start
 
-### 1. Clone Source Code
-
-
-## Clone source code
+### Clone Source Code
 
 ```bash
 git clone https://github.com/intel-retail/digital-signage

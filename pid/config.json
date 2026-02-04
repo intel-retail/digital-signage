@@ -5,7 +5,7 @@
                 "name": "items_detection",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
-                "pipeline": "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/test_shopping_items.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+                "pipeline": "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/basket.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
                 "auto_start": true,
                 "parameters": {
                     "type": "object",
@@ -32,8 +32,8 @@
                     },
                     "parameters": {
                         "detection-properties": {
-                            "model": "/home/pipeline-server/yolo_models/yolo11s/INT8/yolo11s.xml",
-                            "device": "GPU"
+                            "model": "/home/pipeline-server/yolo_models/geti_deployment/deployment/Detection/model/model.xml",
+                            "device": "CPU"
                         }
                     }
                 }

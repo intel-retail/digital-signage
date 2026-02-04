@@ -363,6 +363,9 @@ class MQTTSubscriber:
 
         self.list_of_processed_products = []
         self.last_processed_item = ""
+        self.last_n_messages_labels = []  # Track labels from last N messages
+        self.object_recency_count = int(os.getenv('OBJECT_RECENCY_FRAME_COUNT', 5))
+        self.max_message_history = self.object_recency_count * 2  # Number of messages to track
 
         logger.info(f"MQTT Subscriber initialized for {broker}:{port} on topic {topic}")
     
@@ -396,21 +399,55 @@ class MQTTSubscriber:
             try:
                 global message_queue
                 message_data = json.loads(payload)
-                # Put message in queue for processing
                 
-                if 'metadata' in message_data and 'gva_meta' in message_data['metadata'] and len(message_data['metadata']['gva_meta']) > 0  and 'tensor' in message_data['metadata']['gva_meta'][0]:
-                    tensors = message_data['metadata']['gva_meta'][0]['tensor']
-                    tensor = tensors[0]  # Assuming single tensor for simplicity
-                    confidence = tensor.get('confidence', None)
-                    label = tensor.get('label', 'unknown')  
-                    if confidence is not None and confidence > 0.5:
-                        # logger.debug(f"Detected object: {label} with confidence: {confidence}")
-                        if label not in self.list_of_processed_products[-3:]:
-                            message_queue.put(label)
-                            self.last_processed_item = label
-                            self.list_of_processed_products.append(label)
-                    else:
-                        logger.info("No tensor data found in gva_meta")
+                # Extract unique labels with confidence from current message
+                current_message_labels = {}  # {label: [confidence1, confidence2, ...]}
+                if 'metadata' in message_data and 'gva_meta' in message_data['metadata'] and len(message_data['metadata']['gva_meta']) > 0:
+                    for i in range(len(message_data['metadata']['gva_meta'])):
+                        if 'tensor' not in message_data['metadata']['gva_meta'][i]:
+                            logger.info("No tensor data found in gva_meta")
+                            continue
+                        else:
+                            tensors = message_data['metadata']['gva_meta'][i]['tensor']
+                            for j in range(len(tensors)):
+                                tensor = tensors[j]
+                                confidence = tensor.get('confidence', None)
+                                label = tensor.get('label', 'unknown')
+                                if confidence is not None and label != 'unknown':
+                                    if label not in current_message_labels:
+                                        current_message_labels[label] = []
+                                    current_message_labels[label].append(confidence)
+                    
+                    # logger.info(f"Unique labels detected in current message: {current_message_labels.keys()}")
+                    
+                    # Update message history first - add current labels and maintain size
+                    self.last_n_messages_labels.append(current_message_labels)
+                    if len(self.last_n_messages_labels) > self.max_message_history:
+                        self.last_n_messages_labels.pop(0)
+                    
+                    # Count occurrences and track confidence scores for each label in last N messages
+                    label_data = {}  # {label: {'count': X, 'confidences': [...]}}
+                    for labels_dict in self.last_n_messages_labels:
+                        for label, confidences in labels_dict.items():
+                            if label not in label_data:
+                                label_data[label] = {'count': 0, 'confidences': []}
+                            label_data[label]['count'] += 1
+                            label_data[label]['confidences'].extend(confidences)
+                    
+                    # Process labels that appear in at least N of the last X messages
+                    # and haven't been processed recently
+                    for label, data in label_data.items():
+                        if data['count'] >= self.object_recency_count:
+                            avg_confidence = sum(data['confidences']) / len(data['confidences'])
+                            logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
+                            # message_queue.put(label)
+                            # self.last_processed_item = label
+                            # self.list_of_processed_products.append(label)
+                    
+                else:
+                    logger.info("No tensor data found in gva_meta")
+                    self.last_n_messages_labels.clear()  # Clear history if no data 
+
                 
             except json.JSONDecodeError:
                 message_data = {'raw': payload}                    

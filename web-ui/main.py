@@ -405,6 +405,7 @@ class MQTTSubscriber:
         self.last_processed_item = ""
         self.last_n_messages_labels = []  # Track labels from last N messages
         self.object_recency_count = int(os.getenv('OBJECT_RECENCY_FRAME_COUNT', 5))
+        self.object_threshold_confidence = float(os.getenv('OBJECT_CONFIDENCE_THRESHOLD', 0.5))
         self.max_message_history = self.object_recency_count * 2  # Number of messages to track
 
         logger.info(f"MQTT Subscriber initialized for {broker}:{port} on topic {topic}")
@@ -481,7 +482,7 @@ class MQTTSubscriber:
                         if data['count'] >= self.object_recency_count:
                             avg_confidence = sum(data['confidences']) / len(data['confidences'])
                             # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
-                            if avg_confidence >= 0.5:  # Confidence threshold
+                            if avg_confidence >= self.object_threshold_confidence:  # Confidence threshold
                                 label_to_process.append(label)
                     if len(label_to_process) > 0:
                         logger.debug(f"Labels to process after recency check: {label_to_process}")

@@ -326,6 +326,7 @@ class Ad_Generator(threading.Thread):
                     logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (took {time.time() - start_time:.2f} seconds)")
             
             if not data_available_predefined:
+                start_time = time.time()
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
                 aig_payload["device"] = "GPU"

@@ -18,7 +18,7 @@ services:
       - app_network
   
   dlstreamer-pipeline-server:
-    image: intel/dlstreamer-pipeline-server:2025.2.0-ubuntu24
+    image: intel/dlstreamer-pipeline-server:2026.0.0-20260203-weekly-ubuntu24
     hostname: dlstreamer-pipeline-server
     container_name: dlstreamer-pipeline-server
     read_only: true
@@ -156,6 +156,7 @@ services:
       - https_proxy=${https_proxy}
     volumes:
       - chroma_data:/data
+      - chroma_data:/tmp
 
   aig-server:
     image: aig-server:1.0.0
@@ -270,6 +271,9 @@ services:
       - https_proxy=${https_proxy}
       - FLASK_ENV=production
       - FLASK_DEBUG=0
+      - TIME_TO_DISPLAY_AD_SECONDS=${TIME_TO_DISPLAY_AD_SECONDS}
+      - OBJECT_RECENCY_FRAME_COUNT=${OBJECT_RECENCY_FRAME_COUNT}
+      - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
     depends_on:
       - mediamtx
       - aig-server

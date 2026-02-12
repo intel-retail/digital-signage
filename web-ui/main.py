@@ -116,7 +116,6 @@ class Ad_Generator(threading.Thread):
     
     def __init__(self):
         super().__init__()
-        self.ad_generating_in_progress = False
         self.running = False
         self.last_generated_ad = None
         self.time_taken_last_generated_ad = 0
@@ -124,6 +123,9 @@ class Ad_Generator(threading.Thread):
         self.last_known_height = 600 # Default height until received from browser
         self.last_known_width = 480 # Default width until received from browser
         self.list_of_clients = []
+        self.last_generated_timestamp = None
+        self.last_processed_item = []
+        self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
     def run(self):
         """Main thread loop to process messages from queue"""
         self.running = True
@@ -133,20 +135,58 @@ class Ad_Generator(threading.Thread):
             try:
                 global message_queue
                 if not message_queue.empty():
-                    item = message_queue.get(timeout=1)
-                    if not self.ad_generating_in_progress:
+                    label_set = message_queue.get(timeout=1)
+                    if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
+                        item = self.find_product_for_ad_generation(label_set)
                         global product_associations
                         associations = product_associations.get(item, None)
                         # Prepare the API payload for AIG server
                         if not associations:
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                        self.last_generated_timestamp = time.time()
                     message_queue.task_done()
                 else:
                     time.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error in Ad_Generator thread: {str(e)}")
                 time.sleep(1)
+
+    def find_high_priced_item(self, list_of_items):
+        """Find the item with the highest price from the list"""
+        global product_associations
+        max_price = -1
+        selected_item = None
+        for item in list_of_items:
+            associations = product_associations.get(item, None)
+            if associations:
+                for assoc in associations:
+                    try:
+                        price = float(assoc['price'])
+                        if price > max_price:
+                            max_price = price
+                            selected_item = item
+                    except ValueError:
+                        continue
+        return selected_item
+
+    def find_product_for_ad_generation(self, processed_item):
+        """Determine which product to generate ad for from label set"""
+        # For simplicity, pick the label with highest confidence
+        new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
+        logger.debug(f"New identified items: {new_identified_items}")  
+        old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
+        new_list_high_price_item = self.find_high_priced_item(new_identified_items)
+        logger.debug(f"high priced old item: {old_list_high_price_item}")
+        logger.debug(f"high priced new item: {new_list_high_price_item}")
+        self.last_processed_item = processed_item
+        if new_list_high_price_item:
+            logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
+            return new_list_high_price_item
+        elif old_list_high_price_item:
+            logger.info(f"Selected high priced old item for ad generation: {old_list_high_price_item}")
+            return old_list_high_price_item
+        return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
         """
@@ -286,6 +326,7 @@ class Ad_Generator(threading.Thread):
                     logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (took {time.time() - start_time:.2f} seconds)")
             
             if not data_available_predefined:
+                start_time = time.time()
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
                 aig_payload["device"] = "GPU"
@@ -363,6 +404,10 @@ class MQTTSubscriber:
 
         self.list_of_processed_products = []
         self.last_processed_item = ""
+        self.last_n_messages_labels = []  # Track labels from last N messages
+        self.object_recency_count = int(os.getenv('OBJECT_RECENCY_FRAME_COUNT', 5))
+        self.object_threshold_confidence = float(os.getenv('OBJECT_CONFIDENCE_THRESHOLD', 0.5))
+        self.max_message_history = self.object_recency_count * 2  # Number of messages to track
 
         logger.info(f"MQTT Subscriber initialized for {broker}:{port} on topic {topic}")
     
@@ -396,21 +441,60 @@ class MQTTSubscriber:
             try:
                 global message_queue
                 message_data = json.loads(payload)
-                # Put message in queue for processing
                 
-                if 'metadata' in message_data and 'gva_meta' in message_data['metadata'] and len(message_data['metadata']['gva_meta']) > 0  and 'tensor' in message_data['metadata']['gva_meta'][0]:
-                    tensors = message_data['metadata']['gva_meta'][0]['tensor']
-                    tensor = tensors[0]  # Assuming single tensor for simplicity
-                    confidence = tensor.get('confidence', None)
-                    label = tensor.get('label', 'unknown')  
-                    if confidence is not None and confidence > 0.5:
-                        # logger.debug(f"Detected object: {label} with confidence: {confidence}")
-                        if label not in self.list_of_processed_products[-3:]:
-                            message_queue.put(label)
-                            self.last_processed_item = label
-                            self.list_of_processed_products.append(label)
-                    else:
-                        logger.info("No tensor data found in gva_meta")
+                # Extract unique labels with confidence from current message
+                current_message_labels = {}  # {label: [confidence1, confidence2, ...]}
+                if 'metadata' in message_data and 'gva_meta' in message_data['metadata'] and len(message_data['metadata']['gva_meta']) > 0:
+                    for i in range(len(message_data['metadata']['gva_meta'])):
+                        if 'tensor' not in message_data['metadata']['gva_meta'][i]:
+                            logger.info("No tensor data found in gva_meta")
+                            continue
+                        else:
+                            tensors = message_data['metadata']['gva_meta'][i]['tensor']
+                            for j in range(len(tensors)):
+                                tensor = tensors[j]
+                                confidence = tensor.get('confidence', None)
+                                label = tensor.get('label', 'unknown')
+                                if confidence is not None and label != 'unknown':
+                                    if label not in current_message_labels:
+                                        current_message_labels[label] = []
+                                    current_message_labels[label].append(confidence)
+                    
+                    # logger.info(f"Unique labels detected in current message: {current_message_labels.keys()}")
+                    
+                    # Update message history first - add current labels and maintain size
+                    self.last_n_messages_labels.append(current_message_labels)
+                    if len(self.last_n_messages_labels) > self.max_message_history:
+                        self.last_n_messages_labels.pop(0)
+                    
+                    # Count occurrences and track confidence scores for each label in last N messages
+                    label_data = {}  # {label: {'count': X, 'confidences': [...]}}
+                    for labels_dict in self.last_n_messages_labels:
+                        for label, confidences in labels_dict.items():
+                            if label not in label_data:
+                                label_data[label] = {'count': 0, 'confidences': []}
+                            label_data[label]['count'] += 1
+                            label_data[label]['confidences'].extend(confidences)
+                    
+                    # Process labels that appear in at least N of the last X messages
+                    # and haven't been processed recently
+                    label_to_process = []
+                    for label, data in label_data.items():
+                        if data['count'] >= self.object_recency_count:
+                            avg_confidence = sum(data['confidences']) / len(data['confidences'])
+                            # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
+                            if avg_confidence >= self.object_threshold_confidence:  # Confidence threshold
+                                label_to_process.append(label)
+                    if len(label_to_process) > 0:
+                        logger.debug(f"Labels to process after recency check: {label_to_process}")
+                        message_queue.put(label_to_process)
+                    
+                else:
+                    logger.info("No tensor data found in gva_meta")
+                    self.last_n_messages_labels.clear()  # Clear history if no data
+                    self.list_of_processed_products.clear()  # Clear processed products list
+                    self.last_processed_item = ""  # Reset last processed item
+
                 
             except json.JSONDecodeError:
                 message_data = {'raw': payload}                    

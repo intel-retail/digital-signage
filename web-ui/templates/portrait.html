@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signage - Portrait Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #87CEEB 100%);
+            color: #333;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(32, 182, 242, 0.9);
+            padding: 12px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: white;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+        }
+
+        .status-text {
+            color: white;
+            font-size: 12px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+        }
+
+        .advertisement-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #ffffff 0%, #87CEEB 100%);
+        }
+
+        .ad-header {
+            padding: 60px 20px 15px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 2px solid rgba(135, 206, 235, 0.3);
+        }
+
+        .ad-title {
+            font-size: 24px;
+            font-weight: 500;
+            color: #3ba6ed;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .ad-subtitle {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+
+        .ad-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ad-image-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ad-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .loading-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(135, 206, 235, 0.3);
+            border-top: 4px solid #87CEEB;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .generation-time {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            border-radius: 8px;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Floating Video Window */
+        .floating-video {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 280px;
+            height: 160px;
+            background: rgba(0, 0, 0, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            z-index: 1000;
+            border: 2px solid rgba(135, 206, 235, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .floating-video:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        }
+
+        .floating-video-header {
+            background: rgba(59, 166, 237, 0.95);
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+
+        .floating-video-title {
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .floating-video-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .video-control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .video-control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .floating-video-content {
+            width: 100%;
+            height: calc(100% - 32px);
+            position: relative;
+        }
+
+        .floating-video iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(135, 206, 235, 0.9);
+            padding: 8px 20px;
+            text-align: center;
+            font-size: 11px;
+            color: white;
+            z-index: 50;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 14px;
+            }
+
+            .floating-video {
+                width: 200px;
+                height: 115px;
+                bottom: 15px;
+                left: 15px;
+            }
+
+            .ad-title {
+                font-size: 20px;
+            }
+        }
+
+        /* Landscape mode warning */
+        @media (orientation: landscape) and (max-height: 600px) {
+            .orientation-warning {
+                display: flex;
+            }
+        }
+
+        .orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .orientation-warning h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        .orientation-warning p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CONTEXT-AWARE CROSS-SELLING DIGITAL SIGNAGE</h1>
+        <div class="status-indicator">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText" class="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="advertisement-container">
+            <div class="ad-header">
+            </div>
+            <div class="ad-content">
+                <div class="ad-image-container" id="ad-image-container">
+                    <div id="aigServerLoading" class="loading-indicator">
+                        <div class="spinner"></div>
+                        <span class="loading-text">Generating advertisement...</span>
+                    </div>
+                    <img id="productImage" class="ad-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                    <div id="generationTime" class="generation-time">Advertisement generated in 0s</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Video Window -->
+    <div class="floating-video" id="floatingVideo">
+        <div class="floating-video-header" id="videoHeader">
+            <span class="floating-video-title">LIVE STREAM</span>
+            <div class="floating-video-controls">
+                <button id="reconnectBtn" class="video-control-btn" title="Reconnect">⟳</button>
+                <button id="expandBtn" class="video-control-btn" title="Expand">⛶</button>
+            </div>
+        </div>
+        <div class="floating-video-content">
+            <iframe id="myframe"
+                    style="width:100%; height:100%; border:0;"
+                    allow="autoplay; encrypted-media"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+            </iframe>
+        </div>
+    </div>
+
+    <div class="footer">
+        CACS Digital Signage System - Portrait Mode
+    </div>
+
+    <script>
+        let pollingInterval = null;
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            setupDraggable();
+            
+            // Load Stream
+            const host = window.location.hostname;
+            const STREAM_PORT = "8889";
+            document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
+            updateConnectionStatus(true);
+            
+            // Start polling for advertisements
+            startPolling();
+        });
+
+        function setupEventListeners() {
+            document.getElementById("reconnectBtn").addEventListener("click", reconnectStream);
+            document.getElementById("expandBtn").addEventListener("click", expandVideo);
+        }
+
+        function setupDraggable() {
+            const videoWindow = document.getElementById("floatingVideo");
+            const header = document.getElementById("videoHeader");
+
+            header.addEventListener("mousedown", dragStart);
+            document.addEventListener("mousemove", drag);
+            document.addEventListener("mouseup", dragEnd);
+
+            header.addEventListener("touchstart", dragStart);
+            document.addEventListener("touchmove", drag);
+            document.addEventListener("touchend", dragEnd);
+        }
+
+        function dragStart(e) {
+            const videoWindow = document.getElementById("floatingVideo");
+            
+            if (e.type === "touchstart") {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }
+
+            if (e.target.closest('#videoHeader')) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                
+                const videoWindow = document.getElementById("floatingVideo");
+                
+                if (e.type === "touchmove") {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                setTranslate(currentX, currentY, videoWindow);
+            }
+        }
+
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollForAdvertisement();
+            pollingInterval = setInterval(pollForAdvertisement, 2000);
+        }
+
+        function getBrowserFingerprint() {
+            const userAgent = navigator.userAgent;
+            const screenResolution = `${screen.width}x${screen.height}`;
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const timestamp = performance.timeOrigin;
+            const random = Math.random().toString(36).substring(2);
+            
+            let tabId = sessionStorage.getItem('tabId');
+            if (!tabId) {
+                tabId = `${Date.now()}_${random}`;
+                sessionStorage.setItem('tabId', tabId);
+            }
+            
+            const fingerprint = `${userAgent}_${screenResolution}_${timezone}_${timestamp}_${tabId}`;
+            
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        function pollForAdvertisement() {
+            const container = document.getElementById("ad-image-container");
+            const rect = container.getBoundingClientRect();
+            const width = Math.floor(rect.width);
+            const height = Math.floor(rect.height);
+
+            const timestamp = new Date().getTime();
+            const clientId = getBrowserFingerprint();
+            
+            fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
+                .then(res => {
+                    if (res.status === 200) {
+                        res.blob().then(imageBlob => {
+                            const xgenerationTime = res.headers.get('X-Generation-Time');
+                            const imageUrl = URL.createObjectURL(imageBlob);
+
+                            if (xgenerationTime) {
+                                const generationTimeElement = document.getElementById('generationTime');
+                                generationTimeElement.textContent = `${xgenerationTime}`;
+                                generationTimeElement.style.display = 'block';
+                            }
+                            
+                            const productImage = document.getElementById('productImage');
+                            const aigServerLoading = document.getElementById('aigServerLoading');
+                        
+                            productImage.src = imageUrl;
+                            productImage.style.display = 'block';
+                            aigServerLoading.style.display = 'none';
+                        });
+                    }
+                    return;
+                })
+                .catch(err => {
+                    console.error('Error fetching advertisement:', err);
+                });
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        function reconnectStream() {
+            const btn = document.getElementById('reconnectBtn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '↻';
+            btn.disabled = true;
+
+            const iframe = document.getElementById("myframe");
+            iframe.src = iframe.src;
+
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        function expandVideo() {
+            const videoWindow = document.getElementById("floatingVideo");
+            const currentWidth = videoWindow.style.width || '280px';
+            
+            if (parseInt(currentWidth) === 280) {
+                videoWindow.style.width = '420px';
+                videoWindow.style.height = '240px';
+            } else {
+                videoWindow.style.width = '280px';
+                videoWindow.style.height = '160px';
+            }
+        }
+    </script>
+</body>
+</html>

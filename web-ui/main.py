@@ -529,6 +529,10 @@ def index():
     """Main page with video stream displayed on the left"""
     return render_template('index.html')
 
+@app.route('/portrait')
+def portrait():
+    """Portrait mode page"""
+    return render_template('portrait.html')
 
 @app.route('/get_current_advertisement', methods=['GET'])
 def get_current_advertisement():

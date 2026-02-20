@@ -32,12 +32,12 @@ SHA_ALGO="sha384"
 .PHONY: build
 build:
 	@echo "Building Docker containers..."
-	$(DOCKER_COMPOSE) build;
+	$(DOCKER_COMPOSE) build --pull;
 
 .PHONY: build_copyleft_sources
 build_copyleft_sources:
 	@echo "Building Docker containers including copyleft licensed sources..."
-	$(DOCKER_COMPOSE) build --build-arg COPYLEFT_SOURCES=true;
+	$(DOCKER_COMPOSE) build --build-arg COPYLEFT_SOURCES=true --pull;
 
 .PHONY: check_models
 check_models:

@@ -155,6 +155,7 @@ services:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
     volumes:
+      - chroma_data:/tmp
       - chroma_data:/data
 
   aig-server:

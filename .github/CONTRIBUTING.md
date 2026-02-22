@@ -15,7 +15,7 @@ Each commit message consists of a **header**, a **body** and a **footer**. The h
 
 The **header** with **type** is mandatory.  The **scope** of the header is optional as far as the automated PR checks are concerned, but be advised that PR reviewers **may request** you provide an applicable scope.
 
-Any line of the commit message should no be longer 72 characters! This allows the message to be easier to read on GitHub as well as in various git tools.
+Any line of the commit message should not be longer 72 characters! This allows the message to be easier to read on GitHub as well as in various git tools.
 
 The footer should contain a reference to JIRA ticket (e.g. SL6-****).
 

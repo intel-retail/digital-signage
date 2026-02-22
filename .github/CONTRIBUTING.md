@@ -105,5 +105,5 @@ The footer should contain any information about **Breaking Changes**.
 ### Pull Requests practices
 
 * PR author is responsible to merge its own PR after review has been done and CI has passed.
-* When merging, make sure git linear history is preserved. PR author should select a merge option (`Rebase and merge` or `Sqush and merge`) based on which option will fit the best to the git linear history.
+* When merging, make sure git linear history is preserved. PR author should select a merge option (`Rebase and merge` or `Squash and merge`) based on which option will fit the best to the git linear history.
 * PR topic should follow the same guidelines as the header of the [Git Commit Message](#commit-message-format)

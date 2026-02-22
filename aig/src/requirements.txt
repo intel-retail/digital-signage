@@ -2,7 +2,7 @@ setuptools==80.9.0
 # OpenVINO and Intel optimizations
 openvino_genai==2025.4.1.0
 numpy==2.2.6
-pillow==12.1.0
+pillow==12.1.1
 diffusers==0.33.1
 flask==3.1.2
 flask-restx==1.3.2

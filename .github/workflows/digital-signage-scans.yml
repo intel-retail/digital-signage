@@ -290,7 +290,7 @@ jobs:
         mkdir -p reports
         docker pull ghcr.io/pycqa/bandit/bandit
         echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
-        docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit -r /src/ -f json -o /src/reports/bandit-digital-signage-report.json || true >> $GITHUB_STEP_SUMMARY
+        docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit -r /src/ -f json -o /src/reports/bandit-digital-signage-report.json || true
         echo "Please find full report in bandit-digital-signage-report.json" >> $GITHUB_STEP_SUMMARY
         ls -al
         pwd

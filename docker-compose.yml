@@ -163,7 +163,7 @@ services:
     image: aig-server:1.0.0
     hostname: aig-server
     container_name: aig-server
-    read_only: true
+    read_only: false
     security_opt:
       - no-new-privileges
     build:

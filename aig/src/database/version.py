@@ -19,6 +19,7 @@ from database.utils import SharedUtils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 class Version_sch(object):
     """
     Version schema to describe a component's version information."""

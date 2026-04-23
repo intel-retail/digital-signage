@@ -33,7 +33,7 @@
                     "parameters": {
                         "detection-properties": {
                             "model": "/home/pipeline-server/yolo_models/yolo11s/INT8/yolo11s.xml",
-                            "device": "GPU"
+                            "device": "CPU"
                         }
                     }
                 }

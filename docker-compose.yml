@@ -215,6 +215,7 @@ services:
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
       - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
+      - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
       - ase-chromadb
     volumes:

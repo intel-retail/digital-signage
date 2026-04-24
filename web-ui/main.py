@@ -138,6 +138,9 @@ class Ad_Generator(threading.Thread):
                     label_set = message_queue.get(timeout=1)
                     if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
                         item = self.find_product_for_ad_generation(label_set)
+                        if item is None:
+                            message_queue.task_done()
+                            continue
                         global product_associations
                         associations = product_associations.get(item, None)
                         # Prepare the API payload for AIG server
@@ -175,17 +178,13 @@ class Ad_Generator(threading.Thread):
         # For simplicity, pick the label with highest confidence
         new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
         logger.debug(f"New identified items: {new_identified_items}")  
-        old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
         new_list_high_price_item = self.find_high_priced_item(new_identified_items)
-        logger.debug(f"high priced old item: {old_list_high_price_item}")
         logger.debug(f"high priced new item: {new_list_high_price_item}")
         self.last_processed_item = processed_item
         if new_list_high_price_item:
             logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
             return new_list_high_price_item
-        elif old_list_high_price_item:
-            logger.info(f"Selected high priced old item for ad generation: {old_list_high_price_item}")
-            return old_list_high_price_item
+        logger.debug("No newly identified high-priced item found; skipping ad generation")
         return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):

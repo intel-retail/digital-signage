@@ -122,6 +122,33 @@ cd ../
 ```
 Models will be downloaded to `./aig/models/`.
 
+##### Alternative: SD 1.5 LCM (lower memory, faster on iGPU)
+
+> Please review the [SD 1.5 LCM license](https://huggingface.co/SimianLuo/LCM_Dreamshaper_v7/blob/main/LICENSE).
+
+SD 1.5 LCM is a lighter alternative that works well on systems with limited GPU memory. To use it instead of SDXL-Turbo:
+
+```bash
+cd aig && \
+rm -rf .modelenv && \
+python3 -m venv .modelenv && \
+source ./.modelenv/bin/activate && \
+pip3 install -r export-requirements.txt && \
+export HF_HUB_ENABLE_HF_TRANSFER=1 && \
+optimum-cli export openvino --model SimianLuo/LCM_Dreamshaper_v7 --task stable-diffusion --weight-format int8 ./models/sd15_lcm_ov/int8 && \
+huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
+deactivate && \
+cd ../
+```
+
+Then update the following variables in your `.env` file:
+```
+AIG_MODEL_PATH=/opt/models/sd15_lcm_ov/int8
+AIG_MODEL_NUM_INFERENCE_STEPS=4
+AIG_MODEL_GUIDANCE_SCALE=1.0
+AIG_MODEL_NEGATIVE_PROMPT=blurry, low quality, distorted, deformed, ugly, bad anatomy, watermark, text, logo, banner
+```
+
 ### Build Docker Images
 
 ```bash

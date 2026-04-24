@@ -177,6 +177,22 @@ class AigServerMetadata:
         return int(os.getenv('AIG_MODEL_NUM_INFERENCE_STEPS', 20))    
 
     @staticmethod
+    def get_model_guidance_scale():
+        """
+        Get the guidance scale for classifier-free guidance.
+        Use 0.0 for SDXL-Turbo, 1.0 for SD 1.5 LCM.
+        """
+        return float(os.getenv('AIG_MODEL_GUIDANCE_SCALE', 0.0))
+
+    @staticmethod
+    def get_model_negative_prompt():
+        """
+        Get the negative prompt to steer the model away from undesired artifacts.
+        Recommended for SD 1.5 LCM; leave empty for SDXL-Turbo.
+        """
+        return os.getenv('AIG_MODEL_NEGATIVE_PROMPT', '')
+
+    @staticmethod
     def get_img_width():
         return int(os.getenv('AIG_IMG_WIDTH_DEFAULT', 512)) # Default image width for the model
     

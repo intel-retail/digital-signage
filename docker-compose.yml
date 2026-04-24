@@ -199,6 +199,8 @@ services:
       - AIG_MODEL_PATH=${AIG_MODEL_PATH}
       - AIG_MODEL_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU)
       - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
+      - AIG_MODEL_GUIDANCE_SCALE=${AIG_MODEL_GUIDANCE_SCALE} # Guidance scale (0.0 for SDXL-Turbo, 1.0 for SD 1.5 LCM)
+      - AIG_MODEL_NEGATIVE_PROMPT=${AIG_MODEL_NEGATIVE_PROMPT} # Negative prompt (recommended for SD 1.5 LCM)
       - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
       - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model
       - LIBVA_DRIVER_NAME=iHD #OpenVINO & OneAPI

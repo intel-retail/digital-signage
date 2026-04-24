@@ -223,11 +223,19 @@ class ModelInference_Img(Resource):
             image_tensor = None
             max_retries = 3
             counter = 0
+            negative_prompt = AigServerMetadata.get_model_negative_prompt()
             while counter < max_retries:
                 try:
-                    # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
-                    image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
-                                                    num_inference_steps=4, guidance_scale=0.0, num_images_per_prompt=1)
+                    generate_kwargs = {
+                        "width": AigServerMetadata.get_img_width(),
+                        "height": AigServerMetadata.get_img_height(),
+                        "num_inference_steps": AigServerMetadata.get_model_inference_steps(),
+                        "guidance_scale": AigServerMetadata.get_model_guidance_scale(),
+                        "num_images_per_prompt": 1,
+                    }
+                    if negative_prompt:
+                        generate_kwargs["negative_prompt"] = negative_prompt
+                    image_tensor = pipe.generate(description, **generate_kwargs)
                     if image_tensor is not None and len(image_tensor.data) > 0:
                         counter = max_retries  # Exit loop if image generation is successful
                 except Exception as e:

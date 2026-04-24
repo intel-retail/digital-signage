@@ -174,7 +174,7 @@ class AigServerMetadata:
 
     @staticmethod
     def get_model_inference_steps():
-        return int(os.getenv('AIG_MODEL_NUM_INFERENCE_STEPS', 20))    
+        return int(os.getenv('AIG_MODEL_NUM_INFERENCE_STEPS', 4))    
 
     @staticmethod
     def get_model_guidance_scale():

@@ -358,15 +358,10 @@ class Ad_Generator(threading.Thread):
             if recvd_img and not dummy_ad:
                 if data_available_predefined:
                     self.time_taken_last_generated_ad = (
-                        f"Pre-defined ad fetched in {elapsed_time:.2f} seconds "
-                        f"(query roundtrip {predefined_http_elapsed:.2f} seconds)"
-                    )
+                        f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds")
                 else:
                     self.time_taken_last_generated_ad = (
-                        f"Dynamic ad generated in {elapsed_time:.2f} seconds "
-                        f"(AIG roundtrip {dynamic_http_elapsed:.2f} seconds, "
-                        f"copy {response_copy_elapsed:.3f} seconds, payload {response_size_kb:.1f} KB)"
-                    )
+                        f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds ")
                 self.list_of_clients = []  # Reset client list to force refresh
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
                 logger.info(self.time_taken_last_generated_ad)

@@ -157,6 +157,15 @@ Open Google Chrome and navigate to:
 http://<HOST_IP>:5000
 ```
 
+For accessing it local system with low compute resource, follow the below step to achieve better results
+
+1. Open Terminal on Desktop
+2. Run the below command to launch chrome with gpu access
+   ```bash
+   google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
+   ```
+
+
 You should see the live video stream and dynamic advertisements.
 
 ### Verify & Monitor

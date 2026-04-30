@@ -157,10 +157,10 @@ Open Google Chrome and navigate to:
 http://<HOST_IP>:5000
 ```
 
-For accessing it local system with low compute resource, follow the below step to achieve better results
+For local systems with limited compute resources, follow the step below for better results:
 
-1. Open Terminal on Desktop
-2. Run the below command to launch chrome with gpu access
+1. Open Terminal on the desktop.
+2. Run the command below to launch Chrome with GPU acceleration disabled:
    ```bash
    google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
    ```

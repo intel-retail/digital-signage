@@ -117,6 +117,7 @@ class Ad_Generator(threading.Thread):
     def __init__(self):
         super().__init__()
         self.running = False
+        self.http_session = requests.Session()
         self.last_generated_ad = None
         self.time_taken_last_generated_ad = 0
         logger.info("Ad_Generator thread initialized")
@@ -138,6 +139,9 @@ class Ad_Generator(threading.Thread):
                     label_set = message_queue.get(timeout=1)
                     if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
                         item = self.find_product_for_ad_generation(label_set)
+                        if item is None:
+                            message_queue.task_done()
+                            continue
                         global product_associations
                         associations = product_associations.get(item, None)
                         # Prepare the API payload for AIG server
@@ -175,17 +179,13 @@ class Ad_Generator(threading.Thread):
         # For simplicity, pick the label with highest confidence
         new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
         logger.debug(f"New identified items: {new_identified_items}")  
-        old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
         new_list_high_price_item = self.find_high_priced_item(new_identified_items)
-        logger.debug(f"high priced old item: {old_list_high_price_item}")
         logger.debug(f"high priced new item: {new_list_high_price_item}")
         self.last_processed_item = processed_item
         if new_list_high_price_item:
             logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
             return new_list_high_price_item
-        elif old_list_high_price_item:
-            logger.info(f"Selected high priced old item for ad generation: {old_list_high_price_item}")
-            return old_list_high_price_item
+        logger.debug("No newly identified high-priced item found; skipping ad generation")
         return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
@@ -291,16 +291,21 @@ class Ad_Generator(threading.Thread):
             
             # Make API call to AIG server
             aig_response = None
-            start_time = time.time()
+            total_start_time = time.time()
             data_available_predefined = False
             recvd_img = False
+            predefined_http_elapsed = 0.0
+            dynamic_http_elapsed = 0.0
+            response_copy_elapsed = 0.0
+            response_size_kb = 0.0
 
             if check_predefined:
                 logger.info(f"Checking for pre-defined advertisement for product: {label} {pre_defined_ad_description}")
                 aig_payload["query"] = pre_defined_ad_description
                 aig_payload["n_results"] = 1
                 aig_payload["use_default_ad_onempty"] = False
-                aig_response = requests.post(
+                predefined_http_start = time.time()
+                aig_response = self.http_session.post(
                     AIG_PREDEFINED_AD_QUERY_ENDPOINT,
                     headers={
                         'accept': 'application/json',
@@ -309,6 +314,7 @@ class Ad_Generator(threading.Thread):
                     json=aig_payload,
                     timeout=5
                 )
+                predefined_http_elapsed = time.time() - predefined_http_start
 
                 if aig_response.status_code == 200:
                     logger.debug(f"Pre-defined advertisement query successful for product: {label}")
@@ -323,14 +329,14 @@ class Ad_Generator(threading.Thread):
                             self.last_generated_ad  = decoded_bytes
                             logger.info(f"Pre-defined advertisement found for product: {label}")
                 else:
-                    logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (took {time.time() - start_time:.2f} seconds)")
+                    logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (roundtrip {predefined_http_elapsed:.2f} seconds)")
             
             if not data_available_predefined:
-                start_time = time.time()
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
                 aig_payload["device"] = "GPU"
-                aig_response = requests.post(
+                dynamic_http_start = time.time()
+                aig_response = self.http_session.post(
                     AIG_DYNAMIC_AD_ENDPOINT,
                     headers={
                         'accept': 'application/json',
@@ -339,19 +345,26 @@ class Ad_Generator(threading.Thread):
                     json=aig_payload,
                     timeout=400
                 )
+                dynamic_http_elapsed = time.time() - dynamic_http_start
                 if aig_response.status_code == 200:
+                    copy_start = time.time()
                     self.last_generated_ad = aig_response.content
+                    response_copy_elapsed = time.time() - copy_start
+                    response_size_kb = len(aig_response.content) / 1024.0
                     recvd_img = True
             
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - total_start_time
             
             if recvd_img and not dummy_ad:
                 if data_available_predefined:
-                    self.time_taken_last_generated_ad = f"Pre-defined ad fetched in {elapsed_time:.2f} seconds"
+                    self.time_taken_last_generated_ad = (
+                        f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds")
                 else:
-                    self.time_taken_last_generated_ad = f"Dynamic ad generated in {elapsed_time:.2f} seconds"
+                    self.time_taken_last_generated_ad = (
+                        f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds ")
                 self.list_of_clients = []  # Reset client list to force refresh
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
+                logger.info(self.time_taken_last_generated_ad)
             else:
                 self.last_generated_ad = None
                 if not dummy_ad: 
@@ -381,6 +394,7 @@ class Ad_Generator(threading.Thread):
     def stop(self):
         """Stop the processor thread"""
         self.running = False
+        self.http_session.close()
         logger.info("Ad_Generator thread stopping")
 
 # Global message processor instance

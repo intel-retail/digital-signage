@@ -157,6 +157,15 @@ Open Google Chrome and navigate to:
 http://<HOST_IP>:5000
 ```
 
+For local systems with limited compute resources, follow the step below for better results:
+
+1. Open Terminal on the desktop.
+2. Run the command below to launch Chrome with GPU acceleration disabled:
+   ```bash
+   google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
+   ```
+
+
 You should see the live video stream and dynamic advertisements.
 
 ### Verify & Monitor

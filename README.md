@@ -285,20 +285,22 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 ## Advanced: Using Intel® Geti™ Exported YOLO Model
 
 > **Prerequisites:**
-> 1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). As DL Streamer Pipeline Server is using 2.7.1 geti sdk version, install the latest geti version or version above 2.6 as per [compatibility](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility)
+> 1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). DL Streamer Pipeline Server is using 2.13.1 geti sdk version, install the same or latest geti version as per [compatibility](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility)
 > 2. See the [Geti Tutorials](https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials) for step-by-step guides on creating projects, labeling data, training models, and exporting results.
 > 3. Review the [Supported Models in Geti](https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/supported-models) to ensure your project uses a YOLO or other object detection architecture for export to OpenVINO™ IR format.
 > 4. Follow the [Model Download Instructions](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/#lets-download-the-model) to export your trained model as OpenVINO™ IR files (`.xml`/`.bin`). This process includes selecting the correct export format and downloading the files for deployment.
 
 
 1. **Export** your YOLO model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
-2. Place files in `./pid/models/yolo11_geti_ir/`.
+   If you have downloaded Geti deployment project, just extract the .zip package to copy
+   the `.bin` and `.xml` files from `geti-sdk-deployment/deployment/Detection/model`.
+2. Place files in `./pid/models/object_detection/geti-model/`.
 3. Edit the `pid/config.json` file and update the `model` parameter to point to your exported model file:
 
    ```json
    "parameters": {
       "detection-properties": {
-         "model": "/home/pipeline-server/yolo11_geti_ir/<YOUR_MODEL_NAME>.xml",
+         "model": "/home/pipeline-server/object_detection/geti-model/<YOUR_MODEL_NAME>.xml",
          "device": "CPU"
       }
    }

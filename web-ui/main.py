@@ -244,6 +244,7 @@ class Ad_Generator(threading.Thread):
         global product_associations
 
         resolved_items = []
+        logger.info(f"Processing detected labels for ad selection: {processed_item}")
         for item in processed_item:
             resolved = resolve_product_label(item)
             if not resolved:

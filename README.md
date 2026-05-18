@@ -330,7 +330,20 @@ The PID service (DL Streamer Pipeline Server) exposes REST endpoints for pipelin
 
 For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)
 
-## Advanced: RTSP Camera Configuration
+## Advanced Configurations
+
+### Switch the Simulation Video
+
+1. Copy the simulation video to the `pid/resources/videos` directory.
+   > Note: The input file must be in `.avi` format.
+2. Edit `pid/config.json` and replace `<VIDEO_FILE_NAME>` in the pipeline string with your uploaded filename (without extension):
+   
+   ```json
+   "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+   ```
+3. Redeploy with `make down && make up`.
+
+### RTSP Camera Configuration
 
 1. **Obtain RTSP URI** from your camera software (test with VLC if needed).
 2. Edit `pid/config.json` and update the `pipeline` string:
@@ -343,7 +356,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 
 For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol) and [DL Streamer Pipeline Server RTSP guide](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html#rtsp-cameras).
 
-## Advanced: Using Intel® Geti™ Exported YOLO Model
+### Using Intel® Geti™ Exported YOLO Model
 
 > **Prerequisites:**
 > 1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). DL Streamer Pipeline Server is using 2.13.1 geti sdk version, install the same or latest geti version as per [compatibility](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility)

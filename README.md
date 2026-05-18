@@ -356,7 +356,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 
 For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol) and [DL Streamer Pipeline Server RTSP guide](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html#rtsp-cameras).
 
-### Using Intel® Geti™ Exported YOLO Model
+### Using Intel® Geti™ Exported Model
 
 > **Prerequisites:**
 > 1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). DL Streamer Pipeline Server is using 2.13.1 geti sdk version, install the same or latest geti version as per [compatibility](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility)
@@ -365,21 +365,20 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 > 4. Follow the [Model Download Instructions](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/#lets-download-the-model) to export your trained model as OpenVINO™ IR files (`.xml`/`.bin`). This process includes selecting the correct export format and downloading the files for deployment.
 
 
-1. **Export** your YOLO model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
-   If you have downloaded Geti deployment project, just extract the .zip package to copy
-   the `.bin` and `.xml` files from `geti-sdk-deployment/deployment/Detection/model`.
-2. Place files in `./pid/models/object_detection/geti-model/`.
-3. Edit the `pid/config.json` file and update the `model` parameter to point to your exported model file:
+1. **Export** your Geti model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
+   If you have downloaded Geti deployment project, just extract the .zip package
+   and place the extracted folder at `./pid/models/object_detection/geti-sdk-deployment/deployment/Detection/model`.
+2. Edit the `pid/config.json` file to update the `model` parameter to point to your exported model file:
 
    ```json
    "parameters": {
       "detection-properties": {
-         "model": "/home/pipeline-server/object_detection/geti-model/<YOUR_MODEL_NAME>.xml",
+         "model": "/home/pipeline-server/object_detection/geti-sdk-deployment/deployment/Detection/model/<YOUR_MODEL_NAME>.xml",
          "device": "CPU"
       }
    }
    ```
-   Replace `<YOUR_MODEL_NAME>` with the actual filename (without extension) of your exported YOLO model.
+   Replace `<YOUR_MODEL_NAME>` with the actual filename (without extension) of your exported model.
 
 4. Redeploy the application to apply changes:
 

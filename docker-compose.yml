@@ -18,7 +18,7 @@ services:
       - app_network
   
   dlstreamer-pipeline-server:
-    image: intel/dlstreamer-pipeline-server:2026.1.0-20260505-weekly-ubuntu24
+    image: intel/dlstreamer-pipeline-server:2026.1.0-ubuntu24-rc1
     hostname: dlstreamer-pipeline-server
     container_name: dlstreamer-pipeline-server
     read_only: true

@@ -366,7 +366,7 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 
 
 1. **Export** your Geti model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
-   If you have downloaded Geti deployment project, just extract the .zip package
+   If you have downloaded the Geti deployment project, just extract the .zip package
    and place the extracted folder at `./pid/models/object_detection/geti-sdk-deployment/deployment/Detection/model`.
 2. Edit the `pid/config.json` file to update the `model` parameter to point to your exported model file:
 
@@ -380,12 +380,12 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
    ```
    Replace `<YOUR_MODEL_NAME>` with the actual filename (without extension) of your exported model.
 
-4. Redeploy the application to apply changes:
+3. Redeploy the application to apply changes:
 
    ```bash
    make up
    ```
-5. Check logs for model loading success:
+4. Check logs for model loading success:
 
    ```bash
    docker logs -f <pid_container_name>

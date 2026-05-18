@@ -54,6 +54,67 @@ The solution is composed of the following main components:
 
 ![Digital Signage Architecture](./diagrams/Digital_Signage.png)
 
+## Web UI: Object Selection and Ad Generation Flow
+
+The Web UI service subscribes to object-detection events and decides which product should drive the next advertisement. The process is designed to reduce noise, avoid repeated content, and prioritize useful promotions.
+
+### 1. Detection Ingestion from PID
+
+- The Web UI subscribes to the configured MQTT topic for detection results from PID.
+- Incoming labels are normalized to lowercase before processing.
+- Only labels with valid confidence values are considered.
+
+### 2. Temporal Filtering and Confidence Gating
+
+- The service keeps a short rolling history of recent detection frames.
+- A label is considered eligible only if it appears in at least N recent frames (configured by `OBJECT_RECENCY_FRAME_COUNT`).
+- The label must also satisfy the configured confidence threshold (`OBJECT_CONFIDENCE_THRESHOLD`).
+
+This helps prevent one-off false positives from triggering ad generation.
+
+### 3. Mapping Labels to Provisioned Products
+
+- Eligible labels are matched against `web-ui/ProductAssociations.csv`.
+- Labels that are not present in the CSV are skipped.
+- Duplicates are removed so each product appears once in the candidate set.
+
+### 4. Product Selection Strategy
+
+When multiple products are eligible:
+
+- First-time priority: products that have never been shown are prioritized by highest configured price.
+- Rotation mode: once products have been shown, selection rotates across candidates by preferring less-shown products.
+- Immediate repeat prevention: if alternatives exist, the most recently selected product is temporarily avoided.
+
+This provides an intentional blend of merchandising priority and content variety.
+
+### 5. Ad Variant Selection per Product
+
+- A product can have multiple rows in `ProductAssociations.csv`.
+- For repeated appearances of the same product, the Web UI avoids reusing the exact same variant index consecutively when alternatives exist.
+
+### 6. Predefined Ad First, Dynamic Ad Fallback
+
+For each selected product:
+
+- The service first queries ASe for a predefined ad (`/ase/predef/query/ad`).
+- If a predefined ad is found, it is displayed immediately.
+- If no predefined ad is found, the service calls AIG (`/aig/minf/`) to generate a dynamic advertisement using the configured text/promo/price/slogan payload.
+
+### 7. Delivery to Browser Clients
+
+- The current ad is served through the Web UI endpoint `/get_current_advertisement`.
+- Client IDs are tracked so each client receives a new ad once per generation cycle.
+- A display interval (`TIME_TO_DISPLAY_AD_SECONDS`) controls how frequently new ads are generated.
+
+### 8. Provisioning Inputs That Control Behavior
+
+The following inputs drive what the Web UI can select and display:
+
+- `web-ui/ProductAssociations.csv`: product, pricing, promo text, slogan, cross-sell target, dynamic prompt, and optional predefined image file.
+- `web-ui/pre-defined-ads/`: optional predefined JPEG/JPG assets referenced by the CSV.
+- Environment variables in `.env`: MQTT settings, timing values, and confidence/recency thresholds.
+
 
 ## Repository Structure
 
@@ -269,7 +330,20 @@ The PID service (DL Streamer Pipeline Server) exposes REST endpoints for pipelin
 
 For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)
 
-## Advanced: RTSP Camera Configuration
+## Advanced Configurations
+
+### Switch the Simulation Video
+
+1. Copy the simulation video to the `pid/resources/videos` directory.
+   > Note: The input file must be in `.avi` format.
+2. Edit `pid/config.json` and replace `<VIDEO_FILE_NAME>` in the pipeline string with your uploaded filename (without extension):
+   
+   ```json
+   "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+   ```
+3. Redeploy with `make down && make up`.
+
+### RTSP Camera Configuration
 
 1. **Obtain RTSP URI** from your camera software (test with VLC if needed).
 2. Edit `pid/config.json` and update the `pipeline` string:
@@ -282,7 +356,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 
 For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol) and [DL Streamer Pipeline Server RTSP guide](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html#rtsp-cameras).
 
-## Advanced: Using Intel® Geti™ Exported YOLO Model
+### Using Intel® Geti™ Exported Model
 
 > **Prerequisites:**
 > 1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). DL Streamer Pipeline Server is using 2.13.1 geti sdk version, install the same or latest geti version as per [compatibility](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility)
@@ -291,28 +365,27 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 > 4. Follow the [Model Download Instructions](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/#lets-download-the-model) to export your trained model as OpenVINO™ IR files (`.xml`/`.bin`). This process includes selecting the correct export format and downloading the files for deployment.
 
 
-1. **Export** your YOLO model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
-   If you have downloaded Geti deployment project, just extract the .zip package to copy
-   the `.bin` and `.xml` files from `geti-sdk-deployment/deployment/Detection/model`.
-2. Place files in `./pid/models/object_detection/geti-model/`.
-3. Edit the `pid/config.json` file and update the `model` parameter to point to your exported model file:
+1. **Export** your Geti model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
+   If you have downloaded the Geti deployment project, just extract the .zip package
+   and place the extracted folder at `./pid/models/object_detection/geti-sdk-deployment/deployment/Detection/model`.
+2. Edit the `pid/config.json` file to update the `model` parameter to point to your exported model file:
 
    ```json
    "parameters": {
       "detection-properties": {
-         "model": "/home/pipeline-server/object_detection/geti-model/<YOUR_MODEL_NAME>.xml",
+         "model": "/home/pipeline-server/object_detection/geti-sdk-deployment/deployment/Detection/model/<YOUR_MODEL_NAME>.xml",
          "device": "CPU"
       }
    }
    ```
-   Replace `<YOUR_MODEL_NAME>` with the actual filename (without extension) of your exported YOLO model.
+   Replace `<YOUR_MODEL_NAME>` with the actual filename (without extension) of your exported model.
 
-4. Redeploy the application to apply changes:
+3. Redeploy the application to apply changes:
 
    ```bash
    make up
    ```
-5. Check logs for model loading success:
+4. Check logs for model loading success:
 
    ```bash
    docker logs -f <pid_container_name>

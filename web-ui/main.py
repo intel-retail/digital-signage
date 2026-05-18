@@ -35,15 +35,33 @@ AIG_SERVER_ACTIVE = False
 
 # Product Associations Dictionary
 product_associations = {}
+product_association_lookup = {}
+
+
+def normalize_product_key(name):
+    """Normalize labels so MQTT detections match CSV product names."""
+    if not name:
+        return ""
+    return name.strip().lower().replace("-", " ").replace("_", " ")
+
+
+def resolve_product_label(label):
+    """Map an incoming label to a known CSV product key, if available."""
+    normalized_label = normalize_product_key(label)
+    return product_association_lookup.get(normalized_label)
 
 def load_product_associations(csv_path):
     """Load product associations from CSV file into dictionary"""
-    global product_associations
+    global product_associations, product_association_lookup
     try:
+        product_associations = {}
+        product_association_lookup = {}
         with open(csv_path, 'r') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 primary_product = row['primary_product']
+                normalized_primary = normalize_product_key(primary_product)
+                product_association_lookup[normalized_primary] = primary_product
                 
                 # Initialize list if primary product not in dict
                 if primary_product not in product_associations:
@@ -126,6 +144,9 @@ class Ad_Generator(threading.Thread):
         self.list_of_clients = []
         self.last_generated_timestamp = None
         self.last_processed_item = []
+        self.last_selected_item = None
+        self.product_generation_count = {}
+        self.last_association_index_by_label = {}
         self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
     def run(self):
         """Main thread loop to process messages from queue"""
@@ -156,36 +177,111 @@ class Ad_Generator(threading.Thread):
                 logger.error(f"Error in Ad_Generator thread: {str(e)}")
                 time.sleep(1)
 
-    def find_high_priced_item(self, list_of_items):
-        """Find the item with the highest price from the list"""
+    def get_product_max_price(self, item):
+        """Return the max configured price for a product, used for first-time prioritization."""
         global product_associations
-        max_price = -1
-        selected_item = None
-        for item in list_of_items:
-            associations = product_associations.get(item, None)
-            if associations:
-                for assoc in associations:
-                    try:
-                        price = float(assoc['price'])
-                        if price > max_price:
-                            max_price = price
-                            selected_item = item
-                    except ValueError:
-                        continue
-        return selected_item
+        associations = product_associations.get(item, [])
+        max_price = -1.0
+        for assoc in associations:
+            try:
+                price = float(assoc.get('price', 0))
+                if price > max_price:
+                    max_price = price
+            except (TypeError, ValueError):
+                continue
+        return max_price
+
+    def find_high_priced_candidate(self, candidate_items):
+        """Select highest-priced item from candidates."""
+        if not candidate_items:
+            return None
+        max_price = -1.0
+        best_items = []
+        for item in candidate_items:
+            price = self.get_product_max_price(item)
+            if price > max_price:
+                max_price = price
+                best_items = [item]
+            elif price == max_price:
+                best_items.append(item)
+        return random.choice(best_items) if best_items else None
+
+    def find_rotating_candidate(self, candidate_items):
+        """Rotate among candidates by preferring less-shown products and avoiding immediate repeats."""
+        if not candidate_items:
+            return None
+
+        pool = list(candidate_items)
+        if self.last_selected_item and len(pool) > 1:
+            non_repeating = [item for item in pool if item != self.last_selected_item]
+            if non_repeating:
+                pool = non_repeating
+
+        min_count = min(self.product_generation_count.get(item, 0) for item in pool)
+        least_shown = [item for item in pool if self.product_generation_count.get(item, 0) == min_count]
+        return random.choice(least_shown)
+
+    def choose_association_index(self, label, associations):
+        """Choose an association variant while avoiding repeating the previous variant for the same label."""
+        if not associations:
+            return 0
+
+        if len(associations) == 1:
+            self.last_association_index_by_label[label] = 0
+            return 0
+
+        last_index = self.last_association_index_by_label.get(label)
+        candidate_indices = list(range(len(associations)))
+        if last_index in candidate_indices:
+            candidate_indices.remove(last_index)
+
+        selected_index = random.choice(candidate_indices if candidate_indices else list(range(len(associations))))
+        self.last_association_index_by_label[label] = selected_index
+        return selected_index
 
     def find_product_for_ad_generation(self, processed_item):
         """Determine which product to generate ad for from label set"""
-        # For simplicity, pick the label with highest confidence
-        new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
-        logger.debug(f"New identified items: {new_identified_items}")  
-        new_list_high_price_item = self.find_high_priced_item(new_identified_items)
-        logger.debug(f"high priced new item: {new_list_high_price_item}")
-        self.last_processed_item = processed_item
-        if new_list_high_price_item:
-            logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
-            return new_list_high_price_item
-        logger.debug("No newly identified high-priced item found; skipping ad generation")
+        global product_associations
+
+        resolved_items = []
+        logger.info(f"Processing detected labels for ad selection: {processed_item}")
+        for item in processed_item:
+            resolved = resolve_product_label(item)
+            if not resolved:
+                continue
+            if resolved not in product_associations:
+                continue
+            if resolved not in resolved_items:
+                resolved_items.append(resolved)
+
+        if not resolved_items:
+            logger.debug(f"No known products found in labels: {processed_item}")
+            self.last_processed_item = []
+            return None
+
+        new_identified_items = [item for item in resolved_items if item not in self.last_processed_item]
+        logger.info(f"Resolved labels for ad selection: {resolved_items}; newly identified: {new_identified_items}")
+
+        selection_pool = new_identified_items if new_identified_items else resolved_items
+        never_generated = [item for item in selection_pool if self.product_generation_count.get(item, 0) == 0]
+        logger.info(f"Selection candidates: {selection_pool}; first-time candidates: {never_generated}")
+
+        if never_generated:
+            selected_item = self.find_high_priced_candidate(never_generated)
+            logger.info(f"First-time selection mode (high price): {selected_item}")
+        else:
+            selected_item = self.find_rotating_candidate(selection_pool)
+            logger.info(f"Rotation selection mode: {selected_item}")
+
+        self.last_processed_item = resolved_items
+
+        if selected_item:
+            self.last_selected_item = selected_item
+            self.product_generation_count[selected_item] = self.product_generation_count.get(selected_item, 0) + 1
+            logger.info(f"Selected item for ad generation: {selected_item}")
+            return selected_item
+
+        logger.debug("No eligible item selected for ad generation")
         return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
@@ -204,7 +300,7 @@ class Ad_Generator(threading.Thread):
         try:
 
             logger.info(f"Detected object: {label}, {len(associations) if associations else 0} associations found")
-            association_index = random.randint(0, len(associations) - 1) if associations else 0
+            association_index = self.choose_association_index(label, associations)
             background_prompt = "perfectly dead-center, surrounded by vast white negative space, minimalist composition with wide margins, " \
                                 "isolated on a pure white seamless background, high-key studio lighting, 8k, crisp detail, sharp focus"
             description = associations[association_index]['dynamic_ad_prompt'] + background_prompt \
@@ -468,7 +564,8 @@ class MQTTSubscriber:
                             for j in range(len(tensors)):
                                 tensor = tensors[j]
                                 confidence = tensor.get('confidence', None)
-                                label = tensor.get('label', 'unknown')
+                                raw_label = tensor.get('label', 'unknown')
+                                label = raw_label.strip().lower() if isinstance(raw_label, str) else 'unknown'
                                 if confidence is not None and label != 'unknown':
                                     if label not in current_message_labels:
                                         current_message_labels[label] = []

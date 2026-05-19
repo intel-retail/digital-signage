@@ -220,11 +220,22 @@ http://<HOST_IP>:5000
 
 For local systems with limited compute resources, follow the step below for better results:
 
-1. Open Terminal on the desktop.
-2. Run the command below to launch Chrome with GPU acceleration disabled:
-   ```bash
-   google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
-   ```
+
+- Using Console to start `Google Chrome`
+   1. Open Terminal on the desktop.
+   2. Run the command below to launch Chrome with GPU acceleration disabled:
+      ```bash
+      google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
+      ```
+
+- Launching `Google Chrome` using the icon:
+   1. Open Chrome and go to `Settings`.
+   2. Select `System` from the left pane, then turn off 
+      - `Continue running background apps when Google Chrome is closed` 
+      - `Use graphics acceleration when available`
+
+      ![Chrome System settings](./chrome_settings.png)
+   3. Relaunch Chrome for the changes to take effect.
 
 
 You should see the live video stream and dynamic advertisements.
@@ -349,7 +360,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 2. Edit `pid/config.json` and update the `pipeline` string:
 
    ```json
-   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,format=BGR,width=1280,height=720 ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination"
+   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,format=BGR,width=1280,height=720 ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
    ```
 3. Set `RTSP_CAMERA_IP` in `.env`.
 4. Redeploy with `make down && make up`.

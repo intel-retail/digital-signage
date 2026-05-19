@@ -5,7 +5,7 @@
                 "name": "items_detection",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
-                "pipeline": "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/test_shopping_items.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+                "pipeline": "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/test_shopping_items.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination",
                 "auto_start": true,
                 "parameters": {
                     "type": "object",

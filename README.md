@@ -218,8 +218,7 @@ Open Google Chrome and navigate to:
 http://<HOST_IP>:5000
 ```
 
-For local systems with limited compute resources, follow the step below for better results:
-
+For local systems with limited compute resources, follow either of the steps below for better results:
 
 - Using Console to start `Google Chrome`
    1. Open Terminal on the desktop.
@@ -350,8 +349,10 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 2. Edit `pid/config.json` and replace `<VIDEO_FILE_NAME>` in the pipeline string with your uploaded filename (without extension):
    
    ```json
-   "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination",
+   "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination",
    ```
+
+   > Note: To use different colors for the bounding boxes provided by `gvawatermark`, refer to this [link](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html#gvawatermark).
 3. Redeploy with `make down && make up`.
 
 ### RTSP Camera Configuration
@@ -362,6 +363,8 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
    ```json
    "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,format=BGR,width=1280,height=720 ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
    ```
+
+   > Note: To use different colors for the bounding boxes provided by `gvawatermark`, refer to this [link](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html#gvawatermark).
 3. Set `RTSP_CAMERA_IP` in `.env`.
 4. Redeploy with `make down && make up`.
 

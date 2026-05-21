@@ -361,9 +361,9 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 2. Edit `pid/config.json` and update the `pipeline` string:
 
    ```json
-   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,format=BGR,width=1280,height=720 ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
+   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=0 drop-on-latency=true protocols=udp ! application/x-rtp,media=video ! rtph264depay ! video/x-h264,stream-format=byte-stream !  decodebin3 ! gvadetect name=detection ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
    ```
-
+   
    > Note: To use different colors for the bounding boxes provided by `gvawatermark`, refer to this [link](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html#gvawatermark).
 3. Set `RTSP_CAMERA_IP` in `.env`.
 4. Redeploy with `make down && make up`.

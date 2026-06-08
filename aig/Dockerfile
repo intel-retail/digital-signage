@@ -4,35 +4,36 @@
 #
 
 # Specify all Docker arguments for the Dockerfile
-FROM ubuntu:22.04 AS aig-server
+FROM ubuntu:24.04 AS aig-server
 LABEL description="Advertise Image Generator Server" 
 LABEL vendor="Intel Corporation"
 
+ARG DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
     apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y -q --no-install-recommends intel-gpu-tools gnupg wget python3-pip unzip fontconfig  \
-    python3-venv libraqm-dev && \
+    apt-get install -y -q --no-install-recommends intel-gpu-tools  gnupg wget python3-pip unzip fontconfig  \
+    python3-venv libraqm-dev software-properties-common && \
     wget https://github.com/intel/intel-one-mono/releases/download/V1.4.0/ttf.zip && \
     unzip ttf.zip -d /usr/share/fonts && \
     fc-cache -f -v && \
     rm ttf.zip && \
     apt-get remove -y unzip fontconfig && \
     apt-get clean && \
-
     rm -rf /var/lib/apt/lists/*
 
 # Install Intel GPU tools and clean up
 RUN apt-get update && apt-get install -y curl libnuma1 ocl-icd-libopencl1 --no-install-recommends && rm -rf /var/lib/apt/lists/* && \
     mkdir /tmp/gpu_deps && cd /tmp/gpu_deps && \
-	curl --fail -L -O https://github.com/intel/compute-runtime/releases/download/25.13.33276.16/intel-level-zero-gpu_1.6.33276.16_amd64.deb && \
-	curl --fail -L -O https://github.com/intel/compute-runtime/releases/download/25.13.33276.16/intel-opencl-icd_25.13.33276.16_amd64.deb && \
-	curl --fail -L -O https://github.com/intel/compute-runtime/releases/download/25.13.33276.16/libigdgmm12_22.7.0_amd64.deb && \
-	curl --fail -L -O https://github.com/intel/intel-graphics-compiler/releases/download/v2.10.8/intel-igc-core-2_2.10.8+18926_amd64.deb && \
-	curl --fail -L -O https://github.com/intel/intel-graphics-compiler/releases/download/v2.10.8/intel-igc-opencl-2_2.10.8+18926_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-core-2_2.32.7+21184_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/intel-graphics-compiler/releases/download/v2.32.7/intel-igc-opencl-2_2.32.7+21184_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-ocloc_26.14.37833.4-0_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/intel-opencl-icd_26.14.37833.4-0_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libigdgmm12_22.9.0_amd64.deb && \
+    curl --fail -L -O  https://github.com/intel/compute-runtime/releases/download/26.14.37833.4/libze-intel-gpu1_26.14.37833.4-0_amd64.deb && \
 	dpkg -i *.deb && rm -Rf /tmp/gpu_deps
 
 ARG DEBIAN_FRONTEND=noninteractive

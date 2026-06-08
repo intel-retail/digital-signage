@@ -206,7 +206,7 @@ class ModelInference_Img(Resource):
             return errorMessage, 500
         
         try:
-            start_time = time.time()
+            
             # Model
             model = AigServerMetadata.get_t2i_model_path() # Model Path only
             description = data.get('description')
@@ -219,7 +219,7 @@ class ModelInference_Img(Resource):
 
             if pipe is None:
                 pipe = openvino_genai.Text2ImagePipeline(model, device)
-                       
+            start_time = time.time()          
             image_tensor = None
             max_retries = 3
             counter = 0
@@ -245,43 +245,47 @@ class ModelInference_Img(Resource):
                 errorMessage=f"Image Generation. The generated image is not valid."
                 logger.error(errorMessage)
                 return errorMessage, 500
+            
+            end_time = time.time()
 
-            # Price details
-            price_details = data.get('price_details')            
-            img_postprice = None
-            if price_details is not None:
-                price:str=price_details.get('price', "")
-                align:str=price_details.get('align',"center")
-                valign:str=price_details.get('valign',"bottom")
-                marperc_from_border:float=float(price_details.get('marperc_from_border',2.0))
-                font_size:int=int(price_details.get('font_size',20))
-                line_width:int=int(price_details.get('line_width',20))
-                price_color:str=price_details.get('price_color',"white")            
+            # # Price details
+            # price_details = data.get('price_details')            
+            # img_postprice = None
+            # if price_details is not None:
+            #     price:str=price_details.get('price', "")
+            #     align:str=price_details.get('align',"center")
+            #     valign:str=price_details.get('valign',"bottom")
+            #     marperc_from_border:float=float(price_details.get('marperc_from_border',2.0))
+            #     font_size:int=int(price_details.get('font_size',20))
+            #     line_width:int=int(price_details.get('line_width',20))
+            #     price_color:str=price_details.get('price_color',"white")            
                 
-                if ImgDecorator.is_color_valid(price_color) is False:
-                    price_color="white" # Default color if the provided one is not valid
+            #     if ImgDecorator.is_color_valid(price_color) is False:
+            #         price_color="white" # Default color if the provided one is not valid
                     
-                price_in_circle:bool=price_details.get('price_in_circle',False)
+            #     price_in_circle:bool=price_details.get('price_in_circle',False)
                 
-                price_circle_color:str=price_details.get('price_circle_color',"black")                
-                if ImgDecorator.is_color_valid(price_circle_color) is False:
-                    price_circle_color="black"
+            #     price_circle_color:str=price_details.get('price_circle_color',"black")                
+            #     if ImgDecorator.is_color_valid(price_circle_color) is False:
+            #         price_circle_color="black"
 
-                if price_in_circle:
-                    # Draw the price circle
-                    img_postprice = ImgDecorator.draw_price_circle(image, 
-                            price= price, price_color=price_color,
-                            circle_color=price_circle_color,                             
-                            align=align, valign=valign,                             
-                            margin_percentage=marperc_from_border, 
-                            font_size=font_size, line_width=line_width)
-                else:
-                    img_postprice = ImgDecorator.draw_price_circle(image, 
-                                price= price, align=align, valign=valign, 
-                                margin_percentage=marperc_from_border, font_size=font_size,
-                                line_width=line_width, price_color=price_color)    
-            else:
-                img_postprice = image
+            #     if price_in_circle:
+            #         # Draw the price circle
+            #         img_postprice = ImgDecorator.draw_price_circle(image, 
+            #                 price= price, price_color=price_color,
+            #                 circle_color=price_circle_color,                             
+            #                 align=align, valign=valign,                             
+            #                 margin_percentage=marperc_from_border, 
+            #                 font_size=font_size, line_width=line_width)
+            #     else:
+            #         img_postprice = ImgDecorator.draw_price_circle(image, 
+            #                     price= price, align=align, valign=valign, 
+            #                     margin_percentage=marperc_from_border, font_size=font_size,
+            #                     line_width=line_width, price_color=price_color)    
+            # else:
+            #     img_postprice = image
+
+            img_postprice = image
 
             # Promo details (Rounded Rectangle)
             promo_details = data.get('promo_details')
@@ -349,32 +353,34 @@ class ModelInference_Img(Resource):
                 img_postlogo = img_postframe
 
             # Slogan
-            slogan_details = data.get('slogan_details')
-            img_postslogan = None
-            if slogan_details is not None:
-                slogan_text:str=slogan_details.get('slogan_text', "")
-                text_color:str=slogan_details.get('text_color',"white")
-                if ImgDecorator.is_color_valid(text_color) is False:
-                    text_color="white"
+            # slogan_details = data.get('slogan_details')
+            # img_postslogan = None
+            # if slogan_details is not None:
+            #     slogan_text:str=slogan_details.get('slogan_text', "")
+            #     text_color:str=slogan_details.get('text_color',"white")
+            #     if ImgDecorator.is_color_valid(text_color) is False:
+            #         text_color="white"
 
-                align:str=slogan_details.get('align',"center")
-                valign:str=slogan_details.get('valign',"bottom")
-                marperc_from_border:float=float(slogan_details.get('marperc_from_border',2.0))
-                font_size:int=int(slogan_details.get('font_size',20))
-                line_width:int=int(slogan_details.get('line_width',20))
+            #     align:str=slogan_details.get('align',"center")
+            #     valign:str=slogan_details.get('valign',"bottom")
+            #     marperc_from_border:float=float(slogan_details.get('marperc_from_border',2.0))
+            #     font_size:int=int(slogan_details.get('font_size',20))
+            #     line_width:int=int(slogan_details.get('line_width',20))
 
-                img_postslogan = ImgDecorator.draw_slogan(img_postlogo, 
-                            text=slogan_text, text_color=text_color,
-                            align=align, valign=valign,
-                            margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width)
-            else:
-                img_postslogan = img_postlogo
+            #     img_postslogan = ImgDecorator.draw_slogan(img_postlogo, 
+            #                 text=slogan_text, text_color=text_color,
+            #                 align=align, valign=valign,
+            #                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width)
+            # else:
+            #     img_postslogan = img_postlogo
+
+            img_postslogan = img_postlogo # For now, slogan is not incorporated. It can be added in the future as another step after the logo incorporation (or in any other order depending on the requirements)
 
             # Save the updated image to a BytesIO object
             img_io = io.BytesIO()
             img_postslogan.save(img_io, format='JPEG')  # or 'PNG'
             img_io.seek(0)              
-            end_time = time.time()
+            
             
             # Clean up memory - unload model if configured to do so
             if not AigServerMetadata.should_keep_model_in_memory():

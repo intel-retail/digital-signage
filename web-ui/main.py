@@ -35,15 +35,33 @@ AIG_SERVER_ACTIVE = False
 
 # Product Associations Dictionary
 product_associations = {}
+product_association_lookup = {}
+
+
+def normalize_product_key(name):
+    """Normalize labels so MQTT detections match CSV product names."""
+    if not name:
+        return ""
+    return name.strip().lower().replace("-", " ").replace("_", " ")
+
+
+def resolve_product_label(label):
+    """Map an incoming label to a known CSV product key, if available."""
+    normalized_label = normalize_product_key(label)
+    return product_association_lookup.get(normalized_label)
 
 def load_product_associations(csv_path):
     """Load product associations from CSV file into dictionary"""
-    global product_associations
+    global product_associations, product_association_lookup
     try:
+        product_associations = {}
+        product_association_lookup = {}
         with open(csv_path, 'r') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 primary_product = row['primary_product']
+                normalized_primary = normalize_product_key(primary_product)
+                product_association_lookup[normalized_primary] = primary_product
                 
                 # Initialize list if primary product not in dict
                 if primary_product not in product_associations:
@@ -117,6 +135,7 @@ class Ad_Generator(threading.Thread):
     def __init__(self):
         super().__init__()
         self.running = False
+        self.http_session = requests.Session()
         self.last_generated_ad = None
         self.time_taken_last_generated_ad = 0
         logger.info("Ad_Generator thread initialized")
@@ -125,6 +144,9 @@ class Ad_Generator(threading.Thread):
         self.list_of_clients = []
         self.last_generated_timestamp = None
         self.last_processed_item = []
+        self.last_selected_item = None
+        self.product_generation_count = {}
+        self.last_association_index_by_label = {}
         self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
     def run(self):
         """Main thread loop to process messages from queue"""
@@ -138,6 +160,9 @@ class Ad_Generator(threading.Thread):
                     label_set = message_queue.get(timeout=1)
                     if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
                         item = self.find_product_for_ad_generation(label_set)
+                        if item is None:
+                            message_queue.task_done()
+                            continue
                         global product_associations
                         associations = product_associations.get(item, None)
                         # Prepare the API payload for AIG server
@@ -152,40 +177,111 @@ class Ad_Generator(threading.Thread):
                 logger.error(f"Error in Ad_Generator thread: {str(e)}")
                 time.sleep(1)
 
-    def find_high_priced_item(self, list_of_items):
-        """Find the item with the highest price from the list"""
+    def get_product_max_price(self, item):
+        """Return the max configured price for a product, used for first-time prioritization."""
         global product_associations
-        max_price = -1
-        selected_item = None
-        for item in list_of_items:
-            associations = product_associations.get(item, None)
-            if associations:
-                for assoc in associations:
-                    try:
-                        price = float(assoc['price'])
-                        if price > max_price:
-                            max_price = price
-                            selected_item = item
-                    except ValueError:
-                        continue
-        return selected_item
+        associations = product_associations.get(item, [])
+        max_price = -1.0
+        for assoc in associations:
+            try:
+                price = float(assoc.get('price', 0))
+                if price > max_price:
+                    max_price = price
+            except (TypeError, ValueError):
+                continue
+        return max_price
+
+    def find_high_priced_candidate(self, candidate_items):
+        """Select highest-priced item from candidates."""
+        if not candidate_items:
+            return None
+        max_price = -1.0
+        best_items = []
+        for item in candidate_items:
+            price = self.get_product_max_price(item)
+            if price > max_price:
+                max_price = price
+                best_items = [item]
+            elif price == max_price:
+                best_items.append(item)
+        return random.choice(best_items) if best_items else None
+
+    def find_rotating_candidate(self, candidate_items):
+        """Rotate among candidates by preferring less-shown products and avoiding immediate repeats."""
+        if not candidate_items:
+            return None
+
+        pool = list(candidate_items)
+        if self.last_selected_item and len(pool) > 1:
+            non_repeating = [item for item in pool if item != self.last_selected_item]
+            if non_repeating:
+                pool = non_repeating
+
+        min_count = min(self.product_generation_count.get(item, 0) for item in pool)
+        least_shown = [item for item in pool if self.product_generation_count.get(item, 0) == min_count]
+        return random.choice(least_shown)
+
+    def choose_association_index(self, label, associations):
+        """Choose an association variant while avoiding repeating the previous variant for the same label."""
+        if not associations:
+            return 0
+
+        if len(associations) == 1:
+            self.last_association_index_by_label[label] = 0
+            return 0
+
+        last_index = self.last_association_index_by_label.get(label)
+        candidate_indices = list(range(len(associations)))
+        if last_index in candidate_indices:
+            candidate_indices.remove(last_index)
+
+        selected_index = random.choice(candidate_indices if candidate_indices else list(range(len(associations))))
+        self.last_association_index_by_label[label] = selected_index
+        return selected_index
 
     def find_product_for_ad_generation(self, processed_item):
         """Determine which product to generate ad for from label set"""
-        # For simplicity, pick the label with highest confidence
-        new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
-        logger.debug(f"New identified items: {new_identified_items}")  
-        old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
-        new_list_high_price_item = self.find_high_priced_item(new_identified_items)
-        logger.debug(f"high priced old item: {old_list_high_price_item}")
-        logger.debug(f"high priced new item: {new_list_high_price_item}")
-        self.last_processed_item = processed_item
-        if new_list_high_price_item:
-            logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
-            return new_list_high_price_item
-        elif old_list_high_price_item:
-            logger.info(f"Selected high priced old item for ad generation: {old_list_high_price_item}")
-            return old_list_high_price_item
+        global product_associations
+
+        resolved_items = []
+        logger.info(f"Processing detected labels for ad selection: {processed_item}")
+        for item in processed_item:
+            resolved = resolve_product_label(item)
+            if not resolved:
+                continue
+            if resolved not in product_associations:
+                continue
+            if resolved not in resolved_items:
+                resolved_items.append(resolved)
+
+        if not resolved_items:
+            logger.debug(f"No known products found in labels: {processed_item}")
+            self.last_processed_item = []
+            return None
+
+        new_identified_items = [item for item in resolved_items if item not in self.last_processed_item]
+        logger.info(f"Resolved labels for ad selection: {resolved_items}; newly identified: {new_identified_items}")
+
+        selection_pool = new_identified_items if new_identified_items else resolved_items
+        never_generated = [item for item in selection_pool if self.product_generation_count.get(item, 0) == 0]
+        logger.info(f"Selection candidates: {selection_pool}; first-time candidates: {never_generated}")
+
+        if never_generated:
+            selected_item = self.find_high_priced_candidate(never_generated)
+            logger.info(f"First-time selection mode (high price): {selected_item}")
+        else:
+            selected_item = self.find_rotating_candidate(selection_pool)
+            logger.info(f"Rotation selection mode: {selected_item}")
+
+        self.last_processed_item = resolved_items
+
+        if selected_item:
+            self.last_selected_item = selected_item
+            self.product_generation_count[selected_item] = self.product_generation_count.get(selected_item, 0) + 1
+            logger.info(f"Selected item for ad generation: {selected_item}")
+            return selected_item
+
+        logger.debug("No eligible item selected for ad generation")
         return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
@@ -204,7 +300,7 @@ class Ad_Generator(threading.Thread):
         try:
 
             logger.info(f"Detected object: {label}, {len(associations) if associations else 0} associations found")
-            association_index = random.randint(0, len(associations) - 1) if associations else 0
+            association_index = self.choose_association_index(label, associations)
             background_prompt = "perfectly dead-center, surrounded by vast white negative space, minimalist composition with wide margins, " \
                                 "isolated on a pure white seamless background, high-key studio lighting, 8k, crisp detail, sharp focus"
             description = associations[association_index]['dynamic_ad_prompt'] + background_prompt \
@@ -291,16 +387,21 @@ class Ad_Generator(threading.Thread):
             
             # Make API call to AIG server
             aig_response = None
-            start_time = time.time()
+            total_start_time = time.time()
             data_available_predefined = False
             recvd_img = False
+            predefined_http_elapsed = 0.0
+            dynamic_http_elapsed = 0.0
+            response_copy_elapsed = 0.0
+            response_size_kb = 0.0
 
             if check_predefined:
                 logger.info(f"Checking for pre-defined advertisement for product: {label} {pre_defined_ad_description}")
                 aig_payload["query"] = pre_defined_ad_description
                 aig_payload["n_results"] = 1
                 aig_payload["use_default_ad_onempty"] = False
-                aig_response = requests.post(
+                predefined_http_start = time.time()
+                aig_response = self.http_session.post(
                     AIG_PREDEFINED_AD_QUERY_ENDPOINT,
                     headers={
                         'accept': 'application/json',
@@ -309,6 +410,7 @@ class Ad_Generator(threading.Thread):
                     json=aig_payload,
                     timeout=5
                 )
+                predefined_http_elapsed = time.time() - predefined_http_start
 
                 if aig_response.status_code == 200:
                     logger.debug(f"Pre-defined advertisement query successful for product: {label}")
@@ -323,14 +425,14 @@ class Ad_Generator(threading.Thread):
                             self.last_generated_ad  = decoded_bytes
                             logger.info(f"Pre-defined advertisement found for product: {label}")
                 else:
-                    logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (took {time.time() - start_time:.2f} seconds)")
+                    logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (roundtrip {predefined_http_elapsed:.2f} seconds)")
             
             if not data_available_predefined:
-                start_time = time.time()
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
                 aig_payload["device"] = "GPU"
-                aig_response = requests.post(
+                dynamic_http_start = time.time()
+                aig_response = self.http_session.post(
                     AIG_DYNAMIC_AD_ENDPOINT,
                     headers={
                         'accept': 'application/json',
@@ -339,19 +441,26 @@ class Ad_Generator(threading.Thread):
                     json=aig_payload,
                     timeout=400
                 )
+                dynamic_http_elapsed = time.time() - dynamic_http_start
                 if aig_response.status_code == 200:
+                    copy_start = time.time()
                     self.last_generated_ad = aig_response.content
+                    response_copy_elapsed = time.time() - copy_start
+                    response_size_kb = len(aig_response.content) / 1024.0
                     recvd_img = True
             
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - total_start_time
             
             if recvd_img and not dummy_ad:
                 if data_available_predefined:
-                    self.time_taken_last_generated_ad = f"Pre-defined ad fetched in {elapsed_time:.2f} seconds"
+                    self.time_taken_last_generated_ad = (
+                        f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds")
                 else:
-                    self.time_taken_last_generated_ad = f"Dynamic ad generated in {elapsed_time:.2f} seconds"
+                    self.time_taken_last_generated_ad = (
+                        f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds ")
                 self.list_of_clients = []  # Reset client list to force refresh
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
+                logger.info(self.time_taken_last_generated_ad)
             else:
                 self.last_generated_ad = None
                 if not dummy_ad: 
@@ -381,6 +490,7 @@ class Ad_Generator(threading.Thread):
     def stop(self):
         """Stop the processor thread"""
         self.running = False
+        self.http_session.close()
         logger.info("Ad_Generator thread stopping")
 
 # Global message processor instance
@@ -454,7 +564,8 @@ class MQTTSubscriber:
                             for j in range(len(tensors)):
                                 tensor = tensors[j]
                                 confidence = tensor.get('confidence', None)
-                                label = tensor.get('label', 'unknown')
+                                raw_label = tensor.get('label', 'unknown')
+                                label = raw_label.strip().lower() if isinstance(raw_label, str) else 'unknown'
                                 if confidence is not None and label != 'unknown':
                                     if label not in current_message_labels:
                                         current_message_labels[label] = []

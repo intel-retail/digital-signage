@@ -9,7 +9,6 @@ import openvino_genai
 import openvino as ov
 # Logging
 import logging
-logger = logging.getLogger(__name__)
 # ChromaDB
 import chromadb
 from chromadb.utils import embedding_functions
@@ -17,6 +16,9 @@ from chromadb.utils import embedding_functions
 import numpy as np
 # Utils 
 from database.utils import SharedUtils
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Version_sch(object):
     """

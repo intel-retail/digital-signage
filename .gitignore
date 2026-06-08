@@ -177,7 +177,7 @@ cython_debug/
 .pypirc
 caxselling/pid/e2e_detections.json
 aig/models
-pid/.modelenv
-pid/models/
-pid/downloadAndQuantizeModel*.sh
+configs/pid/.modelenv
+configs/pid/models/
+configs/pid/downloadAndQuantizeModel*.sh
 aig/sharedata/imgs/

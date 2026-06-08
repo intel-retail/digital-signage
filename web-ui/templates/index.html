@@ -397,7 +397,7 @@
             setupEventListeners();
             // Load Stream
             const host = window.location.hostname;
-            const STREAM_PORT = "8889";
+            const STREAM_PORT = "3000";
             document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
             updateConnectionStatus(true);
             // Start polling for advertisements

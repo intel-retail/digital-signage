@@ -4,7 +4,7 @@
 #
 
 services:
-  broker:
+  ia-mqtt-broker:
     image: eclipse-mosquitto:2.0.22
     hostname: ia-mqtt-broker
     read_only: true
@@ -94,7 +94,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.11.3
+    image: bluenviron/mediamtx:1.18.2
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
@@ -111,10 +111,14 @@ services:
       - NO_PROXY=mediamtx,coturn,${no_proxy},${HOST_IP}
       - no_proxy=mediamtx,coturn,${no_proxy},${HOST_IP}
       # Path settings for cam1
-      - MTX_PATHS_CAM1_PUBLISHUSER=publisher
-      - MTX_PATHS_CAM1_PUBLISHPASS=pubpass
-      - MTX_PATHS_CAM1_READUSER=viewer
-      - MTX_PATHS_CAM1_READPASS=viewpass
+      - MTX_AUTHINTERNALUSERS_PUBLISHER_USER=publisher
+      - MTX_AUTHINTERNALUSERS_PUBLISHER_PASS=pubpass
+      - MTX_AUTHINTERNALUSERS_PUBLISHER_PERMISSIONS_0=publish
+      - MTX_AUTHINTERNALUSERS_PUBLISHER_PATHS_0=cam1
+      - MTX_AUTHINTERNALUSERS_VIEWER_USER=viewer
+      - MTX_AUTHINTERNALUSERS_VIEWER_PASS=viewpass
+      - MTX_AUTHINTERNALUSERS_VIEWER_PERMISSIONS_0=read
+      - MTX_AUTHINTERNALUSERS_VIEWER_PATHS_0=cam1
       - MTX_WEBRTCTRACKGATHERTIMEOUT=20s
       - MTX_WEBRTC=yes
       - MTX_WEBRTCICESERVERS2_0_URL=turn:${HOST_IP}:${COTURN_UDP_PORT}
@@ -280,6 +284,38 @@ services:
     volumes:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
+  
+  nginx:
+    image: nginx:1.31.1-trixie-perl
+    container_name: nginx_proxy
+    read_only: true
+    security_opt:
+    - no-new-privileges
+    restart: unless-stopped
+    command: >
+     /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
+    environment:
+      no_proxy: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
+      NO_PROXY: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
+      MEDIAMTX_SERVER: mediamtx
+      WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
+    ports:
+      - "3000:15443"   # HTTPS for Grafana and TS MS Rest API
+      - "1883:1883" # MQTT TCP Proxy
+    volumes:
+      - ./configs/nginx/nginx.conf:/tmp/default.conf.template:ro
+      - ./configs/nginx/nginx-cert-gen.sh:/usr/local/bin/nginx-cert-gen.sh:ro
+      - vol_nginx_tmpfs:/opt/nginx/certs:rw
+      - vol_nginx_tmpfs:/var/cache/nginx:rw
+      - vol_nginx_tmpfs:/run:rw
+      - vol_nginx_tmpfs:/etc/nginx/:rw
+    networks:
+      - app_network
+    depends_on:
+      - web-ui
+      - ia-mqtt-broker
+      - mediamtx
+      - coturn
 
 networks:
   app_network:
@@ -287,6 +323,11 @@ networks:
 
 volumes:
   vol_pipeline_root:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  vol_nginx_tmpfs:
     driver: local
     driver_opts:
       type: tmpfs

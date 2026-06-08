@@ -52,7 +52,7 @@ The solution is composed of the following main components:
 
 **High-Level Architecture:**
 
-![Digital Signage Architecture](./diagrams/Digital_Signage.png)
+![Digital Signage Architecture](./_assests/Digital_Signage.png)
 
 ## Web UI: Object Selection and Ad Generation Flow
 
@@ -148,7 +148,7 @@ cd digital-signage
 > Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE).
 
 ```bash
-cd pid && \
+cd configs/pid && \
 wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
 sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
 sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
@@ -163,7 +163,7 @@ rm ./downloadAndQuantizeModel.sh && \
 deactivate && \
 cd ..
 ```
-The quantized model will be saved to `./pid/models/object_detection/yolo11s`.
+The quantized model will be saved to `./configs/pid/models/object_detection/yolo11s`.
 
 #### 2. Download SDXL-Turbo and MiniLM Models (for AIG)
 
@@ -233,7 +233,7 @@ For local systems with limited compute resources, follow either of the steps bel
       - `Continue running background apps when Google Chrome is closed` 
       - `Use graphics acceleration when available`
 
-      ![Chrome System settings](./chrome_settings.png)
+      ![Chrome System settings](./_assests/chrome_settings.png)
    3. Relaunch Chrome for the changes to take effect.
 
 
@@ -268,7 +268,7 @@ By default, the PID component performs inference on the `CPU`, while the AIG com
 
 ### PID (Product Identification)
 
-- **Configuration:** Update the `device` parameter within `pid/config.json`.
+- **Configuration:** Update the `device` parameter within `configs/pid/config.json`.
 - **Example:**
 
    ```json
@@ -344,9 +344,9 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 
 ### Switch the Simulation Video
 
-1. Copy the simulation video to the `pid/resources/videos` directory.
+1. Copy the simulation video to the `configs/pid/videos` directory.
    > Note: The input file must be in `.avi` format.
-2. Edit `pid/config.json` and replace `<VIDEO_FILE_NAME>` in the pipeline string with your uploaded filename (without extension):
+2. Edit `configs/pid/config.json` and replace `<VIDEO_FILE_NAME>` in the pipeline string with your uploaded filename (without extension):
    
    ```json
    "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination",
@@ -358,7 +358,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 ### RTSP Camera Configuration
 
 1. **Obtain RTSP URI** from your camera software (test with VLC if needed).
-2. Edit `pid/config.json` and update the `pipeline` string:
+2. Edit `configs/pid/config.json` and update the `pipeline` string:
 
    ```json
    "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=0 drop-on-latency=true protocols=udp ! application/x-rtp,media=video ! rtph264depay ! video/x-h264,stream-format=byte-stream !  decodebin3 ! gvadetect name=detection ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
@@ -381,8 +381,8 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 
 1. **Export** your Geti model from Intel® Geti™ as OpenVINO™ IR (`.xml`/`.bin`).
    If you have downloaded the Geti deployment project, just extract the .zip package
-   and place the extracted folder at `./pid/models/object_detection/geti-sdk-deployment/deployment/Detection/model`.
-2. Edit the `pid/config.json` file to update the `model` parameter to point to your exported model file:
+   and place the extracted folder at `./configs/pid/models/object_detection/geti-sdk-deployment/deployment/Detection/model`.
+2. Edit the `configs/pid/config.json` file to update the `model` parameter to point to your exported model file:
 
    ```json
    "parameters": {

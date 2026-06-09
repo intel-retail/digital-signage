@@ -287,8 +287,8 @@ services:
     command: >
      /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
     environment:
-      no_proxy: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
-      NO_PROXY: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP}"
+      no_proxy: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
+      NO_PROXY: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
       MEDIAMTX_SERVER: mediamtx
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
     ports:

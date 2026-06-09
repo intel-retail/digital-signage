@@ -396,9 +396,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             // Load Stream
-            const host = window.location.hostname;
-            const STREAM_PORT = "3000";
-            document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
+            const streamOrigin = window.location.origin;
+            document.getElementById("myframe").src = `${streamOrigin}/samplestream/`;
             updateConnectionStatus(true);
             // Start polling for advertisements
             startPolling();

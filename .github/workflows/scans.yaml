@@ -1,0 +1,546 @@
+---
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+name: "[Digital Signage] SDLe Scans"
+run-name: "[Digital Signage] SDLe Scans workflow (by @${{ github.actor }} via ${{ github.event_name }})"
+
+
+# Only run at most 1 workflow concurrently per PR, unlimited for branches
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which Scans to run'
+        type: choice
+        options:
+        - all-scans
+        - trivy-fs-scan
+        - trivy-image-scan
+        - trivy-config-scan
+        - trivy-dockerfile-scan
+        - bandit-scan
+        - virus-scan
+        - dbs-scan
+        - codeql-scan
+        - pylint-scan
+
+  workflow_call:
+    inputs:
+      target:
+        description: 'Which Scans to run'
+        required: false
+        type: string
+
+jobs:
+  trivy-fs-scan:
+    if: ${{ (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Install Trivy from Aqua Security APT repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg lsb-release wget apt-transport-https curl jq
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
+          sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y trivy
+      - name: Trivy filesystem/repo scan
+        continue-on-error: true
+        shell: bash
+        run: |
+          pwd
+          CWD=$(pwd)
+          trivy --version
+          which trivy
+          trivy image --download-db-only
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o trivy-html.tpl
+          cat << 'EOF' > csv.tpl
+          {{ range . }}
+          Trivy Vulnerability Scan Results ({{- .Target -}})
+          VulnerabilityID,Severity,CVSS Score,Title,Library,Vulnerable Version,Fixed Version,Information URL,Triage Information
+          {{ range .Vulnerabilities }}
+              {{- .VulnerabilityID }},
+              {{- .Severity }},
+              {{- range $key, $value := .CVSS }}
+                  {{- if (eq $key "nvd") }}
+                      {{- .V3Score -}}
+                  {{- end }}
+              {{- end }},
+              {{- quote .Title }},
+              {{- quote .PkgName }},
+              {{- quote .InstalledVersion }},
+              {{- quote .FixedVersion }},
+              {{- .PrimaryURL }}
+          {{ else -}}
+              No vulnerabilities found at this time.
+          {{ end }}
+          Trivy Dependency Scan Results ({{ .Target }})
+          ID,Name,Version,Notes
+          {{ range .Packages -}}
+              {{- quote .ID }},
+              {{- quote .Name }},
+              {{- quote .Version }}
+          {{ else -}}
+              No dependencies found at this time.
+          {{ end }}
+          {{ end }}
+          EOF
+
+          trivy fs . --format template --template "@$CWD/trivy-html.tpl" -o "trivy_ds_fs_full_report_code_scan.html"
+          trivy fs --list-all-pkgs --format template --template "@$CWD/csv.tpl" --output trivy-ds-fs-full-report.csv .
+          trivy fs --ignore-unfixed . | tee trivy-ds-fs-full-report-ignore-unfixed.txt
+
+      - name: Upload Trivy FS Scan Report
+        continue-on-error: true
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: Trivy Report - Filesystem Scan
+          path: |
+            trivy_ds_fs_full_report_code_scan.html
+            trivy-ds-fs-full-report.csv
+            trivy-ds-fs-full-report-ignore-unfixed.txt
+
+  trivy-image-scan:
+    if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans') }}
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Install Trivy from Aqua Security APT repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg lsb-release wget apt-transport-https curl jq
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
+          sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y trivy
+      - name: Prepare Trivy templates
+        shell: bash
+        run: |
+          trivy --version
+          trivy image --download-db-only
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o trivy-html.tpl
+          cat << 'EOF' > csv.tpl
+          {{ range . }}
+          Trivy Vulnerability Scan Results ({{- .Target -}})
+          VulnerabilityID,Severity,CVSS Score,Title,Library,Vulnerable Version,Fixed Version,Information URL,Triage Information
+          {{ range .Vulnerabilities }}
+              {{- .VulnerabilityID }},
+              {{- .Severity }},
+              {{- range $key, $value := .CVSS }}
+                  {{- if (eq $key "nvd") }}
+                      {{- .V3Score -}}
+                  {{- end }}
+              {{- end }},
+              {{- quote .Title }},
+              {{- quote .PkgName }},
+              {{- quote .InstalledVersion }},
+              {{- quote .FixedVersion }},
+              {{- .PrimaryURL }}
+          {{ else -}}
+              No vulnerabilities found at this time.
+          {{ end }}
+          Trivy Dependency Scan Results ({{ .Target }})
+          ID,Name,Version,Notes
+          {{ range .Packages -}}
+              {{- quote .ID }},
+              {{- quote .Name }},
+              {{- quote .Version }}
+          {{ else -}}
+              No dependencies found at this time.
+          {{ end }}
+          {{ end }}
+          EOF
+
+      - name: Build Digital Signage images
+        run: |
+          CWD=$(pwd)
+          MTX_WEBRTCICESERVERS2_0_USERNAME=$(tr -dc 'a-zA-Z' < /dev/urandom | head -c 8)
+          MTX_WEBRTCICESERVERS2_0_PASSWORD=$(openssl rand -hex 10)
+          HOST_IP=$(hostname -I | awk '{print $1}')
+
+          sed -i "s/DOCKER_REGISTRY=.*/DOCKER_REGISTRY=admin/g" .env
+          sed -i "s/MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${MTX_WEBRTCICESERVERS2_0_USERNAME}/g" .env
+          sed -i "s/MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD}/g" .env
+          sed -i "s/HOST_IP=.*/HOST_IP=${HOST_IP}/g" .env
+          make down
+          make build
+
+      - name: Trivy Image Scan
+        continue-on-error: true
+        run: |
+          CWD=$(pwd)
+          declare -A IMAGE_MAP
+          images=$(docker compose config | grep 'image:' | awk '{print $2}')
+          for image in $images; do
+              image_prefix=$(echo "$image" | sed 's|/|-|g' | cut -d':' -f1)
+              IMAGE_MAP["$image"]="$image_prefix"
+          done
+
+          for IMAGE in "${!IMAGE_MAP[@]}"; do
+              PREFIX="${IMAGE_MAP[$IMAGE]}"
+              echo "Scanning image: $IMAGE"
+              trivy image "$IMAGE" --ignore-unfixed --format template --template "@$CWD/trivy-html.tpl" -o "trivy-image-scan-${PREFIX}-ignore-unfixed.html"
+              trivy image "$IMAGE" --ignore-unfixed --format template --template "@$CWD/csv.tpl" -o "trivy-image-scan-${PREFIX}-ignore-unfixed.csv"
+              trivy image --quiet --format spdx-json --output "trivy-image-scan-${PREFIX}.spdx.json" "$IMAGE"
+              trivy image --list-all-pkgs --format template --template "@$CWD/csv.tpl" --output "trivy-image-scan-${PREFIX}-list-all-pkgs.csv" "$IMAGE"
+              trivy image --ignore-unfixed "$IMAGE" | tee "trivy-image-scan-${PREFIX}-ignore-unfixed.txt"
+              echo "Completed scanning $IMAGE"
+          done
+
+      - name: Upload Trivy Image Scan Report
+        continue-on-error: true
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: Trivy Report - Image Scan
+          path: trivy-image-scan*
+
+  trivy-config-dockerfile-scan:
+    if: ${{ (inputs.target == 'trivy-config-scan') || (inputs.target == 'trivy-dockerfile-scan') || (inputs.target == 'all-scans') }}
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    name: Scan Dockerfiles (AIG & Web UI)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile-path: aig/Dockerfile
+            output-report-path: trivy-aig-dockerfile.json
+            scan-name: Digital Signage AIG Dockerfile
+          - dockerfile-path: web-ui/Dockerfile
+            output-report-path: trivy-webui-dockerfile.json
+            scan-name: Digital Signage Web UI Dockerfile
+    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@e6e04af3dbca805db9118b85a22ad2998f7eec39
+    with:
+      dockerfile-path: ${{ matrix.dockerfile-path }}
+      trivy-report-format: 'json'
+      severity-levels: 'HIGH,CRITICAL'
+      output-report-path: ${{ matrix.output-report-path }}
+      name: ${{ matrix.scan-name }}
+
+  bandit-scans:
+    if: ${{ (inputs.target == 'bandit-scan') || (inputs.target == 'all-scans') }}
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    name: Run Bandit Scan
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout digital-signage repository
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        persist-credentials: false
+
+    - name: Run Bandit Scan
+      run: |
+        mkdir -p reports
+        docker pull ghcr.io/pycqa/bandit/bandit
+        echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
+        docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit \
+          -r /src/aig/src/ /src/web-ui/ \
+          -f json -o /src/reports/bandit-digital-signage-report.json || true
+        echo "Please find full report in bandit-digital-signage-report.json" >> $GITHUB_STEP_SUMMARY
+        ls -al reports/
+    - name: Convert JSON to CSV
+      run: |
+        cat > convert_json_to_csv.py << 'EOF'
+        import json
+        import csv
+        import glob
+
+        # Find all bandit report JSON files
+        json_files = glob.glob("reports/bandit-*-report.json")
+
+        for json_file in json_files:
+            print(f"Processing {json_file}")
+
+            with open(json_file) as f:
+                data = json.load(f)
+
+            csv_file = json_file.replace(".json", ".csv")
+            with open(csv_file, "w", newline="") as csvfile:
+                fieldnames = ["filename", "line_number", "issue_text", "severity", "confidence", "test_name"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for issue in data.get("results", []):
+                    writer.writerow({
+                        "filename": issue["filename"],
+                        "line_number": issue["line_number"],
+                        "issue_text": issue["issue_text"],
+                        "severity": issue["issue_severity"],
+                        "confidence": issue["issue_confidence"],
+                        "test_name": issue["test_name"]
+                    })
+        EOF
+        python3 convert_json_to_csv.py
+    - name: Upload Scan Reports
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      with:
+        name: bandit-report
+        path: |
+          reports/bandit*.json
+          reports/bandit-*.csv
+
+  virus-scans:
+    if: ${{ (inputs.target == 'virus-scan') || (inputs.target == 'all-scans') }}
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    name: Run Virus Scan
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout digital-signage repository
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        persist-credentials: false
+    - name: Run Virus Scan
+      run: |
+        mkdir -p reports
+        docker pull clamav/clamav
+        echo "### Virus Scan Results" >> $GITHUB_STEP_SUMMARY
+        docker run --rm -v "${{ github.workspace }}:/src" clamav/clamav clamscan -r /src/ \
+          > ./reports/clamav-digital-signage-report.txt || true
+        echo "Please find full report in clamav-digital-signage-report.txt" >> $GITHUB_STEP_SUMMARY
+    - name: Upload Scan Reports
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      with:
+        name: virus-reports
+        path: reports/clamav-digital-signage-report.txt
+
+  DBS_job:
+    if: ${{ (inputs.target == 'dbs-scan') || (inputs.target == 'all-scans') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Check the system
+        run: |
+          docker ps &&
+          uname -a &&
+          docker version &&
+          git version &&
+          docker compose version
+
+      - name: Checkout docker/docker-bench-security (master)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: docker/docker-bench-security
+          ref: master
+          path: docker-bench-security
+          persist-credentials: false
+
+      - name: Build Docker Bench Security
+        run: |
+          cd docker-bench-security
+          docker build --no-cache -t docker-bench-security .
+
+      - name: Build Digital Signage images
+        run: |
+          MTX_WEBRTCICESERVERS2_0_USERNAME=$(tr -dc 'a-zA-Z' < /dev/urandom | head -c 8)
+          MTX_WEBRTCICESERVERS2_0_PASSWORD=$(openssl rand -hex 10)
+          HOST_IP=$(hostname -I | awk '{print $1}')
+
+          sed -i "s/MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${MTX_WEBRTCICESERVERS2_0_USERNAME}/g" .env
+          sed -i "s/MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD}/g" .env
+          sed -i "s/HOST_IP=.*/HOST_IP=${HOST_IP}/g" .env
+          make down
+          make build
+
+      - name: Download PID (YOLO11s) model
+        run: |
+          cd pid && \
+          wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
+          sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
+          sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
+          rm -rf .modelenv && \
+          python3 -m venv .modelenv && \
+          source .modelenv/bin/activate && \
+          pip3 install -r model_download_requirements.txt && \
+          rm -rf models && \
+          chmod +x downloadAndQuantizeModel.sh && \
+          ./downloadAndQuantizeModel.sh && \
+          rm ./downloadAndQuantizeModel.sh && \
+          deactivate && \
+          cd ..
+
+      - name: Download AIG (SDXL-Turbo & MiniLM) models
+        run: |
+          cd aig && \
+          rm -rf .modelenv && \
+          python3 -m venv .modelenv && \
+          source ./.modelenv/bin/activate && \
+          pip3 install -r export-requirements.txt && \
+          export HF_HUB_ENABLE_HF_TRANSFER=1 && \
+          optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
+          huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
+          deactivate && \
+          cd ../
+
+      - name: Deploy Digital Signage
+        run: |
+          make up
+
+      - name: DBS scan for Digital Signage
+        run: |
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+          -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+          -v /etc:/etc:ro \
+          -v /usr/bin/containerd:/usr/bin/containerd:ro \
+          -v /usr/bin/runc:/usr/bin/runc:ro \
+          -v /usr/lib/systemd:/usr/lib/systemd:ro \
+          -v /var/lib:/var/lib:ro \
+          -v /var/run/docker.sock:/var/run/docker.sock:ro \
+          --label docker_bench_security \
+          docker-bench-security > dbs_scan_digital_signage.txt
+
+      - name: Undeploy Digital Signage
+        if: always()
+        run: make down
+
+      - name: Upload DBS Scan artifact to Github
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: DBS_digital_signage
+          path: dbs_scan_digital_signage.txt
+
+  codeql-job:
+    name: CodeQL Scan - Digital Signage Python
+    if: ${{ (inputs.target == 'codeql-scan') || (inputs.target == 'all-scans') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          languages: 'python'
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          category: "/language:python"
+          upload: "never"
+          output: results-digital-signage
+
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.3.0
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install reportlab
+
+      - name: Convert SARIF to PDF
+        run: |
+          python - <<EOF
+          import json
+          from reportlab.lib.pagesizes import letter
+          from reportlab.pdfgen import canvas
+          def parse_sarif(sarif_file):
+              with open(sarif_file, 'r') as file:
+                  data = json.load(file)
+              return data
+          def generate_pdf(data, output_file):
+              c = canvas.Canvas(output_file, pagesize=letter)
+              width, height = letter
+              c.drawString(100, height - 100, "SARIF Report - Digital Signage")
+              y_position = height - 150
+              for run in data.get('runs', []):
+                  for result in run.get('results', []):
+                      message = result.get('message', {}).get('text', 'No message')
+                      severity = result.get('level', 'Unknown')
+                      location = result.get('locations', [{}])[0].get('physicalLocation', {}).get('artifactLocation', {}).get('uri', 'Unknown location')
+                      c.drawString(100, y_position, f"Message: {message}")
+                      c.drawString(100, y_position - 20, f"Severity: {severity}")
+                      c.drawString(100, y_position - 40, f"Location: {location}")
+                      y_position -= 80
+                      if y_position < 100:
+                          c.showPage()
+                          y_position = height - 100
+              c.save()
+          sarif_data = parse_sarif('results-digital-signage/python.sarif')
+          generate_pdf(sarif_data, 'sarif_digital_signage_report.pdf')
+          EOF
+
+      - name: Create ZIP File
+        run: |
+          zip codeql_digital_signage_reports.zip results-digital-signage/python.sarif sarif_digital_signage_report.pdf
+
+      - name: Upload ZIP Artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: Digital Signage CodeQL Reports
+          path: codeql_digital_signage_reports.zip
+
+  pylint-scans:
+    name: Run Pylint Scan
+    if: ${{ (inputs.target == 'pylint-scan') || (inputs.target == 'all-scans') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.3.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pylint
+
+      - name: Run Pylint
+        run: |
+          pylint aig/src/ > aig/pylint-report.txt 2>&1 || true
+          pylint web-ui/ > web-ui/pylint-report.txt 2>&1 || true
+
+      - name: Upload Pylint reports
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: pylint-reports
+          path: |
+            aig/pylint-report.txt
+            web-ui/pylint-report.txt

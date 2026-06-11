@@ -5,6 +5,12 @@ The Context-Aware, Cross-Selling Digital Signage application is a fully containe
 dynamic advertisement generation using Intel AI and media pipelines.
 The architecture follows a microservices design pattern and enables optimized edge deployment on Intel® platforms in retail and similar environments.
 
+## Documentation
+
+Detailed user documentation is available at:
+
+- [docs/user-guide/index.md](docs/user-guide/index.md)
+
 **Key Features:**
 - **Product Provisioning:** Configure product items with predefined advertisements, slogans, promotional offers, and pricing
 - **Context-Aware Detection:** Real-time product identification from video streams (file-based or RTSP camera input)
@@ -410,4 +416,3 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 ## License
 
 This project is licensed under the Apache 2.0 License. See [LICENSE](LICENSE) for details.
-

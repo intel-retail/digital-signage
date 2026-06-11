@@ -1,5 +1,5 @@
 ---
-# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 name: "[Digital Signage] SDLe Scans"
@@ -37,88 +37,10 @@ on:
         type: string
 
 jobs:
-  trivy-fs-scan:
-    if: ${{ (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
+  trivy-scan:
+    if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
     permissions:
       contents: read
-      packages: read          # needed for actions/checkout
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          persist-credentials: false
-      - name: Install Trivy from Aqua Security APT repo
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gnupg lsb-release wget apt-transport-https curl jq
-          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
-          sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y trivy
-      - name: Trivy filesystem/repo scan
-        continue-on-error: true
-        shell: bash
-        run: |
-          pwd
-          CWD=$(pwd)
-          trivy --version
-          which trivy
-          trivy image --download-db-only
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o trivy-html.tpl
-          cat << 'EOF' > csv.tpl
-          {{ range . }}
-          Trivy Vulnerability Scan Results ({{- .Target -}})
-          VulnerabilityID,Severity,CVSS Score,Title,Library,Vulnerable Version,Fixed Version,Information URL,Triage Information
-          {{ range .Vulnerabilities }}
-              {{- .VulnerabilityID }},
-              {{- .Severity }},
-              {{- range $key, $value := .CVSS }}
-                  {{- if (eq $key "nvd") }}
-                      {{- .V3Score -}}
-                  {{- end }}
-              {{- end }},
-              {{- quote .Title }},
-              {{- quote .PkgName }},
-              {{- quote .InstalledVersion }},
-              {{- quote .FixedVersion }},
-              {{- .PrimaryURL }}
-          {{ else -}}
-              No vulnerabilities found at this time.
-          {{ end }}
-          Trivy Dependency Scan Results ({{ .Target }})
-          ID,Name,Version,Notes
-          {{ range .Packages -}}
-              {{- quote .ID }},
-              {{- quote .Name }},
-              {{- quote .Version }}
-          {{ else -}}
-              No dependencies found at this time.
-          {{ end }}
-          {{ end }}
-          EOF
-
-          trivy fs . --format template --template "@$CWD/trivy-html.tpl" -o "trivy_ds_fs_full_report_code_scan.html"
-          trivy fs --list-all-pkgs --format template --template "@$CWD/csv.tpl" --output trivy-ds-fs-full-report.csv .
-          trivy fs --ignore-unfixed . | tee trivy-ds-fs-full-report-ignore-unfixed.txt
-
-      - name: Upload Trivy FS Scan Report
-        continue-on-error: true
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
-        with:
-          name: Trivy Report - Filesystem Scan
-          path: |
-            trivy_ds_fs_full_report_code_scan.html
-            trivy-ds-fs-full-report.csv
-            trivy-ds-fs-full-report-ignore-unfixed.txt
-
-  trivy-image-scan:
-    if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans') }}
-    permissions:
-      contents: read
-      packages: read          # needed for actions/checkout
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
@@ -138,8 +60,9 @@ jobs:
         shell: bash
         run: |
           trivy --version
+          trivy_version=$(trivy --version | head -n 1 | awk '{print $2}')
           trivy image --download-db-only
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o trivy-html.tpl
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v${trivy_version}/contrib/html.tpl -o trivy-html.tpl
           cat << 'EOF' > csv.tpl
           {{ range . }}
           Trivy Vulnerability Scan Results ({{- .Target -}})
@@ -173,8 +96,8 @@ jobs:
           EOF
 
       - name: Build Digital Signage images
+        if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans') }}
         run: |
-          CWD=$(pwd)
           MTX_WEBRTCICESERVERS2_0_USERNAME=$(tr -dc 'a-zA-Z' < /dev/urandom | head -c 8)
           MTX_WEBRTCICESERVERS2_0_PASSWORD=$(openssl rand -hex 10)
           HOST_IP=$(hostname -I | awk '{print $1}')
@@ -188,6 +111,8 @@ jobs:
 
       - name: Trivy Image Scan
         continue-on-error: true
+        if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans') }}
+        shell: bash
         run: |
           CWD=$(pwd)
           declare -A IMAGE_MAP
@@ -209,18 +134,38 @@ jobs:
           done
 
       - name: Upload Trivy Image Scan Report
+        if: ${{ always() && ((inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans')) }}
         continue-on-error: true
-        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
         with:
           name: Trivy Report - Image Scan
           path: trivy-image-scan*
 
+      - name: Trivy file system scan for AIG and Web UI
+        if: ${{ (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          CWD=$(pwd)
+          trivy fs . --format template --template "@$CWD/trivy-html.tpl" -o "trivy_ds_fs_full_report_code_scan.html"
+          trivy fs --list-all-pkgs --format template --template "@$CWD/csv.tpl" --output trivy-ds-fs-full-report.csv .
+          trivy fs --ignore-unfixed . | tee trivy-ds-fs-full-report-ignore-unfixed.txt
+
+      - name: Upload Trivy FS Scan Report
+        if: ${{ always() && ((inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans')) }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: Trivy Report - Filesystem Scan
+          path: |
+            trivy_ds_fs_full_report_code_scan.html
+            trivy-ds-fs-full-report.csv
+            trivy-ds-fs-full-report-ignore-unfixed.txt
+
   trivy-config-dockerfile-scan:
     if: ${{ (inputs.target == 'trivy-config-scan') || (inputs.target == 'trivy-dockerfile-scan') || (inputs.target == 'all-scans') }}
     permissions:
       contents: read
-      packages: read          # needed for actions/checkout
     name: Scan Dockerfiles (AIG & Web UI)
     strategy:
       fail-fast: false
@@ -244,7 +189,6 @@ jobs:
     if: ${{ (inputs.target == 'bandit-scan') || (inputs.target == 'all-scans') }}
     permissions:
       contents: read
-      packages: read          # needed for actions/checkout
     name: Run Bandit Scan
     runs-on: ubuntu-24.04
     steps:
@@ -256,7 +200,7 @@ jobs:
     - name: Run Bandit Scan
       run: |
         mkdir -p reports
-        docker pull ghcr.io/pycqa/bandit/bandit
+        docker pull ghcr.io/pycqa/bandit/bandit@sha256:3a0183f26e48729975860e358b2b386f18d491c60d687adf240a36a08a79992b
         echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
         docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit \
           -r /src/aig/src/ /src/web-ui/ \
@@ -307,7 +251,6 @@ jobs:
     if: ${{ (inputs.target == 'virus-scan') || (inputs.target == 'all-scans') }}
     permissions:
       contents: read
-      packages: read          # needed for actions/checkout
     name: Run Virus Scan
     runs-on: ubuntu-24.04
     steps:
@@ -318,7 +261,7 @@ jobs:
     - name: Run Virus Scan
       run: |
         mkdir -p reports
-        docker pull clamav/clamav
+        docker pull clamav/clamav:1.5-debian13-slim
         echo "### Virus Scan Results" >> $GITHUB_STEP_SUMMARY
         docker run --rm -v "${{ github.workspace }}:/src" clamav/clamav clamscan -r /src/ \
           > ./reports/clamav-digital-signage-report.txt || true
@@ -334,7 +277,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: read          # needed for actions/checkout
     steps:
       - name: Checkout Code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -348,11 +290,11 @@ jobs:
           git version &&
           docker compose version
 
-      - name: Checkout docker/docker-bench-security (master)
+      - name: Checkout docker/docker-bench-security (v1.6.1)
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: docker/docker-bench-security
-          ref: master
+          ref: 154869da6418089decf7e1ab0cfca0e1cdfc5c49 # v1.6.1
           path: docker-bench-security
           persist-credentials: false
 
@@ -437,7 +379,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       security-events: write
-      packages: read
       actions: read
       contents: read
 

@@ -101,7 +101,6 @@ jobs:
           MTX_WEBRTCICESERVERS2_0_PASSWORD=$(openssl rand -hex 10)
           HOST_IP=$(hostname -I | awk '{print $1}')
 
-          sed -i "s/DOCKER_REGISTRY=.*/DOCKER_REGISTRY=admin/g" .env
           sed -i "s/MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${MTX_WEBRTCICESERVERS2_0_USERNAME}/g" .env
           sed -i "s/MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD}/g" .env
           sed -i "s/HOST_IP=.*/HOST_IP=${HOST_IP}/g" .env

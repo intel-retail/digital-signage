@@ -47,7 +47,6 @@ jobs:
     - name: Build
       run: |
         cd "${{ github.workspace }}"
-        sed -i "s/DOCKER_REGISTRY=.*/DOCKER_REGISTRY=admin/g" .env
         make down
         # Generate random values for sensitive environment variables
         MTX_WEBRTCICESERVERS2_0_USERNAME=$(tr -dc 'a-zA-Z' < /dev/urandom | head -c 8)

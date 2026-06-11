@@ -21,7 +21,6 @@ on:
         - all-scans
         - trivy-fs-scan
         - trivy-image-scan
-        - trivy-config-scan
         - trivy-dockerfile-scan
         - bandit-scan
         - virus-scan
@@ -163,7 +162,7 @@ jobs:
             trivy-ds-fs-full-report-ignore-unfixed.txt
 
   trivy-config-dockerfile-scan:
-    if: ${{ (inputs.target == 'trivy-config-scan') || (inputs.target == 'trivy-dockerfile-scan') || (inputs.target == 'all-scans') }}
+    if: ${{ (inputs.target == 'trivy-dockerfile-scan') || (inputs.target == 'all-scans') }}
     permissions:
       contents: read
     name: Scan Dockerfiles (AIG & Web UI)
@@ -200,7 +199,7 @@ jobs:
     - name: Run Bandit Scan
       run: |
         mkdir -p reports
-        docker pull ghcr.io/pycqa/bandit/bandit@sha256:3a0183f26e48729975860e358b2b386f18d491c60d687adf240a36a08a79992b
+        docker pull ghcr.io/pycqa/bandit/bandit@sha256:cf12c8d08bb534bd41abdcc5e238f87e58fa45d7f5c8120d19c5d98816654ebc
         echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
         docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit \
           -r /src/aig/src/ /src/web-ui/ \

@@ -62,7 +62,7 @@ jobs:
       run: |
         cd "${{ github.workspace }}"
         echo "Downloading PID (YOLO11s) model"
-        cd pid && \
+        cd configs/pid && \
         wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
         sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
         sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
@@ -75,7 +75,7 @@ jobs:
         ./downloadAndQuantizeModel.sh && \
         rm ./downloadAndQuantizeModel.sh && \
         deactivate && \
-        cd ..
+        cd ../..
         echo "Downloading AIG (SDXL-Turbo & MiniLM) models"
         cd aig && \
         rm -rf .modelenv && \

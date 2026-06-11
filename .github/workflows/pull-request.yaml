@@ -91,6 +91,20 @@ jobs:
         cd "${{ github.workspace }}"
         echo "Deploying digital-signage"
         make up
+        sleep 60 # wait for containers to start and stabilize
+        docker ps
+    
+    - name: Check container logs for errors
+      if: always()
+      run: |
+        for container in $(docker ps -aq); do
+          logs=$(docker logs "$container" 2>&1)
+          if echo "$logs" | grep -qi "error\|exception\|fail"; then
+            echo "=== Logs for container: $container ==="
+            echo "$logs" | tail -50
+          fi
+        done
+
     - name: Undeploy
       if: always()
       run: |

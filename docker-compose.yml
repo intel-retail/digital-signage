@@ -4,11 +4,11 @@
 #
 
 services:
-  ia-mqtt-broker:
+  mqtt-broker:
     image: eclipse-mosquitto:2.0.22
-    hostname: ia-mqtt-broker
+    hostname: mqtt-broker
     read_only: true
-    container_name: ia-mqtt-broker
+    container_name: mqtt-broker
     user: "1883:1883"
     security_opt:
       - no-new-privileges
@@ -37,8 +37,8 @@ services:
       ENABLE_RTSP: true
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
-      no_proxy: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,ia-mqtt-broker
-      NO_PROXY: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,ia-mqtt-broker
+      no_proxy: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,mqtt-broker
+      NO_PROXY: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,mqtt-broker
       GST_DEBUG: "1"
       REST_SERVER_PORT: ${REST_SERVER_PORT}
       S3_STORAGE_HOST: ${MR_MINIO_HOSTNAME:-"minio-server"}
@@ -59,7 +59,7 @@ services:
       MR_SAVED_MODELS_DIR: ${MR_URL:-""}
       MR_REQUEST_TIMEOUT: ${MR_REQUEST_TIMEOUT:-""}
       MR_VERIFY_CERT: ${MR_VERIFY_CERT:-""}
-      MQTT_HOST: ia-mqtt-broker
+      MQTT_HOST: mqtt-broker
       MQTT_PORT: 1883
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
@@ -261,7 +261,7 @@ services:
     networks:
       - app_network
     environment:
-      - no_proxy=${no_proxy},mediamtx,aig-server,ia-mqtt-broker
+      - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - FLASK_ENV=production
@@ -269,6 +269,8 @@ services:
       - TIME_TO_DISPLAY_AD_SECONDS=${TIME_TO_DISPLAY_AD_SECONDS}
       - OBJECT_RECENCY_FRAME_COUNT=${OBJECT_RECENCY_FRAME_COUNT}
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
+      - MQTT_BROKER=mqtt-broker
+      - MQTT_PORT=1883
     depends_on:
       - mediamtx
       - aig-server
@@ -287,12 +289,12 @@ services:
     command: >
      /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
     environment:
-      no_proxy: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
-      NO_PROXY: "web-ui,ia-mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
+      no_proxy: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
+      NO_PROXY: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
       MEDIAMTX_SERVER: mediamtx
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
     ports:
-      - "3000:15443"   # HTTPS for Grafana and TS MS Rest API
+      - "5000:15443"   # HTTPS for Grafana and TS MS Rest API
       - "1883:1883" # MQTT TCP Proxy
     volumes:
       - ./configs/nginx/nginx.conf:/tmp/default.conf.template:ro
@@ -305,7 +307,7 @@ services:
       - app_network
     depends_on:
       - web-ui
-      - ia-mqtt-broker
+      - mqtt-broker
       - mediamtx
       - coturn
 

@@ -52,7 +52,7 @@ The solution is composed of the following main components:
 
 **High-Level Architecture:**
 
-![Digital Signage Architecture](./_assests/Digital_Signage.png)
+![Digital Signage Architecture](./_assets/Digital_Signage.png)
 
 ## Web UI: Object Selection and Ad Generation Flow
 
@@ -215,7 +215,7 @@ removes any previously running containers, and starts all containers.
 Open Google Chrome and navigate to:
 
 ```
-http://<HOST_IP>:5000
+https://<HOST_IP>:5000
 ```
 
 For local systems with limited compute resources, follow either of the steps below for better results:
@@ -224,7 +224,7 @@ For local systems with limited compute resources, follow either of the steps bel
    1. Open Terminal on the desktop.
    2. Run the command below to launch Chrome with GPU acceleration disabled:
       ```bash
-      google-chrome --process-per-site --disable-plugins --disable-gpu http://localhost:5000
+      google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000
       ```
 
 - Launching `Google Chrome` using the icon:
@@ -233,7 +233,7 @@ For local systems with limited compute resources, follow either of the steps bel
       - `Continue running background apps when Google Chrome is closed` 
       - `Use graphics acceleration when available`
 
-      ![Chrome System settings](./_assests/chrome_settings.png)
+      ![Chrome System settings](./_assets/chrome_settings.png)
    3. Relaunch Chrome for the changes to take effect.
 
 
@@ -304,7 +304,7 @@ make up
 
 The AIG service exposes REST endpoints for generating and managing advertisements.
 
-**Base URL:** `http://<HOST_IP>:<AIG_PORT>` (By default, `AIG_PORT` value is set to 5003 in `.env` file)
+**Base URL:** `https://<HOST_IP>:5000/aig-api/`
 
 #### Key Endpoints
 
@@ -336,7 +336,7 @@ The AIG service exposes REST endpoints for generating and managing advertisement
 
 The PID service (DL Streamer Pipeline Server) exposes REST endpoints for pipeline management and status.
 
-**Base URL:** `http://<PID_HOST>:8080`
+**Base URL:** `https://<IP>:5000/dsps-api/`
 
 For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)
 

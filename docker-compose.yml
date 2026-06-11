@@ -294,7 +294,7 @@ services:
       MEDIAMTX_SERVER: mediamtx
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
     ports:
-      - "5000:15443"   # HTTPS for Grafana and TS MS Rest API
+      - "5000:15443"   # HTTPS for Web-UI and AIG & DLSPS Rest API
     volumes:
       - ./configs/nginx/nginx.conf:/tmp/default.conf.template:ro
       - ./configs/nginx/nginx-cert-gen.sh:/usr/local/bin/nginx-cert-gen.sh:ro

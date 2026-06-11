@@ -42,7 +42,7 @@ build_copyleft_sources:
 .PHONY: check_models
 check_models:
 	@echo "Checking if object detection and text to image models are available..."
-	@for dir in pid/models aig/models; do \
+	@for dir in configs/pid/models aig/models; do \
 		if [ ! -d "$$dir" ]; then \
 			echo "Error: $$dir directory does not exist."; \
 			exit 1; \

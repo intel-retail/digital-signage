@@ -1,26 +1,35 @@
 # Change Inference Device (CPU/GPU/NPU)
 
-## PID
+By default, PID performs inference on `CPU` and AIG uses `GPU`. You can customize the target device for each component independently.
 
-Update `pid/config.json`:
+## PID (Product Identification)
+
+Update the `device` parameter in `configs/pid/config.json`:
 
 ```json
-"device": "CPU"
+"parameters": {
+   "detection-properties": {
+      "model": "<model_path>",
+      "device": "CPU"
+   }
+}
 ```
 
-Supported values: `CPU`, `GPU`, `NPU`.
+**Available options:** `CPU`, `GPU`, `NPU`
 
-## AIG
+## AIG (Advertise Image Generator)
 
-Update `.env`:
+Set the `AIG_MODEL_DEVICE` variable in `.env`:
 
 ```env
 AIG_MODEL_DEVICE=GPU
 ```
 
-Supported values: `CPU`, `GPU`.
+**Available options:** `CPU`, `GPU`
 
 ## Apply Changes
+
+After updating the device configuration, redeploy the application:
 
 ```bash
 make down

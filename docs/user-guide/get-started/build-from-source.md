@@ -1,18 +1,24 @@
 # Build from Source
 
-## Clone Repository
+This guide provides step-by-step instructions for cloning the Digital Signage repository, downloading required AI models, and building container images from source.
+
+> **NOTE:** Run all commands as a regular (non-root) user, without using `sudo`. Ensure [Docker is configured](../get-started.md#configure-docker) and you have internet access before proceeding.
+
+## Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
-## Download Models
+## Step 2: Download AI Models
 
-### PID model (YOLO11s)
+### Download YOLO11s Model (for PID)
+
+> Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) before downloading.
 
 ```bash
-cd pid && \
+cd configs/pid && \
 wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
 sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
 sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
@@ -25,10 +31,14 @@ chmod +x downloadAndQuantizeModel.sh && \
 ./downloadAndQuantizeModel.sh && \
 rm ./downloadAndQuantizeModel.sh && \
 deactivate && \
-cd ..
+cd ../..
 ```
 
-### AIG models (SDXL-Turbo + MiniLM)
+The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.
+
+### Download SDXL-Turbo and MiniLM Models (for AIG)
+
+> Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
 ```bash
 cd aig && \
@@ -43,8 +53,12 @@ deactivate && \
 cd ../
 ```
 
-## Build Images
+Models are downloaded to `./aig/models/`.
+
+## Step 3: Build Docker Images
 
 ```bash
 make build
 ```
+
+Proceed to [Deploy with Docker Compose](./deploy-with-docker-compose.md) once the build completes.

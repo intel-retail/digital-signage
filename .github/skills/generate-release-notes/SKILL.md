@@ -95,7 +95,7 @@ This release introduces **X** and **Y**, along with **updated Z** and **document
 For the `digital-signage` repo the canonical path is:
 
 ```
-docs/release-notes.md
+docs/user-guide/release-notes.md
 ```
 
 If the file does not exist, create it. If it already exists, **prepend** the new version section above the previous most-recent version entry (do not replace existing content).
@@ -105,7 +105,7 @@ If the file does not exist, create it. If it already exists, **prepend** the new
 The authoritative format example is the existing release notes file in this repo:
 
 ```
-docs/release-notes.md
+docs/user-guide/release-notes.md
 ```
 
 When uncertain about formatting or section structure, re-read that file.

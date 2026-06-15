@@ -1,0 +1,36 @@
+{
+  "skill_name": "generate-release-notes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Generate release notes for the digital-signage repo at /home/ecgv-d1-l3t15/digital-signage/digital-signage comparing main with origin/feature/wcl_integration. This is version 2026.1, June 2026. Save the release notes to /home/ecgv-d1-l3t15/digital-signage/digital-signage/.github/skills/generate-release-notes-workspace/iteration-1/eval-1-wcl-comparison/with_skill/outputs/release-notes-draft.md",
+      "expected_output": "A Markdown release notes section for version 2026.1, June 2026, with New, Improved, and/or Fixed sections, bold feature names per bullet, and intro summary sentence. Content derived from commits unique to origin/feature/wcl_integration vs main.",
+      "files": [],
+      "expectations": [
+        "Output file release-notes-draft.md is created",
+        "Output contains a version heading matching '## Version 2026.1'",
+        "Output contains '**June 2026**' as the date line",
+        "Output contains at least one '**New**' or '**Improved**' section heading",
+        "Each bullet point starts with a bold feature name followed by a colon",
+        "Output contains an introductory summary sentence before the first section",
+        "Content references at least one real change from the WCL integration commits (WCL, inventory, ad generation, web-ui, README, or pipeline)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Generate release notes for the digital-signage repo at /home/ecgv-d1-l3t15/digital-signage/digital-signage comparing main with origin/copilot/optimize-object-detection-logic. This is version 2026.2, September 2026. Save the release notes to /home/ecgv-d1-l3t15/digital-signage/digital-signage/.github/skills/generate-release-notes-workspace/iteration-1/eval-2-object-detection/with_skill/outputs/release-notes-draft.md",
+      "expected_output": "A Markdown release notes section for version 2026.2, September 2026, with sections derived from the three commits: SD 1.5 LCM model support, pillow security bump, and SDXL-Turbo fix.",
+      "files": [],
+      "expectations": [
+        "Output file release-notes-draft.md is created",
+        "Output contains a version heading matching '## Version 2026.2'",
+        "Output contains '**September 2026**' as the date line",
+        "Output contains at least one section heading (New, Improved, or Fixed)",
+        "Each bullet point starts with a bold feature name followed by a colon",
+        "Output contains a security-related bullet referencing the Pillow upgrade",
+        "Output mentions LCM or SD 1.5 model support",
+        "Output contains an introductory summary sentence"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "configuration": "with_skill",
+  "expectations": [
+    {"text": "Output file release-notes-draft.md is created", "passed": true, "evidence": "File exists at outputs/release-notes-draft.md"},
+    {"text": "Output contains a version heading matching '## Version 2026.1'", "passed": true, "evidence": "Line 3: '## Version 2026.1'"},
+    {"text": "Output contains '**June 2026**' as the date line", "passed": true, "evidence": "Line 5: '**June 2026**'"},
+    {"text": "Output contains at least one '**New**' or '**Improved**' section heading", "passed": true, "evidence": "Lines 9 and 22: '**New**' and '**Improved**'"},
+    {"text": "Each bullet point starts with a bold feature name followed by a colon", "passed": true, "evidence": "All bullets follow '- **Name**: description' pattern"},
+    {"text": "Output contains an introductory summary sentence before the first section", "passed": true, "evidence": "Lines 7-8: 'This release introduces **WCL integration...'"},
+    {"text": "Content references at least one real change from the WCL integration commits", "passed": true, "evidence": "Mentions WCL, persistent HTTP session, round-robin ad selection, AIG base image, ProductAssociations.csv, bounding box, diffusers/urllib3"}
+  ],
+  "pass_rate": 1.0,
+  "notes": "Perfect adherence to format. Correctly scoped to 7 commits. Fixed section properly included."
+}

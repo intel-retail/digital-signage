@@ -1,0 +1,16 @@
+{
+  "eval_id": 2,
+  "configuration": "with_skill",
+  "expectations": [
+    {"text": "Output file release-notes-draft.md is created", "passed": true, "evidence": "File exists at outputs/release-notes-draft.md"},
+    {"text": "Output contains a version heading matching '## Version 2026.2'", "passed": true, "evidence": "Line 3: '## Version 2026.2'"},
+    {"text": "Output contains '**September 2026**' as the date line", "passed": true, "evidence": "Line 5: '**September 2026**'"},
+    {"text": "Output contains at least one section heading (New, Improved, or Fixed)", "passed": true, "evidence": "Lines 9, 13, 30: '**New**', '**Improved**', '**Fixed**'"},
+    {"text": "Each bullet point starts with a bold feature name followed by a colon", "passed": true, "evidence": "All bullets follow '- **Name**: description' pattern consistently"},
+    {"text": "Output contains a security-related bullet referencing the Pillow upgrade", "passed": true, "evidence": "- **Security**: Pillow upgraded from 12.1.1 to 12.2.0 to address a FITS GZIP decompression bomb vulnerability."},
+    {"text": "Output mentions LCM or SD 1.5 model support", "passed": true, "evidence": "- **SD 1.5 LCM Model Support**: SD 1.5 LCM (LCM_Dreamshaper_v7) is now available..."},
+    {"text": "Output contains an introductory summary sentence", "passed": true, "evidence": "Lines 7-8: 'This release introduces **SD 1.5 LCM model support**, along with...'"}
+  ],
+  "pass_rate": 1.0,
+  "notes": "Perfect format adherence. New, Improved, Fixed sections all present. Content well-scoped and factually accurate from the 3 commits."
+}

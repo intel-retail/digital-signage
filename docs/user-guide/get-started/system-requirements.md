@@ -14,7 +14,7 @@ This page provides detailed hardware, software, and platform requirements to hel
 ## Software Requirements
 
 | Component         | Version / Details                  |
-|-------------------|------------------------------------||
+|-------------------|------------------------------------|
 | **OS**            | Ubuntu 24.04 LTS                   |
 | **Docker Engine** | 24.x or higher                     |
 | **Docker Compose**| v2                                 |

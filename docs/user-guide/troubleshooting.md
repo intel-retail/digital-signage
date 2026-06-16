@@ -79,15 +79,15 @@ Detections are not reaching the Web UI via MQTT, or detected labels are not mapp
 
 ---
 
-## 4. WebRTC / Live Video Not Displaying in Browser
+## 4. Slow Ad Generation on Low-Resource Systems
 
 **Issue**
 
-The video stream area in the browser is blank or shows a connection error.
+Ad generation is slow on low-resource systems.
 
 **Reason**
 
-WebRTC requires a compatible browser, and GPU acceleration can cause rendering instability on low-resource systems.
+Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the two compete for GPU resources, leaving insufficient capacity for AIG and causing slow ad generation rendering instability.
 
 **Solution**
 

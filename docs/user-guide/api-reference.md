@@ -14,14 +14,15 @@ Generates an advertisement image from text input and optional overlay parameters
 
 ```json
 {
-  "prompt": "string",      // Description for image generation (required)
-  "logo_path": "string",   // Path to logo file (optional)
-  "slogan": "string",      // Slogan text to overlay (optional)
-  "price": "string"        // Price text to overlay (optional)
+  "description": "string",      // Text prompt used to generate the image e.g. "A 35mm photo with bananas, 8k" (required)
+  "device": "enum",   // Inference device: CPU, GPU, or NPU (required)
+  "promo_details": "object",      // Promo banner overlaid on the image (optional)
+  "logo_details": "object",        // Logo overlaid on the image (optional)
+  "framed_details": "object"        // Double-border frame around the image (optional)
 }
 ```
 
-**Response:** Generated advertisement image (binary or base64-encoded).
+**Response:** Generated advertisement image (`image/jpeg` binary stream).
 
 ---
 

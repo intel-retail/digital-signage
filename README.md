@@ -58,7 +58,7 @@ The solution is composed of the following main components:
 
 **High-Level Architecture:**
 
-![Digital Signage Architecture](./_assets/Digital_Signage.png)
+![Digital Signage Architecture](./docs/user-guide/_assets/Digital_Signage.png)
 
 ## Web UI: Object Selection and Ad Generation Flow
 
@@ -239,7 +239,7 @@ For local systems with limited compute resources, follow either of the steps bel
       - `Continue running background apps when Google Chrome is closed` 
       - `Use graphics acceleration when available`
 
-      ![Chrome System settings](./_assets/chrome_settings.png)
+      ![Chrome System settings](./docs/user-guide/_assets/chrome_settings.png)
    3. Relaunch Chrome for the changes to take effect.
 
 

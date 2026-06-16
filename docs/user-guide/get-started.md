@@ -80,7 +80,7 @@ chmod +x downloadAndQuantizeModel.sh && \
 ./downloadAndQuantizeModel.sh && \
 rm ./downloadAndQuantizeModel.sh && \
 deactivate && \
-cd ..
+cd ../..
 ```
 
 The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.

@@ -33,6 +33,7 @@ You can replace the default YOLO11s model in PID with a custom object-detection 
 3. **Deploy** the application:
 
    ```bash
+   make down
    make up
    ```
 

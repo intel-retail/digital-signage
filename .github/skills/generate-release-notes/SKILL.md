@@ -1,7 +1,7 @@
 ---
 name: generate-release-notes
-description: 'Generate formatted release notes by comparing two git branches. Use this skill whenever the user mentions release notes, changelog, what changed between branches, version summary, release prep, or wants to document what is new or fixed in a release — even if they do not say "release notes" explicitly. Compares commits and diffs between a base branch and a release branch, then produces structured Markdown release notes with New, Improved, and Fixed bold-heading sections, bold bullet titles, and an intro summary sentence, following the digital-signage project style. Always use this skill rather than writing release notes freehand.'
-argument-hint: '<base-branch> <release-branch> <version> <month year>'
+description: 'Generate formatted release notes by comparing two git branches or tags. Use this skill whenever the user mentions release notes, changelog, what changed between branches, version summary, release prep, or wants to document what is new or fixed in a release — even if they do not say "release notes" explicitly. Compares commits and diffs between a base branch or tag and a release branch or tag, then produces structured Markdown release notes with New, Improved, and Fixed bold-heading sections, bold bullet titles, and an intro summary sentence, following the digital-signage project style. Always use this skill rather than writing release notes freehand.'
+argument-hint: '<base-branch-or-tag> <release-branch-or-tag> <version> <month year>'
 ---
 
 # Generate Release Notes
@@ -34,19 +34,19 @@ Run these commands against the repo being released (default: `digital-signage` r
 
 ```bash
 # All commits unique to the release branch (no merge commits)
-git log <base-branch>..<release-branch> --oneline --no-merges
+git log <base-branch-or-tag>..<release-branch-or-tag> --oneline --no-merges
 
 # Files changed and their change volumes
-git diff <base-branch>..<release-branch> --stat
+git diff <base-branch-or-tag>..<release-branch-or-tag> --stat
 
 # Full diff for detailed analysis
-git diff <base-branch>..<release-branch>
+git diff <base-branch-or-tag>..<release-branch-or-tag>
 ```
 
 If the change volume is large, scope the diff to key subdirectories:
 
 ```bash
-git diff <base-branch>..<release-branch> -- <path/to/component>
+git diff <base-branch-or-tag>..<release-branch-or-tag> -- <path/to/component>
 ```
 
 ### Step 2: Categorize Changes

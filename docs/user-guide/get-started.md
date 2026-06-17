@@ -189,7 +189,6 @@ make down
 
 ./get-started/system-requirements
 ./get-started/build-from-source
-./get-started/deploy-with-docker-compose
 
 :::
 hide_directive-->

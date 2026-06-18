@@ -1,4 +1,4 @@
-# Release Notes: Digital Signage
+# Release Notes: <product_name>
 
 ## Version X.Y
 

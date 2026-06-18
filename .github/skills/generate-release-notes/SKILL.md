@@ -1,6 +1,6 @@
 ---
 name: generate-release-notes
-description: 'Generate formatted release notes by comparing two git branches or tags. Use this skill whenever the user mentions release notes, changelog, what changed between branches, version summary, release prep, or wants to document what is new or fixed in a release — even if they do not say "release notes" explicitly. Compares commits and diffs between a base branch or tag and a release branch or tag, then produces structured Markdown release notes with New, Improved, and Fixed bold-heading sections, bold bullet titles, and an intro summary sentence, following the digital-signage project style. Always use this skill rather than writing release notes freehand.'
+description: 'Generate formatted release notes by comparing two git branches or tags. Use this skill whenever the user mentions release notes, changelog, what changed between branches, version summary, release prep, or wants to document what is new or fixed in a release — even if they do not say "release notes" explicitly. Compares commits and diffs between a base branch or tag and a release branch or tag, then produces structured Markdown release notes with New, Improved, and Fixed bold-heading sections, bold bullet titles, and an intro summary sentence, following the digital-signage product style. Always use this skill rather than writing release notes freehand.'
 argument-hint: '<base-branch-or-tag> <release-branch-or-tag> <version> <month year>'
 ---
 
@@ -15,14 +15,18 @@ argument-hint: '<base-branch-or-tag> <release-branch-or-tag> <version> <month ye
 
 ## Inputs Required
 
-Before starting, ask the user for these four values if not already provided:
+Before starting, ask the user for these values if not already provided:
 
 | Input | Example |
 |-------|---------|
+| **product name** | `Digital Signage` |
 | **Base branch** | `main`, `release-2026.0` |
 | **Release branch** | `release-2026.1.0` |
 | **Version number** | `2026.1` |
 | **Release month and year** | `June 2026` |
+
+> If the user has not specified the product name, ask them:
+> "What is the product name to include in the release notes? (e.g., Digital Signage)"
 
 ---
 
@@ -70,6 +74,7 @@ Follow the [release notes format template](./assets/release-notes-template.md) e
 
 **Formatting rules:**
 
+- File heading: `# Release Notes: <product_name>` — use the product name supplied by the user (e.g., `# Release Notes: Digital Signage`).
 - Version heading: `## Version <X.Y>` — always `##`, never `#` or `###`
 - Date line immediately below: `**<Month Year>**` (bold, on its own line, NOT embedded in the heading)
 - One-sentence introductory paragraph that names the **2–4 most significant highlights** in bold inline, ending with `and various fixes and documentation improvements.` (or similar closing clause)

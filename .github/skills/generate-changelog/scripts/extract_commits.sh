@@ -28,14 +28,14 @@ if ! git -C "$REPO_PATH" rev-parse --git-dir > /dev/null 2>&1; then
   exit 2
 fi
 
-# Fetch so we have up-to-date remote refs (non-fatal if offline)
-git -C "$REPO_PATH" fetch --all --quiet 2>/dev/null || true
+# Fetch so we have up-to-date remote refs and tags (non-fatal if offline)
+git -C "$REPO_PATH" fetch --all --tags --quiet 2>/dev/null || true
 
 # Resolve branches (local or remote)
 resolve_ref() {
   local repo="$1"
   local branch="$2"
-  # Try as-is, then origin/<branch>, then remotes/<origin>/<branch>
+  # Try as-is, then origin/<branch>
   if git -C "$repo" rev-parse --verify "$branch" > /dev/null 2>&1; then
     echo "$branch"
   elif git -C "$repo" rev-parse --verify "origin/$branch" > /dev/null 2>&1; then

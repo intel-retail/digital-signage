@@ -125,7 +125,7 @@ All notable changes to this project are documented in this file.
 [#2509]: https://github.com/intel-retail/digital-signage/pull/2509
 [#2579]: https://github.com/intel-retail/digital-signage/pull/2579
 [#2581]: https://github.com/intel-retail/digital-signage/pull/2581
-[#2584]: https://github.com/intel-retail/digital-signage/pull/2586
+[#2584]: https://github.com/intel-retail/digital-signage/pull/2584
 [#2884]: https://github.com/intel-retail/digital-signage/pull/2884
 
 ---

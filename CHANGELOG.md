@@ -171,9 +171,6 @@ All notable changes to this project are documented in this file.
 [002eb38]: https://github.com/intel-retail/digital-signage/commit/002eb38519dc31b1ebcc1a00b727022ae379987f
 [7cc9daa]: https://github.com/intel-retail/digital-signage/commit/7cc9daa15a3044eb8873701d024633119033648b
 [c912c24]: https://github.com/intel-retail/digital-signage/commit/c912c24a0f6dff355ea8db7eb08922ef1ec3e621
-[e2cbded]: https://github.com/intel-retail/digital-signage/commit/e2cbded52739284153ba94108c727aac8b8ec661
-[f589f4f]: https://github.com/intel-retail/digital-signage/commit/f589f4fe22bce997719f7b3cdfb3e2b58fef3e97
-[e77b742]: https://github.com/intel-retail/digital-signage/commit/e77b742df4a87ec58a14045641899bbc53ee242a
 [0a3209e]: https://github.com/intel-retail/digital-signage/commit/0a3209ee9efd2f77b9a7f00abb4f9f7f08571229
 [642d12e]: https://github.com/intel-retail/digital-signage/commit/642d12eace094db9dd8e0d180f31f3ae5c0daee4
 [6d76d37]: https://github.com/intel-retail/digital-signage/commit/6d76d371dd6cfa0c8a819f0268f6e62695f4d759
@@ -182,4 +179,3 @@ All notable changes to this project are documented in this file.
 [a6b8947]: https://github.com/intel-retail/digital-signage/commit/a6b89472f433b174d747408566cb404ce8cbc9b0
 [2c7e033]: https://github.com/intel-retail/digital-signage/commit/2c7e0337cb72907bbcf1bf3e002f503dea9572d8
 [69337a4]: https://github.com/intel-retail/digital-signage/commit/69337a47397132cfb402e5ed41a93b282a7be5ea
-[cfa89f8]: https://github.com/intel-retail/digital-signage/commit/cfa89f8f5b1c86ad50c84dcdc351f0775533a800

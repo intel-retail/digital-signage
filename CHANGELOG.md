@@ -2,66 +2,6 @@
 
 All notable changes to this project are documented in this file.
 
-## [2026.1] - June 2026
-
-### Added
-- Added a `.github` directory with CODEOWNERS, contributing guide, and PR template files. ([998f874])
-- Added drivers for PTL. ([a8fd2b7])
-- Added multi-object detection support. ([d1a5902])
-- Added WCL integration. ([a745d65])
-- Reorganized the repository and enabled NGINX. ([475f58b])
-- Added pull request and scan workflows. ([402fc06])
-
-### Changed
-- Updated `.github/CONTRIBUTING.md`. ([2221c13])
-- Updated `.github/CONTRIBUTING.md`. ([e4816df])
-- Updated DL Streamer Pipeline Server to `2026.0-rc1` tag. ([a439412])
-
-### Removed
-- Removed basket video. ([8eaca2c])
-
-### Fixed
-- Fixed a ChromaDB issue. ([ac8e48e])
-- Fixed the Pillow version in `requirements.txt`. ([c59acd9])
-
-### Security
-- Bumped `pillow` from `12.1.0` to `12.1.1` in `aig/src`. ([60379d3])
-- Bumped `flask` from `3.0.0` to `3.1.3` in `web-ui`. ([75143e5])
-- Bumped `flask` from `3.1.2` to `3.1.3` in `aig/src`. ([5d29dae])
-- Bumped `requests` from `2.32.5` to `2.33.0` in `web-ui`. ([0f73556])
-- Bumped `pillow` from `12.1.1` to `12.2.0` in `aig/src`. ([715d09b])
-- Bumped `pillow` from `12.1.1` to `12.2.0` in `web-ui`. ([e501953])
-- Bumped `diffusers` from `0.33.1` to `0.38.0` in `aig/src`. ([be09a7e])
-- Bumped `diffusers` from `0.33.1` to `0.38.0` in `aig`. ([5d10d77])
-- Bumped `urllib3` from `2.6.3` to `2.7.0` in `aig/src`. ([eb4ab1c])
-- Upgraded `urllib3` to the latest version in AIG. ([4779eaf])
-
----
-[ac8e48e]: https://github.com/intel-retail/digital-signage/commit/ac8e48e32c0792d46f965bf61cd37a0eea8277f6
-[60379d3]: https://github.com/intel-retail/digital-signage/commit/60379d301a6755e5f90748c609ded46ecb5ba3c2
-[75143e5]: https://github.com/intel-retail/digital-signage/commit/75143e5d6e7298001a99b75448c8518c6e5413e7
-[998f874]: https://github.com/intel-retail/digital-signage/commit/998f874a2ad2fd2857d72aa53a22cc156648ad0e
-[c59acd9]: https://github.com/intel-retail/digital-signage/commit/c59acd9f1fba0202785b77618e4913d4ff324292
-[2221c13]: https://github.com/intel-retail/digital-signage/commit/2221c130fc85977dadd83f0ef4cf3264074487db
-[e4816df]: https://github.com/intel-retail/digital-signage/commit/e4816df363bb793776dcb47b0e63467add27d4fc
-[5d29dae]: https://github.com/intel-retail/digital-signage/commit/5d29dae79c0f739d7781f50891e43d946a383303
-[a8fd2b7]: https://github.com/intel-retail/digital-signage/commit/a8fd2b731facad516823f1d2b9f90f79d0b6a378
-[8eaca2c]: https://github.com/intel-retail/digital-signage/commit/8eaca2c8cc8d091b977039b3375c3ee9e15b5fa7
-[a439412]: https://github.com/intel-retail/digital-signage/commit/a439412be8a72d2d7d9869fe5ec336f6617f83c9
-[0f73556]: https://github.com/intel-retail/digital-signage/commit/0f735566bdeae7e2dc9b405f452c70af95ac3b9b
-[715d09b]: https://github.com/intel-retail/digital-signage/commit/715d09bcaf54075e5335940e2f4e6234960f9875
-[d1a5902]: https://github.com/intel-retail/digital-signage/commit/d1a59024a967e5dbc7c0b238e90ec2b7de25f702
-[e501953]: https://github.com/intel-retail/digital-signage/commit/e5019537477bffe1442a4d5a0b9cebf645b7c9b2
-[be09a7e]: https://github.com/intel-retail/digital-signage/commit/be09a7e5cf171c50e27afc5a2543d92272699103
-[5d10d77]: https://github.com/intel-retail/digital-signage/commit/5d10d775f4f44b6f0d2ec8967912f6a0f3f40264
-[eb4ab1c]: https://github.com/intel-retail/digital-signage/commit/eb4ab1c94969e10b2cd376ae82cff5a381d3e422
-[4779eaf]: https://github.com/intel-retail/digital-signage/commit/4779eaf1433cdba1c2734728de01acf1f660c632
-[a745d65]: https://github.com/intel-retail/digital-signage/commit/a745d65379a2dedfe6735a2dd131a2317bc58e6f
-[475f58b]: https://github.com/intel-retail/digital-signage/commit/475f58bac60b7fb0699fe62204347393e7578dae
-[402fc06]: https://github.com/intel-retail/digital-signage/commit/402fc060aa22c773aaae0be310dbb4fe29b4cf0e
-
----
-
 ## [1.0.0] - January 2026
 
 ### Added

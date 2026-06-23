@@ -1,20 +1,20 @@
 ---
 name: generate-changelog
 description: >
-  Generates or updates a CHANGELOG.md file for the digital-signage repository by
+  Generates or updates a CHANGELOG.md file for the current repository by
   analyzing git commit history between two branches or tags. Use this skill whenever the
   user asks to create, update, or generate a changelog, release notes from git
   history, or compare two branches or tags (e.g., "generate changelog for release-2026.1.0
   vs main", "update CHANGELOG.md", "what changed between branches or tags"). The skill
   produces entries categorized into Added, Changed, Removed, Fixed, Security, and
-  Documentation sections, matching the project's established changelog format.
+  Documentation sections, matching the repository's established changelog format.
 ---
 
 # Changelog Generator
 
 Generates or updates `CHANGELOG.md` by extracting and categorizing commits between
 two git branches or tags. Follows the [Keep a Changelog](https://keepachangelog.com/) style
-used by this project.
+used by the current repository.
 
 ## Inputs
 

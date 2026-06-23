@@ -60,7 +60,13 @@ git clone https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
-## Step 2: Download AI Models
+## Step 2: Build Docker Images
+
+```bash
+make build
+```
+
+## Step 3: Download AI Models
 
 ### Download YOLO11s Model (for PID)
 
@@ -103,12 +109,6 @@ cd ../
 ```
 
 Models are downloaded to `./aig/models/`.
-
-## Step 3: Build Docker Images
-
-```bash
-make build
-```
 
 ## Step 4: Configure Environment
 

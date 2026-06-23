@@ -1,7 +1,5 @@
 # Release Notes: Digital Signage
 
-- [Release Notes 2026](./release-notes/release-notes-2026.md)
-
 ## Version 2026.2.0
 
 **Sep 2026**

@@ -11,14 +11,10 @@ git clone https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
-## Step 2: Download AI Models
-
-Download the required AI models by following [Step 2 in the Get Started guide](../get-started.md#step-2-download-ai-models).
-
-## Step 3: Build Docker Images
+## Step 2: Build Docker Images
 
 ```bash
 make build
 ```
 
-Once the build completes, return to the Get Started guide and follow the remaining steps from [Step 4: Configure Environment](../get-started.md#step-4-configure-environment) onwards.
+Once the build completes, return to the Get Started guide and follow the remaining steps from [Step 3: Download AI Models](../get-started.md#step-3-download-ai-models) onwards.

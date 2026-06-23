@@ -173,3 +173,116 @@ def test_security_predef_query_ad_rejects_empty_query_before_backend_init(client
     )
 
     assert resp.status_code == 500
+
+
+def test_predef_delete_not_found(client, monkeypatch):
+    class FakeAseServer:
+        def chromadb_exists(self, image_id):
+            return False
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", lambda: FakeAseServer())
+
+    resp = client.delete("/ase/predef/999")
+
+    assert resp.status_code == 404
+    assert "not found" in resp.get_json()["error"]
+
+
+def test_predef_delete_with_valid_id(client, monkeypatch):
+    class FakeAseServer:
+        def chromadb_exists(self, image_id):
+            return True
+
+        def chromadb_remove(self, image_id):
+            pass
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", lambda: FakeAseServer())
+
+    resp = client.delete("/ase/predef/99")
+
+    assert resp.status_code == 200
+    assert resp.get_json()["message"] == "Success"
+
+
+def test_predef_post_updates_existing_record(client, monkeypatch):
+    class FakeAseServer:
+        def __init__(self):
+            self.update_called = False
+
+        def chromadb_exists(self, image_id):
+            return True
+
+        def chromadb_update(self, image_id, description, image, source):
+            self.update_called = True
+
+    fake_server = FakeAseServer()
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", lambda: fake_server)
+
+    resp = client.post(
+        "/ase/predef/",
+        json={
+            "id": 50,
+            "description": "updated ad",
+            "imgb64": _jpeg_b64(),
+            "source": "update-test",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert fake_server.update_called is True
+
+
+def test_status_endpoint_with_various_ids(client):
+    """Test status endpoint accepts various numeric IDs."""
+    for id_val in [1, 10, 999, 0]:
+        resp = client.get(f"/aig/hstatus/{id_val}")
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert payload["status"] == "ok"
+        assert payload["id"] == id_val
+
+
+def test_predef_post_with_missing_required_fields(client):
+    """Test that missing required fields are rejected."""
+    resp = client.post(
+        "/ase/predef/",
+        json={"id": 1, "imgb64": _jpeg_b64(), "source": "test"},
+    )
+    assert resp.status_code == 400
+
+    resp = client.post(
+        "/ase/predef/",
+        json={"id": 1, "description": "test", "source": "test"},
+    )
+    assert resp.status_code == 400
+
+
+def test_predef_post_with_empty_imgb64(client):
+    """Test that empty base64 is rejected."""
+    resp = client.post(
+        "/ase/predef/",
+        json={
+            "id": 1,
+            "description": "test",
+            "imgb64": "",
+            "source": "test",
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_predef_post_with_malformed_json(client):
+    """Test that malformed JSON is rejected."""
+    resp = client.post(
+        "/ase/predef/",
+        data="not valid json",
+        content_type="application/json",
+    )
+    assert resp.status_code >= 400
+
+
+def test_endpoint_security_methods_not_allowed(client):
+    """Test that unsupported HTTP methods are rejected."""
+    assert client.patch("/aig/hstatus/1").status_code == 405
+    assert client.put("/aig/hstatus/1", json={}).status_code == 405
+    assert client.post("/aig/hstatus/1", json={}).status_code == 405

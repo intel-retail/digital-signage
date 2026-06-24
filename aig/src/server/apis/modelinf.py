@@ -231,6 +231,7 @@ class ModelInference_Img(Resource):
                     if image_tensor is not None and len(image_tensor.data) > 0:
                         counter = max_retries  # Exit loop if image generation is successful
                 except Exception as e:
+                    logger.error(f"Image Generation. Attempt {counter + 1} failed with error: {str(e)}")
                     image_tensor = None
                     counter += 1
 

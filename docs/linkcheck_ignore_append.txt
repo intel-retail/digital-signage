@@ -1,0 +1,5 @@
+https://github.*
+https://huggingface.co.*
+https://docs.openedgeplatform.intel.com.*
+https://docs.geti.intel.com.*
+https://en.wikipedia.org.*

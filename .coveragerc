@@ -1,0 +1,7 @@
+[run]
+omit =
+    aig/src/database/testASE.py
+    aig/src/database/testchromadb.py
+    aig/src/__main__.py
+    aig/src/imgproc/img_sample_logo.py
+    aig/src/server/aig_server.py

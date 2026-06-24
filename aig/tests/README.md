@@ -35,3 +35,35 @@ To run only AIG tests explicitly:
 ```bash
 pytest -q aig/tests
 ```
+
+To run with concise failure output:
+
+```bash
+pytest -q --tb=no aig/tests/
+```
+
+## Run coverage
+
+From repository root:
+
+```bash
+pytest --cov=aig/src --cov-report=term-missing aig/tests/
+```
+
+Quiet mode with no traceback details:
+
+```bash
+pytest --cov=aig/src --cov-report=term-missing aig/tests/ -q --tb=no
+```
+
+Generate HTML coverage report:
+
+```bash
+pytest --cov=aig/src --cov-report=html --cov-report=term-missing aig/tests/
+```
+
+The HTML report is written to:
+
+```bash
+htmlcov/index.html
+```

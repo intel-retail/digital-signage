@@ -286,3 +286,181 @@ def test_endpoint_security_methods_not_allowed(client):
     assert client.patch("/aig/hstatus/1").status_code == 405
     assert client.put("/aig/hstatus/1", json={}).status_code == 405
     assert client.post("/aig/hstatus/1", json={}).status_code == 405
+
+
+def test_predef_query_requires_query_field(client):
+    resp = client.post("/ase/predef/query", json={"n_results": 1})
+    assert resp.status_code == 400
+
+
+def test_predef_query_handles_incomplete_backend_response(client, monkeypatch):
+    class FakeAseServer:
+        def chromadb_querytxt(self, query, n_results=1):
+            return {"ids": [["1"]], "metadatas": [[{"description": "x"}]]}
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", lambda: FakeAseServer())
+
+    resp = client.post("/ase/predef/query", json={"query": "apple", "n_results": 1})
+    assert resp.status_code == 500
+
+
+def test_predef_query_returns_records_when_distance_matches(client, monkeypatch):
+    class FakeAseServer:
+        def chromadb_querytxt(self, query, n_results=1):
+            return {
+                "ids": [["101"]],
+                "metadatas": [[{"description": "fresh ad", "img_path": "img_101.jpg", "source": "qa"}]],
+                "distances": [[0.1]],
+            }
+
+        def get_image_file_from_path(self, path):
+            return Image.new("RGB", (20, 20), "white")
+
+    class FakeAseServerType(FakeAseServer):
+        @staticmethod
+        def get_ase_distance_threshold():
+            return 1.5
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", FakeAseServerType)
+
+    resp = client.post("/ase/predef/query", json={"query": "apple", "n_results": 1})
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert isinstance(payload, list)
+    assert len(payload) == 1
+    assert payload[0]["id"] == 101
+    assert payload[0]["description"] == "fresh ad"
+    assert payload[0]["source"] == "qa"
+    assert payload[0]["imgb64"]
+
+
+def test_predef_query_ad_uses_default_image_when_backend_empty(client, monkeypatch):
+    class FakeAseServer:
+        default_ad_image = Image.new("RGB", (24, 24), "white")
+
+        def chromadb_querytxt(self, query, n_results=1):
+            return []
+
+        def get_logo(self):
+            return None
+
+    class FakeAseServerType(FakeAseServer):
+        @staticmethod
+        def get_ase_distance_threshold():
+            return 1.5
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", FakeAseServerType)
+
+    resp = client.post(
+        "/ase/predef/query/ad",
+        json={"query": "orange", "n_results": 1, "use_default_ad_onempty": True},
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert isinstance(payload, list)
+    assert len(payload) == 1
+    assert payload[0]["imgb64"]
+
+
+def test_predef_query_ad_full_pipeline_with_addons(client, monkeypatch):
+    class FakeAseServer:
+        default_ad_image = None
+
+        def chromadb_querytxt(self, query, n_results=1):
+            return {
+                "ids": [["11"]],
+                "metadatas": [[{"img_path": "x.jpg"}]],
+                "distances": [[0.2]],
+            }
+
+        def get_image_file_from_path(self, path):
+            return Image.new("RGB", (32, 24), "white")
+
+        def get_logo(self):
+            return Image.new("RGBA", (8, 8), (0, 0, 0, 255))
+
+    class FakeAseServerType(FakeAseServer):
+        @staticmethod
+        def get_ase_distance_threshold():
+            return 1.5
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", FakeAseServerType)
+    monkeypatch.setattr(predefinedads.ImgDecorator, "is_color_valid", staticmethod(lambda c: False))
+    monkeypatch.setattr(predefinedads.ImgDecorator, "draw_price_circle", staticmethod(lambda img, *a, **k: img))
+    monkeypatch.setattr(predefinedads.ImgDecorator, "draw_promo_rounded_rect", staticmethod(lambda img, *a, **k: img))
+    monkeypatch.setattr(predefinedads.ImgDecorator, "draw_frame_double_border", staticmethod(lambda img, *a, **k: img))
+    monkeypatch.setattr(predefinedads.ImgDecorator, "draw_logo", staticmethod(lambda img, *a, **k: img))
+    monkeypatch.setattr(predefinedads.ImgDecorator, "draw_slogan", staticmethod(lambda img, *a, **k: img))
+
+    resp = client.post(
+        "/ase/predef/query/ad",
+        json={
+            "query": "milk",
+            "n_results": 1,
+            "use_default_ad_onempty": True,
+            "price_details": {
+                "price": "$1.99",
+                "align": "center",
+                "valign": "bottom",
+                "marperc_from_border": 2,
+                "font_size": 20,
+                "line_width": 20,
+                "price_color": "not-a-color",
+                "price_in_circle": True,
+                "price_circle_color": "bad",
+            },
+            "promo_details": {
+                "promo_text": "Buy 1 Get 1",
+                "text_color": "bad",
+                "rect_color": "bad",
+                "rect_padding": 10,
+                "rect_radius": 20,
+                "align": "center",
+                "valign": "bottom",
+                "marperc_from_border": 2,
+                "font_size": 20,
+                "line_width": 20,
+            },
+            "framed_details": {"activate": True, "marperc_from_border": 2},
+            "logo_details": {"align": "left", "valign": "top", "logo_percentage": 10, "margin_px": 2},
+            "slogan_details": {
+                "slogan_text": "great deal",
+                "text_color": "bad",
+                "align": "center",
+                "valign": "bottom",
+                "marperc_from_border": 2,
+                "font_size": 20,
+                "line_width": 20,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert isinstance(payload, list)
+    assert len(payload) == 1
+    assert payload[0]["imgb64"]
+
+
+def test_predef_query_firstad_returns_jpeg(client, monkeypatch):
+    class FakeAseServer:
+        default_ad_image = Image.new("RGB", (30, 20), "white")
+
+        def chromadb_querytxt(self, query, n_results=1):
+            return []
+
+        def get_logo(self):
+            return None
+
+    class FakeAseServerType(FakeAseServer):
+        @staticmethod
+        def get_ase_distance_threshold():
+            return 1.5
+
+    monkeypatch.setattr(predefinedads, "AseServerMetadata", FakeAseServerType)
+
+    resp = client.post(
+        "/ase/predef/query/firstad",
+        json={"query": "banana", "n_results": 1, "use_default_ad_onempty": True},
+    )
+    assert resp.status_code == 200
+    assert resp.mimetype == "image/jpeg"

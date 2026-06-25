@@ -7,7 +7,6 @@
 
 - [System Requirements](./get-started/system-requirements.md)
 - [Build from Source](./get-started/build-from-source.md)
-- [Deploy with Docker Compose](./get-started/deploy-with-docker-compose.md)
 
 ## Configure Docker
 
@@ -114,10 +113,10 @@ Models are downloaded to `./aig/models/`.
 
 Edit the `.env` file in the repository root and set the following required variables:
 
-| Variable | Description |
-|----------|-------------|
-| `HOST_IP` | IP address of the host system |
-| `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters) |
+| Variable                           | Description                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `HOST_IP`                          | IP address of the host system                                                      |
+| `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters)                       |
 | `MTX_WEBRTCICESERVERS2_0_PASSWORD` | WebRTC ICE server password (minimum 8 alphanumeric characters, at least one digit) |
 
 **Optional variables:**
@@ -169,7 +168,7 @@ Check that all containers are running:
 docker ps
 ```
 
-If any container is restarting, inspect its logs:
+If any container restarts, inspect its logs:
 
 ```bash
 docker logs -f <container_name>

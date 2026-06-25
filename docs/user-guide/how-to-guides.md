@@ -15,8 +15,8 @@ This section collects guides for configuring and extending the Digital Signage a
 ./how-to-guides/configure-predefined-ads
 ./how-to-guides/switch-simulation-video
 ./how-to-guides/configure-rtsp-camera
-./how-to-guides/use-geti-model
-./how-to-guides/change-inference-device
+Use Geti Exported Model <./how-to-guides/use-geti-model.md>
+Change Inference Device <./how-to-guides/change-inference-device.md>
 
 :::
 hide_directive-->

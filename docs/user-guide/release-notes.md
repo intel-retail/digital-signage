@@ -85,8 +85,8 @@ optimizations**, **container security hardening**, and comprehensive documentati
   third-party license documentation added.
 
 <!--hide_directive
-```{toctree}
-:hidden:
-Release Notes 2026 <./release-notes/release-notes-2026>
-```
+#:::{toctree}
+#:hidden:
+#Release Notes 2026 <./release-notes/release-notes-2026>
+#:::
 hide_directive-->

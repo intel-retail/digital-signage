@@ -22,7 +22,7 @@ camera stream for real-time product detection.
 
 2. **Set the camera IP** in `.env`:
 
-   ```env
+   ```text
    RTSP_CAMERA_IP=<RTSP_CAMERA_IP>
    ```
 

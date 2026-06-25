@@ -158,9 +158,7 @@ You should see the live video stream and dynamic advertisements.
 >
 > Alternatively, in Chrome go to **Settings → System** and disable **Use graphics acceleration when available**, then relaunch Chrome.
 >
-> <!--hide_directive :::{dropdown} Click to see Chrome System settings screenshot
-> ![Chrome System settings](./_assets/chrome_settings.png "chrome system settings")
-> ::: -->
+::: hide_directive-->
 
 ## Step 7: Verify Output
 

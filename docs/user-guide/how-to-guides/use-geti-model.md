@@ -8,7 +8,7 @@ custom object-detection model trained and exported from Intel® Geti™.
 1. Refer to the [official Geti documentation for installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/installation-guide).
 2. Follow the [Geti Tutorials](https://docs.geti.intel.com/docs/user-guide/quick-start/training-your-first-model) for creating projects, labeling data, training models, and exporting results.
 3. Confirm your project uses a YOLO or other supported object detection architecture. See [Supported Models in Geti](https://docs.geti.intel.com/docs/user-guide/learn-geti/computer-vision-tasks/ai-fundamentals-tasks#supported-deep-learning-models).
-4. Follow the [Geti Export Instructions](https://docs.geti.intel.com/docs/user-guide/quick-start/training-your-first-model?_highlight=export&_highlight=model#step-7-export-your-trained-model) to export your model as OpenVINO™ IR files (`.xml`/`.bin`).
+4. Follow the [Geti Export Instructions](https://docs.geti.intel.com/docs/user-guide/quick-start/training-your-first-model#step-7-export-your-trained-model) to export your model as OpenVINO™ IR files (`.xml`/`.bin`).
 
 ## Steps
 

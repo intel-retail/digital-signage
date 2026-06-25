@@ -8,7 +8,7 @@ from video stream ingestion through product detection to advertisement delivery 
 The application consists of four main microservices (PID, AIG, ASe, Web UI), plus supporting
 services (MediaMTX, Mosquitto, ChromaDB, COTURN) that communicate via MQTT and REST APIs.
 
-![Digital Signage Architecture](./_assets/Digital_Signage.png)
+![Digital Signage Architecture](./_assets/Digital_Signage.png "digital signage architecture")
 
 ```
 Video Stream → PID (Detection) → MQTT → Web UI (Selection) → AIG or ASe (Ad) → Browser

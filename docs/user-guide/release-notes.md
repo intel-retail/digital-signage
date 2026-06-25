@@ -83,10 +83,3 @@ optimizations**, **container security hardening**, and comprehensive documentati
   architecture overview, and advanced configuration; RTSP camera enablement steps added;
   legacy install scripts removed in favour of unified Makefile-based workflows;
   third-party license documentation added.
-
-<!--hide_directive
-#:::{toctree}
-#:hidden:
-#Release Notes 2026 <./release-notes/release-notes-2026>
-#:::
-hide_directive-->

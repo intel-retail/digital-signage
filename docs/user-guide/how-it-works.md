@@ -1,12 +1,14 @@
 # How It Works
 
-This page describes the end-to-end processing pipeline of the Digital Signage application, from video stream ingestion through product detection to advertisement delivery in the browser.
+This page describes the end-to-end processing pipeline of the Digital Signage application,
+from video stream ingestion through product detection to advertisement delivery in the browser.
 
 ## High-Level Architecture
 
-The application consists of four main microservices (PID, AIG, ASe, Web UI) plus supporting services (MediaMTX, Mosquitto, ChromaDB, COTURN) that communicate via MQTT and REST APIs.
+The application consists of four main microservices (PID, AIG, ASe, Web UI), plus supporting
+services (MediaMTX, Mosquitto, ChromaDB, COTURN) that communicate via MQTT and REST APIs.
 
-![Digital Signage Architecture](./_assets/Digital_Signage.png)
+![Digital Signage Architecture](./_assets/Digital_Signage.png "digital signage architecture")
 
 ```
 Video Stream → PID (Detection) → MQTT → Web UI (Selection) → AIG or ASe (Ad) → Browser
@@ -39,11 +41,11 @@ This prevents one-off false positives from triggering unwanted ad generation.
 
 When multiple products are eligible, the following prioritization applies:
 
-| Scenario | Strategy |
-|----------|----------|
+| Scenario            | Strategy                                                                     |
+| ------------------- | ---------------------------------------------------------------------------- |
 | First-time products | Prioritize products never shown before, ordered by highest configured price. |
-| Rotation mode | Prefer products shown less frequently across candidates. |
-| Repeat prevention | Avoid the most recently selected product when alternatives exist. |
+| Rotation mode       | Prefer products shown less frequently across candidates.                     |
+| Repeat prevention   | Avoid the most recently selected product when alternatives exist.            |
 
 ### 5. Ad Variant Selection per Product
 
@@ -66,10 +68,10 @@ For each selected product:
 
 ## Inputs Affecting Behavior
 
-| Input | Purpose |
-|-------|---------|
+| Input                            | Purpose                                                                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `web-ui/ProductAssociations.csv` | Defines products, pricing, promo text, slogans, cross-sell targets, dynamic prompts, and optional predefined image filenames. |
-| `web-ui/pre-defined-ads/` | Optional JPEG/JPG assets for predefined advertisements. |
-| `OBJECT_CONFIDENCE_THRESHOLD` | Minimum detection confidence for a label to be eligible. |
-| `OBJECT_RECENCY_FRAME_COUNT` | Minimum number of recent frames in which a label must appear. |
-| `TIME_TO_DISPLAY_AD_SECONDS` | Interval in seconds between ad generation cycles. |
+| `web-ui/pre-defined-ads/`        | Optional JPEG/JPG assets for predefined advertisements.                                                                       |
+| `OBJECT_CONFIDENCE_THRESHOLD`    | Minimum detection confidence for a label to be eligible.                                                                      |
+| `OBJECT_RECENCY_FRAME_COUNT`     | Minimum number of recent frames in which a label must appear.                                                                 |
+| `TIME_TO_DISPLAY_AD_SECONDS`     | Interval in seconds between ad generation cycles.                                                                             |

@@ -1,10 +1,11 @@
 # Configure RTSP Camera Input
 
-Instead of a simulation video, PID can ingest a live RTSP camera stream for real-time product detection.
+Instead of a simulation video, the Product Identification (PID) service can ingest a live RTSP
+camera stream for real-time product detection.
 
 ## Prerequisites
 
-- Obtain the RTSP URI from your camera software. You can test the URI with VLC before configuring it here.
+- Obtain the RTSP URI from your camera software. You can test the URI with, for example, the VLC media player before configuring it here.
 - For more on the RTSP protocol, see [RTSP — Wikipedia](https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol).
 
 ## Steps
@@ -17,11 +18,11 @@ Instead of a simulation video, PID can ingest a live RTSP camera stream for real
 
    Replace `<USERNAME>`, `<PASSWORD>`, `<RTSP_CAMERA_IP>`, `<PORT>`, and `<FEED>` with your camera’s values.
 
-   > **Note:** To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html#gvawatermark).
+   > **Note:** To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/2026.1/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
 
 2. **Set the camera IP** in `.env`:
 
-   ```env
+   ```text
    RTSP_CAMERA_IP=<RTSP_CAMERA_IP>
    ```
 
@@ -32,4 +33,4 @@ Instead of a simulation video, PID can ingest a live RTSP camera stream for real
    make up
    ```
 
-For further guidance on RTSP with DL Streamer Pipeline Server, see the [DL Streamer RTSP guide](https://docs.openedgeplatform.intel.com/2025.2/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html#rtsp-cameras).
+For further guidance on RTSP with DL Streamer Pipeline Server, see the [DL Streamer RTSP guide](https://docs.openedgeplatform.intel.com/2026.1/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html).

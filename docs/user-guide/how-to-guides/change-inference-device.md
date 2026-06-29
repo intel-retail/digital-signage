@@ -21,7 +21,7 @@ Update the `device` parameter in `configs/pid/config.json`:
 
 Set the `AIG_MODEL_DEVICE` variable in `.env`:
 
-```env
+```text
 AIG_MODEL_DEVICE=GPU
 ```
 

@@ -1,5 +1,16 @@
 # Digital Signage: Context-Aware, Cross-Selling
 
+<!--hide_directive
+<div class="component_card_widget">
+  <a class="icon_github" href="https://github.com/intel-retail/digital-signage/tree/main">
+     GitHub
+  </a>
+  <a class="icon_document" href="https://github.com/intel-retail/digital-signage/blob/main/README.md">
+     Readme
+  </a>
+</div>
+hide_directive-->
+
 The Context-Aware, Cross-Selling Digital Signage application is a fully containerized, end-to-end edge AI solution for real-time product detection and dynamic advertisement generation. It is optimized for Intel® platforms in retail and similar environments and follows a microservices design pattern.
 
 **Key Features:**
@@ -14,12 +25,12 @@ The Context-Aware, Cross-Selling Digital Signage application is a fully containe
 
 ## Core Services
 
-| Service | Description |
-|---------|-------------|
-| **PID (Product Identification)** | Detects products from video streams using DL Streamer Pipeline Server and YOLO models. |
+| Service                             | Description                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **PID (Product Identification)**    | Detects products from video streams using DL Streamer Pipeline Server and YOLO models.           |
 | **AIG (Advertise Image Generator)** | Generates dynamic advertisements using Stable Diffusion XL Turbo and MiniLM via OpenVINO™ GenAI. |
-| **ASe (Advertise Searcher)** | Retrieves and ranks relevant predefined ads from ChromaDB vector search. |
-| **Web UI** | Displays the live video stream and current advertisements in a browser-based interface. |
+| **ASe (Advertise Searcher)**        | Retrieves and ranks relevant predefined ads from ChromaDB vector search.                         |
+| **Web UI**                          | Displays the live video stream and current advertisements in a browser-based interface.          |
 
 **Supporting Services:** MediaMTX (WebRTC relay), Mosquitto (MQTT broker), ChromaDB (vector database), COTURN (TURN server for WebRTC).
 
@@ -41,7 +52,7 @@ how-it-works
 how-to-guides
 api-reference
 troubleshooting
-Release Notes <release-notes>
+Release Notes <./release-notes.md>
 
 :::
 hide_directive-->

@@ -1,13 +1,14 @@
 # Use Intel® Geti™ Exported Model
 
-You can replace the default YOLO11s model in PID with a custom object-detection model trained and exported from Intel® Geti™.
+You can replace the default YOLO11s model in the Product Identification (PID) service with a
+custom object-detection model trained and exported from Intel® Geti™.
 
 ## Prerequisites
 
-1. Refer to the [official Geti documentation for offline installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/using-geti-installer). DL Streamer Pipeline Server uses Geti SDK version 2.13.1; install the same or a compatible version as per the [compatibility matrix](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/?_highlight=compatible#compatibility).
-2. Follow the [Geti Tutorials](https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials) for creating projects, labeling data, training models, and exporting results.
-3. Confirm your project uses a YOLO or other supported object detection architecture. See [Supported Models in Geti](https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/supported-models).
-4. Follow the [Model Download Instructions](https://docs.geti.intel.com/docs/user-guide/geti-fundamentals/deployments/#lets-download-the-model) to export your model as OpenVINO™ IR files (`.xml`/`.bin`).
+1. Refer to the [official Geti documentation for installation instructions](https://docs.geti.intel.com/docs/user-guide/getting-started/installation/installation-guide).
+2. Follow the [Geti Tutorials](https://docs.geti.intel.com/docs/user-guide/quick-start/training-your-first-model) for creating projects, labeling data, training models, and exporting results.
+3. Confirm your project uses a YOLO or other supported object detection architecture. See [Supported Models in Geti](https://docs.geti.intel.com/docs/user-guide/learn-geti/computer-vision-tasks/ai-fundamentals-tasks#supported-deep-learning-models).
+4. Follow the [Geti Export Instructions](https://docs.geti.intel.com/docs/user-guide/quick-start/training-your-first-model#step-7-export-your-trained-model) to export your model as OpenVINO™ IR files (`.xml`/`.bin`).
 
 ## Steps
 

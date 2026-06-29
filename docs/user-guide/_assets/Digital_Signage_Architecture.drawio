@@ -54,14 +54,14 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- NGINX REVERSE PROXY (entry point)                           -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <mxCell id="nginx" value="&lt;b&gt;nginx&lt;/b&gt;&lt;br/&gt;Reverse Proxy&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;&lt;i&gt;HTTPS :5000 → :15443&lt;/i&gt;&lt;/font&gt;&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;TLS 1.3 · Self-signed cert&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=8;" vertex="1" parent="1">
+        <mxCell id="nginx" value="&lt;b&gt;nginx&lt;/b&gt;&lt;br/&gt;Reverse Proxy&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;&lt;i&gt;HTTPS :5000 → :15443&lt;/i&gt;&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;TLS 1.3 · Self-signed cert&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=8;" vertex="1" parent="1">
           <mxGeometry x="620" y="75" width="200" height="80" as="geometry" />
         </mxCell>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- DOCKER NETWORK BOUNDARY                                      -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <mxCell id="docker_net" value="&lt;b&gt;Docker Bridge Network — app_network&lt;/b&gt;" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];shape=mxgraph.lean_mapping.electronic_info_flow_edge;html=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=12;fontStyle=1;verticalAlign=top;arcSize=3;rounded=1;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+        <mxCell id="docker_net" value="&lt;b&gt;Docker Bridge Network — app_network&lt;/b&gt;" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];shape=mxgraph.lean_mapping.electronic_info_flow_edge;html=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;fontStyle=1;verticalAlign=top;arcSize=3;rounded=1;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
           <mxGeometry x="40" y="200" width="1380" height="730" as="geometry" />
         </mxCell>
 
@@ -73,31 +73,31 @@
         </mxCell>
 
         <!-- MediaMTX -->
-        <mxCell id="mediamtx" value="&lt;b&gt;MediaMTX&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;bluenviron/mediamtx:1.18.2&lt;/font&gt;&lt;br/&gt;RTSP ingress · WebRTC egress&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;WHIP/WHEP :8889&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
+        <mxCell id="mediamtx" value="&lt;b&gt;MediaMTX&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;bluenviron/mediamtx:1.18.2&lt;/font&gt;&lt;br/&gt;RTSP ingress · WebRTC egress&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;WHIP/WHEP :8889&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
           <mxGeometry x="30" y="55" width="280" height="80" as="geometry" />
         </mxCell>
 
         <!-- COTURN -->
-        <mxCell id="coturn" value="&lt;b&gt;COTURN&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;coturn/coturn:4.12.0&lt;/font&gt;&lt;br/&gt;TURN/ICE relay for WebRTC&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;UDP :3478&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
+        <mxCell id="coturn" value="&lt;b&gt;COTURN&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;coturn/coturn:4.12.0&lt;/font&gt;&lt;br/&gt;TURN/ICE relay for WebRTC&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;UDP :3478&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
           <mxGeometry x="30" y="165" width="280" height="80" as="geometry" />
         </mxCell>
 
         <!-- DL Streamer Pipeline Server -->
-        <mxCell id="dlstreamer" value="&lt;b&gt;DL Streamer Pipeline Server&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;intel/dlstreamer-pipeline-server:2026.1.0&lt;/font&gt;&lt;br/&gt;YOLO object detection pipeline&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;REST :8080 · OpenTelemetry enabled&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
+        <mxCell id="dlstreamer" value="&lt;b&gt;DL Streamer Pipeline Server&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;intel/dlstreamer-pipeline-server:2026.1.0&lt;/font&gt;&lt;br/&gt;YOLO object detection pipeline&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;REST :8080 · OpenTelemetry enabled&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="grp_stream">
           <mxGeometry x="30" y="275" width="280" height="85" as="geometry" />
         </mxCell>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- MQTT BROKER                                                  -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <mxCell id="mqtt" value="&lt;b&gt;Mosquitto MQTT Broker&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;eclipse-mosquitto:2.0.22&lt;/font&gt;&lt;br/&gt;Topic: &lt;code&gt;yolo_od_results&lt;/code&gt;&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;TCP :1883&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=8;" vertex="1" parent="1">
+        <mxCell id="mqtt" value="&lt;b&gt;Mosquitto MQTT Broker&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;eclipse-mosquitto:2.0.22&lt;/font&gt;&lt;br/&gt;Topic: &lt;code&gt;yolo_od_results&lt;/code&gt;&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;TCP :1883&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=8;" vertex="1" parent="1">
           <mxGeometry x="480" y="530" width="250" height="90" as="geometry" />
         </mxCell>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- WEB UI                                                       -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <mxCell id="webui" value="&lt;b&gt;Web UI&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;digital-signage-webui:1.0.0&lt;/font&gt;&lt;br/&gt;Flask · MQTT subscriber&lt;br/&gt;Ad selection engine&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;HTTP :5000&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="1">
+        <mxCell id="webui" value="&lt;b&gt;Web UI&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;digital-signage-webui:1.0.0&lt;/font&gt;&lt;br/&gt;Flask · MQTT subscriber&lt;br/&gt;Ad selection engine&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;HTTP :5000&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="1">
           <mxGeometry x="620" y="310" width="200" height="110" as="geometry" />
         </mxCell>
 
@@ -114,17 +114,17 @@
         </mxCell>
 
         <!-- AIG namespace -->
-        <mxCell id="aig_ns" value="&lt;b&gt;AIG Namespace&lt;/b&gt; — &lt;code&gt;/aig/&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/aig/minf/&lt;/code&gt;&lt;br/&gt;OpenVINO GenAI · SDXL-Turbo (int8)&lt;br/&gt;Text-to-Image pipeline&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;Device: GPU / CPU / NPU&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="aig_outer">
+        <mxCell id="aig_ns" value="&lt;b&gt;AIG Namespace&lt;/b&gt; — &lt;code&gt;/aig/&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/aig/minf/&lt;/code&gt;&lt;br/&gt;OpenVINO GenAI · SDXL-Turbo (int8)&lt;br/&gt;Text-to-Image pipeline&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Device: GPU / CPU / NPU&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="aig_outer">
           <mxGeometry x="20" y="55" width="380" height="110" as="geometry" />
         </mxCell>
 
         <!-- ASE namespace -->
-        <mxCell id="ase_ns" value="&lt;b&gt;ASE Namespace&lt;/b&gt; — &lt;code&gt;/ase/&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/ase/predef/&lt;/code&gt; · GET/DELETE &lt;code&gt;/ase/predef/{id}&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/ase/predef/query&lt;/code&gt; · POST &lt;code&gt;/ase/predef/query/ad&lt;/code&gt;&lt;br/&gt;Semantic ad search · Sentence-Transformers&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;Model: all-MiniLM-L12-v2&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="aig_outer">
+        <mxCell id="ase_ns" value="&lt;b&gt;ASE Namespace&lt;/b&gt; — &lt;code&gt;/ase/&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/ase/predef/&lt;/code&gt; · GET/DELETE &lt;code&gt;/ase/predef/{id}&lt;/code&gt;&lt;br/&gt;POST &lt;code&gt;/ase/predef/query&lt;/code&gt; · POST &lt;code&gt;/ase/predef/query/ad&lt;/code&gt;&lt;br/&gt;Semantic ad search · Sentence-Transformers&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Model: all-MiniLM-L12-v2&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="aig_outer">
           <mxGeometry x="20" y="190" width="380" height="120" as="geometry" />
         </mxCell>
 
         <!-- ChromaDB -->
-        <mxCell id="chromadb" value="&lt;b&gt;ChromaDB&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;chromadb/chroma:1.5.9&lt;/font&gt;&lt;br/&gt;Vector store for predefined ads&lt;br/&gt;&lt;font size=&quot;9&quot;&gt;HTTP :8000 · Embedding + image metadata&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;arcSize=8;" vertex="1" parent="grp_ai">
+        <mxCell id="chromadb" value="&lt;b&gt;ChromaDB&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#666666&quot;&gt;chromadb/chroma:1.5.9&lt;/font&gt;&lt;br/&gt;Vector store for predefined ads&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;HTTP :8000 · Embedding + image metadata&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;arcSize=8;" vertex="1" parent="grp_ai">
           <mxGeometry x="110" y="420" width="260" height="100" as="geometry" />
         </mxCell>
 
@@ -149,7 +149,7 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
 
         <!-- Camera → MediaMTX (RTSP) -->
-        <mxCell id="e_cam_mtx" value="RTSP stream" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="camera" target="mediamtx" parent="1">
+        <mxCell id="e_cam_mtx" value="RTSP stream" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="camera" target="mediamtx" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="240" y="125" />
@@ -164,7 +164,7 @@
         </mxCell>
 
         <!-- DL Streamer → Mosquitto (MQTT publish) -->
-        <mxCell id="e_dls_mqtt" value="MQTT publish&#xa;(yolo_od_results)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#d6b656;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="dlstreamer" target="mqtt" parent="1">
+        <mxCell id="e_dls_mqtt" value="MQTT publish&#xa;(yolo_od_results)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#d6b656;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="dlstreamer" target="mqtt" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="450" y="592" />
@@ -173,7 +173,7 @@
         </mxCell>
 
         <!-- Mosquitto → Web UI (MQTT subscribe) -->
-        <mxCell id="e_mqtt_webui" value="MQTT subscribe&#xa;labels + confidence" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="mqtt" target="webui" parent="1">
+        <mxCell id="e_mqtt_webui" value="MQTT subscribe&#xa;labels + confidence" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="mqtt" target="webui" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="605" y="575" />
@@ -183,12 +183,12 @@
         </mxCell>
 
         <!-- nginx → Web UI -->
-        <mxCell id="e_nginx_webui" value="HTTP (web pages&#xa;+ ad polling)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#0071C5;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="nginx" target="webui" parent="1">
+        <mxCell id="e_nginx_webui" value="HTTP (web pages&#xa;+ ad polling)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#0071C5;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="nginx" target="webui" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- nginx → MediaMTX (WebRTC WHIP/WHEP) -->
-        <mxCell id="e_nginx_mtx" value="WebRTC&#xa;WHIP/WHEP" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#0071C5;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="nginx" target="mediamtx" parent="1">
+        <mxCell id="e_nginx_mtx" value="WebRTC&#xa;WHIP/WHEP" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#0071C5;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="nginx" target="mediamtx" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="540" y="115" />
@@ -199,7 +199,7 @@
         </mxCell>
 
         <!-- nginx → AIG Server (REST proxy) -->
-        <mxCell id="e_nginx_aig" value="REST proxy&#xa;/aig-api/" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#0071C5;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="nginx" target="aig_outer" parent="1">
+        <mxCell id="e_nginx_aig" value="REST proxy&#xa;/aig-api/" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#0071C5;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="nginx" target="aig_outer" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="900" y="115" />
@@ -210,7 +210,7 @@
         </mxCell>
 
         <!-- Web UI → ASE (predefined ad query) -->
-        <mxCell id="e_webui_ase" value="POST /ase/predef/query/ad&#xa;(predefined ad lookup)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#82b366;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="webui" target="ase_ns" parent="1">
+        <mxCell id="e_webui_ase" value="POST /ase/predef/query/ad&#xa;(predefined ad lookup)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#82b366;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="webui" target="ase_ns" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="870" y="365" />
@@ -221,7 +221,7 @@
         </mxCell>
 
         <!-- Web UI → AIG (dynamic image generation) -->
-        <mxCell id="e_webui_aig" value="POST /aig/minf/&#xa;(dynamic ad gen, fallback)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;strokeColor=#6a9153;strokeWidth=2;fontStyle=1;fontSize=10;dashed=1;" edge="1" source="webui" target="aig_ns" parent="1">
+        <mxCell id="e_webui_aig" value="POST /aig/minf/&#xa;(dynamic ad gen, fallback)" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;strokeColor=#6a9153;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="webui" target="aig_ns" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="870" y="343" />
@@ -231,17 +231,17 @@
         </mxCell>
 
         <!-- ASE → ChromaDB -->
-        <mxCell id="e_ase_chroma" value="vector query&#xa;(cosine similarity)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="ase_ns" target="chromadb" parent="grp_ai">
+        <mxCell id="e_ase_chroma" value="vector query&#xa;(cosine similarity)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="ase_ns" target="chromadb" parent="grp_ai">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- Browser → nginx -->
-        <mxCell id="e_browser_nginx" value="HTTPS :5000" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=1;fontSize=10;" edge="1" source="browser" target="nginx" parent="1">
+        <mxCell id="e_browser_nginx" value="HTTPS :5000" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#b85450;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="browser" target="nginx" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- COTURN ↔ Browser (ICE) -->
-        <mxCell id="e_coturn_browser" value="ICE relay (UDP)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontStyle=1;fontSize=10;dashed=1;" edge="1" source="coturn" target="browser" parent="1">
+        <mxCell id="e_coturn_browser" value="ICE relay (UDP)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="coturn" target="browser" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="450" y="425" />
@@ -252,7 +252,7 @@
         </mxCell>
 
         <!-- Web UI → CSV (volume mount) -->
-        <mxCell id="e_webui_csv" value="reads at startup" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=9;dashed=1;" edge="1" source="webui" target="csv_store" parent="1">
+        <mxCell id="e_webui_csv" value="reads at startup" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="webui" target="csv_store" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="720" y="820" />
@@ -261,7 +261,7 @@
         </mxCell>
 
         <!-- Web UI → predef store (volume mount) -->
-        <mxCell id="e_webui_predef" value="loads images" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=9;dashed=1;" edge="1" source="webui" target="predef_store" parent="1">
+        <mxCell id="e_webui_predef" value="loads images" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="webui" target="predef_store" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="760" y="820" />
@@ -270,7 +270,7 @@
         </mxCell>
 
         <!-- AIG Server → model store -->
-        <mxCell id="e_aig_model" value="loads models" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=9;dashed=1;" edge="1" source="aig_ns" target="model_store" parent="1">
+        <mxCell id="e_aig_model" value="loads models" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="aig_ns" target="model_store" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1150" y="820" />
@@ -292,6 +292,318 @@
         </mxCell>
         <mxCell id="ann4" value="④ Browser:&#xa;HTTPS → nginx → Web UI (ad + WebRTC video)" style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;fontColor=#444444;" vertex="1" parent="1">
           <mxGeometry x="1130" y="650" width="270" height="50" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="security" name="Security Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TITLE                                                        -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_title" value="Intel® Digital Signage – Security Architecture (Docker Deployment)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#0071C5;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="1220" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- LEGEND                                                       -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_leg_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="70" width="150" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg_title" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="75" width="150" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg1" value="Untrusted / External" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="103" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg2" value="Entry Point (TLS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f57f17;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="141" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg3" value="Internal / Trusted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#2e7d32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="179" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg4" value="Data Store" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="217" width="120" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="sec_leg5" value="Encrypted flow" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#c62828;strokeWidth=2;fontSize=10;endArrow=block;" edge="1" parent="1">
+          <mxGeometry x="1495" y="256" width="120" height="28" relative="1" as="geometry">
+            <mxPoint x="1495" y="269" as="sourcePoint" />
+            <mxPoint x="1615" y="269" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sec_leg6" value="Plaintext flow" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2e7d32;strokeWidth=2;fontSize=10;dashed=1;endArrow=block;" edge="1" parent="1">
+          <mxGeometry x="1495" y="295" width="120" height="28" relative="1" as="geometry">
+            <mxPoint x="1495" y="308" as="sourcePoint" />
+            <mxPoint x="1615" y="308" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sec_leg6b" value="Read-only mount" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontSize=10;dashed=1;endArrow=open;" edge="1" parent="1">
+          <mxGeometry x="1495" y="335" width="120" height="28" relative="1" as="geometry">
+            <mxPoint x="1495" y="348" as="sourcePoint" />
+            <mxPoint x="1615" y="348" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- SECURITY NOTES PANEL                                         -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_notes" value="&lt;b&gt;Security Considerations&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Exposed Host Ports:&lt;/b&gt;&lt;br/&gt;• TCP 5000 – HTTPS (nginx)&lt;br/&gt;• UDP/TCP 3478 – TURN (COTURN)&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Internal-only Ports:&lt;/b&gt;&lt;br/&gt;• TCP 1883 – MQTT (no auth)&lt;br/&gt;• TCP 8080 – DL Streamer REST&lt;br/&gt;• TCP 8889 – MediaMTX WebRTC&lt;br/&gt;• TCP 5003 – AIG Server REST&lt;br/&gt;• TCP 8000 – ChromaDB (no auth)&lt;br/&gt;• TCP 5000 – Web UI HTTP&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Recommendations:&lt;/b&gt;&lt;br/&gt;• Replace self-signed cert with CA-signed&lt;br/&gt;• Enable MQTT password auth&lt;br/&gt;• Add ChromaDB API token&lt;br/&gt;• Run containers as non-root&lt;br/&gt;• Mount volumes read-only where possible&lt;br/&gt;• Rotate TURN shared secret regularly" style="text;html=1;strokeColor=#b0bec5;fillColor=#eceff1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontColor=#37474f;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="400" width="150" height="400" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TRUST BOUNDARY: EXTERNAL / UNTRUSTED                        -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_ext_zone" value="&lt;b&gt;External / Untrusted Zone&lt;/b&gt;" style="swimlane;fillColor=#ffebee;strokeColor=#c62828;fontSize=11;fontStyle=1;startSize=25;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="530" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- Browser -->
+        <mxCell id="sec_browser" value="&lt;b&gt;Browser / Display Client&lt;/b&gt;&lt;br/&gt;Digital Signage Screen" style="shape=mxgraph.cisco.computers_and_peripherals.pc;fillColor=#ffcdd2;strokeColor=#c62828;html=1;fontSize=11;align=center;" vertex="1" parent="sec_ext_zone">
+          <mxGeometry x="30" y="40" width="140" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Exposed ports annotation inside external zone -->
+        <mxCell id="sec_exposed_ports" value="&lt;b&gt;Exposed to Host Network:&lt;/b&gt;&lt;br/&gt;TCP :5000  HTTPS (nginx)&lt;br/&gt;UDP/TCP :3478  TURN relay (COTURN)" style="text;html=1;strokeColor=#c62828;fillColor=#ffcdd2;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=10;" vertex="1" parent="sec_ext_zone">
+          <mxGeometry x="200" y="40" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TRUST BOUNDARY: ENTRY POINT (TLS)                           -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_entry_zone" value="&lt;b&gt;Entry Point — TLS Termination&lt;/b&gt;" style="swimlane;fillColor=#fffde7;strokeColor=#f57f17;fontSize=11;fontStyle=1;startSize=25;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="620" y="70" width="800" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- nginx -->
+        <mxCell id="sec_nginx" value="&lt;b&gt;nginx Reverse Proxy&lt;/b&gt;&lt;br/&gt;TLS 1.3 · Self-signed cert&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Terminates HTTPS; forwards HTTP internally&lt;/font&gt;&lt;br/&gt;HTTPS :5000 → HTTP :5000 (Web UI)&lt;br/&gt;HTTPS /aig-api/ → HTTP :5003 (AIG Server)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f57f17;fontSize=11;arcSize=8;" vertex="1" parent="sec_entry_zone">
+          <mxGeometry x="20" y="40" width="380" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- COTURN -->
+        <mxCell id="sec_coturn_entry" value="&lt;b&gt;COTURN TURN Server&lt;/b&gt;&lt;br/&gt;UDP/TCP :3478 exposed to host&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Shared-secret HMAC auth (time-limited tokens)&lt;/font&gt;&lt;br/&gt;ICE relay for WebRTC peer connections" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f57f17;fontSize=11;arcSize=8;" vertex="1" parent="sec_entry_zone">
+          <mxGeometry x="420" y="40" width="360" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- DOCKER BRIDGE NETWORK (INTERNAL / TRUSTED)                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <mxCell id="sec_docker_net" value="&lt;b&gt;Docker Bridge Network — app_network (Internal / Isolated)&lt;/b&gt;" style="swimlane;fillColor=#e8f5e9;strokeColor=#2e7d32;fontSize=11;fontStyle=1;startSize=25;arcSize=4;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="1400" height="620" as="geometry" />
+        </mxCell>
+
+        <!-- ─── VIDEO STREAMING GROUP ──────────────────────────────── -->
+        <mxCell id="sec_grp_video" value="&lt;b&gt;Video Streaming&lt;/b&gt;" style="swimlane;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;fontStyle=1;startSize=25;arcSize=4;" vertex="1" parent="sec_docker_net">
+          <mxGeometry x="20" y="40" width="360" height="540" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_mediamtx" value="&lt;b&gt;MediaMTX&lt;/b&gt;&lt;br/&gt;RTSP ingress · WebRTC egress&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Internal: TCP :8889 (WHIP/WHEP)&lt;/font&gt;&lt;br/&gt;No TLS on internal RTSP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_video">
+          <mxGeometry x="30" y="50" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_coturn_int" value="&lt;b&gt;COTURN (internal)&lt;/b&gt;&lt;br/&gt;Shared-secret HMAC token auth&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Internal: UDP/TCP :3478&lt;/font&gt;&lt;br/&gt;Port :3478 also exposed to host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_video">
+          <mxGeometry x="30" y="175" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_dlstreamer" value="&lt;b&gt;DL Streamer Pipeline Server&lt;/b&gt;&lt;br/&gt;YOLO object detection pipeline&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Internal: REST TCP :8080&lt;/font&gt;&lt;br/&gt;Not exposed to host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_video">
+          <mxGeometry x="30" y="300" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- Camera note -->
+        <mxCell id="sec_camera_note" value="&lt;b&gt;IP Camera&lt;/b&gt; (external)&lt;br/&gt;RTSP stream ingested by DL Streamer&lt;br/&gt;Network-level trust required" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_video">
+          <mxGeometry x="30" y="420" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ─── CORE SERVICES ─────────────────────────────────────── -->
+        <mxCell id="sec_grp_core" value="&lt;b&gt;Core Services&lt;/b&gt;" style="swimlane;fillColor=#e8f5e9;strokeColor=#2e7d32;fontSize=11;fontStyle=1;startSize=25;arcSize=4;" vertex="1" parent="sec_docker_net">
+          <mxGeometry x="420" y="40" width="360" height="370" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_webui_int" value="&lt;b&gt;Web UI&lt;/b&gt;&lt;br/&gt;Flask · MQTT subscriber · Ad engine&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Internal: HTTP TCP :5000 (plaintext)&lt;/font&gt;&lt;br/&gt;Reached externally via nginx TLS proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_core">
+          <mxGeometry x="30" y="50" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_mqtt_int" value="&lt;b&gt;Mosquitto MQTT Broker&lt;/b&gt;&lt;br/&gt;Topic: yolo_od_results&lt;br/&gt;&lt;font color=&quot;#c62828&quot;&gt;⚠ Internal: TCP :1883 — no authentication&lt;/font&gt;&lt;br/&gt;Not exposed to host; trusted by network isolation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_core">
+          <mxGeometry x="30" y="175" width="300" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- ─── AI SERVICES GROUP ─────────────────────────────────── -->
+        <mxCell id="sec_grp_ai" value="&lt;b&gt;AI / Ad Services&lt;/b&gt;" style="swimlane;fillColor=#f1f8e9;strokeColor=#558b2f;fontSize=11;fontStyle=1;startSize=25;arcSize=4;" vertex="1" parent="sec_docker_net">
+          <mxGeometry x="830" y="40" width="540" height="370" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_aig" value="&lt;b&gt;AIG Server&lt;/b&gt; (Flask-RESTX)&lt;br/&gt;OpenVINO GenAI · SDXL-Turbo · ASE (Sentence-Transformers)&lt;br/&gt;&lt;font color=&quot;#888888&quot;&gt;Internal: HTTP TCP :5003 (plaintext)&lt;/font&gt;&lt;br/&gt;Reached externally via nginx /aig-api/ proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;arcSize=8;" vertex="1" parent="sec_grp_ai">
+          <mxGeometry x="30" y="50" width="480" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_chromadb" value="&lt;b&gt;ChromaDB&lt;/b&gt;&lt;br/&gt;Vector store for predefined ads&lt;br/&gt;&lt;font color=&quot;#c62828&quot;&gt;⚠ Internal: HTTP TCP :8000 — no authentication&lt;/font&gt;&lt;br/&gt;Not exposed to host; trusted by network isolation" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="sec_grp_ai">
+          <mxGeometry x="110" y="175" width="320" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- ─── HOST VOLUMES ─────────────────────────────────────── -->
+        <mxCell id="sec_host_vols" value="&lt;b&gt;Host Filesystem — Volume Mounts&lt;/b&gt;" style="swimlane;fillColor=#fffde7;strokeColor=#d6b656;fontSize=11;fontStyle=1;startSize=25;arcSize=4;dashed=1;" vertex="1" parent="sec_docker_net">
+          <mxGeometry x="20" y="480" width="1350" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_csv_vol" value="&lt;b&gt;ProductAssociations.csv&lt;/b&gt;&lt;br/&gt;Products · prices · promos&lt;br/&gt;Mounted read/write" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sec_host_vols">
+          <mxGeometry x="30" y="35" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_ads_vol" value="&lt;b&gt;pre-defined-ads/&lt;/b&gt;&lt;br/&gt;JPEG images for provisioned products&lt;br/&gt;Mounted read/write" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sec_host_vols">
+          <mxGeometry x="290" y="35" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_model_vol" value="&lt;b&gt;aig/models/&lt;/b&gt;&lt;br/&gt;SDXL-Turbo OV int8 · MiniLM-L12-v2&lt;br/&gt;Mounted read-only (recommended)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sec_host_vols">
+          <mxGeometry x="550" y="35" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_chroma_vol" value="&lt;b&gt;chroma_data/&lt;/b&gt;&lt;br/&gt;ChromaDB persistent storage&lt;br/&gt;Mounted read/write" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sec_host_vols">
+          <mxGeometry x="810" y="35" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec_cert_vol" value="&lt;b&gt;nginx/certs/&lt;/b&gt;&lt;br/&gt;TLS certificate + private key&lt;br/&gt;Mounted read-only" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sec_host_vols">
+          <mxGeometry x="1070" y="35" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- EDGES / DATA FLOWS                                           -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+
+        <!-- Browser → nginx (HTTPS encrypted) -->
+        <mxCell id="sec_e_browser_nginx" value="HTTPS :5000 (TLS 1.3)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#c62828;strokeWidth=2;fontStyle=0;fontSize=10;" edge="1" source="sec_browser" target="sec_nginx" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="110" y="185" />
+              <mxPoint x="110" y="200" />
+              <mxPoint x="810" y="200" />
+              <mxPoint x="810" y="185" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Browser → COTURN (ICE relay) -->
+        <mxCell id="sec_e_browser_coturn" value="ICE/TURN relay (UDP :3478)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#f57f17;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_browser" target="sec_coturn_entry" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="185" />
+              <mxPoint x="200" y="220" />
+              <mxPoint x="1200" y="220" />
+              <mxPoint x="1200" y="185" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- nginx → Web UI (HTTP internal plaintext) -->
+        <mxCell id="sec_e_nginx_webui" value="HTTP :5000 (plaintext internal)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2e7d32;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_nginx" target="sec_webui_int" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="250" />
+              <mxPoint x="700" y="250" />
+              <mxPoint x="700" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- nginx → AIG Server (HTTP internal plaintext) -->
+        <mxCell id="sec_e_nginx_aig" value="HTTP :5003 (plaintext internal)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2e7d32;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_nginx" target="sec_aig" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1020" y="250" />
+              <mxPoint x="1390" y="250" />
+              <mxPoint x="1390" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- nginx → MediaMTX (WebRTC WHIP/WHEP) -->
+        <mxCell id="sec_e_nginx_mtx" value="WebRTC WHIP/WHEP :8889" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2e7d32;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_nginx" target="sec_mediamtx" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="260" />
+              <mxPoint x="430" y="260" />
+              <mxPoint x="430" y="370" />
+              <mxPoint x="100" y="370" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- MQTT internal flow: DL Streamer → MQTT → Web UI -->
+        <mxCell id="sec_e_dls_mqtt" value="MQTT publish (TCP :1883, no auth)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_dlstreamer" target="sec_mqtt_int" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="620" />
+              <mxPoint x="570" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="sec_e_mqtt_webui" value="MQTT subscribe" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_mqtt_int" target="sec_webui_int" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Web UI → AIG (HTTP :5003) -->
+        <mxCell id="sec_e_webui_aig" value="HTTP REST (plaintext internal)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2e7d32;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_webui_int" target="sec_aig" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="400" />
+              <mxPoint x="880" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- AIG → ChromaDB -->
+        <mxCell id="sec_e_aig_chroma" value="HTTP REST (plaintext, no auth)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_aig" target="sec_chromadb" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Volume mounts (dashed, read-only style) -->
+        <mxCell id="sec_e_webui_csv" value="mounts (CSV data)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_webui_int" target="sec_csv_vol" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="sec_e_webui_ads" value="mounts (ad images)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_webui_int" target="sec_ads_vol" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="sec_e_aig_models" value="mounts (AI models, read-only)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_aig" target="sec_model_vol" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1390" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="sec_e_chroma_vol" value="mounts (vector data)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_chromadb" target="sec_chroma_vol" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1230" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="sec_e_nginx_cert" value="mounts (TLS cert/key, read-only)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=1;fontStyle=0;fontSize=10;dashed=1;" edge="1" source="sec_nginx" target="sec_cert_vol" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="260" />
+              <mxPoint x="850" y="900" />
+              <mxPoint x="1450" y="900" />
+            </Array>
+          </mxGeometry>
         </mxCell>
 
       </root>

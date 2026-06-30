@@ -120,3 +120,53 @@ The YOLO11s or AIG model download step exits with an error.
 - Ensure Python virtual environment creation succeeds (`python3 -m venv`).
 - For Hugging Face downloads, set the `HF_HUB_ENABLE_HF_TRANSFER=1` environment variable as documented in [Build from Source](./get-started/build-from-source.md).
 - Ensure sufficient disk space (500 GB free recommended).
+
+---
+
+## 6. Video Not Rendering in Browser (MediaMTX `no space left on device`)
+
+**Issue**
+
+The browser page loads, but video does not render. MediaMTX logs show `no space left on device` (`ENOSPC`).
+
+**Reason**
+
+In this scenario, `ENOSPC` is usually not caused by hard drive capacity. It is commonly caused by exhausting Linux host resources such as inotify watches, inotify instances, open file descriptor limits, or filesystem inodes.
+
+**Solution**
+
+1. Confirm current inotify limits on the host:
+
+  ```bash
+  cat /proc/sys/fs/inotify/max_user_watches
+  cat /proc/sys/fs/inotify/max_user_instances
+  ```
+
+2. Increase the limits by editing sysctl configuration:
+
+  ```bash
+  sudo nano /etc/sysctl.conf
+  ```
+
+3. Append the following values at the end of the file:
+
+  ```text
+  fs.inotify.max_user_watches=1048576
+  fs.inotify.max_user_instances=10000
+  ```
+
+4. Apply the updated kernel parameters immediately:
+
+  ```bash
+  sudo sysctl -p
+  ```
+
+5. Redeploy the Digital Signage stack and verify MediaMTX is healthy:
+
+  ```bash
+  make up
+  docker logs -f mediamtx
+  ```
+
+If needed, also verify inode availability (`df -i`) and open file limits (`ulimit -n`) on the host.
+

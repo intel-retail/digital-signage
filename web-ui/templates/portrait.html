@@ -6,42 +6,14 @@
     <title>Digital Signage - Portrait Mode</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/shared.css">
     <style>
-        /* ── Design tokens aligned with the ViPPET design system ── */
-        :root {
-            --brand-primary:   #0054AE; /* Classic Blue */
-            --brand-accent:    #0099EC; /* Classic Blue tint-1 */
-            --brand-hover:     #004A9D; /* Classic Blue hover */
-            --foreground:      #0F172A; /* slate-900 */
-            --muted:           #64748B; /* slate-500 */
-            --muted-fg:        #94A3B8; /* slate-400 */
-            --border:          #CBD5E1; /* slate-300 */
-            --bg:              #F4F5F5; /* spark-light-gray-100 */
-            --surface:         #FFFFFF;
-            --surface-alt:     #F8FAFC;
-            --destructive:     #DA2E56; /* electric-coral */
-            --success:         #9FD541; /* electric-moss */
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Montserrat', 'Open Sans', 'Segoe UI', sans-serif;
-            background: #000;
-            color: var(--foreground);
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-        }
+        body { background: #000; width: 100vw; }
 
         /* ── Header ── */
         .header {
-            background: var(--brand-primary);
             padding: 0 20px;
             height: 52px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
             position: fixed;
             top: 0;
@@ -50,43 +22,11 @@
             z-index: 100;
         }
 
-        .header h1 {
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 1.2px;
-            color: #ffffff;
-            text-transform: uppercase;
-        }
+        .header h1 { font-size: 13px; letter-spacing: 1.2px; }
 
-        /* ── Status badge (adopted from ViPPET's badge component) ── */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.15);
-            font-size: 11px;
-            font-weight: 500;
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--destructive);
-            flex-shrink: 0;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .status-dot.connected { background: var(--success); animation: none; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.45; }
-        }
+        /* ── Status badge ── */
+        .status-badge { padding: 4px 10px; font-size: 11px; }
+        .status-dot { width: 7px; height: 7px; }
 
         /* ── Ad container ── */
         .main-container {
@@ -173,41 +113,13 @@
             gap: 16px;
         }
 
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 3px solid var(--border);
-            border-top-color: var(--brand-accent);
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .spinner { width: 48px; height: 48px; }
 
         .loading-text {
             color: var(--muted-fg);
             font-size: 14px;
             text-align: center;
             font-style: italic;
-        }
-
-        /* ── Generation-time badge (adopted from ViPPET's badge pattern) ── */
-        .generation-time {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            padding: 8px 12px;
-            background: rgba(0, 0, 0, 0.72);
-            color: #ffffff;
-            text-align: center;
-            font-size: 12px;
-            font-weight: 500;
-            border-radius: 6px;
-            z-index: 10;
-            display: none;
         }
 
         /* ── Floating video window (card style from ViPPET) ── */
@@ -279,20 +191,7 @@
         }
 
         /* ── Footer ── */
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--brand-primary);
-            padding: 7px 20px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.85);
-            z-index: 50;
-        }
+        .footer { padding: 7px 20px; z-index: 50; }
 
         @media (max-width: 768px) {
             .header h1 { font-size: 11px; }
@@ -323,7 +222,7 @@
                         <span class="loading-text">Waiting for initialization to complete...</span>
                     </div>
                     <img id="productImage" class="ad-image" src="" alt="Generated Product Advertisement" style="display: none;">
-                    <div id="generationTime" class="generation-time">Advertisement generated in 0s</div>
+                    <div id="generationTime">Advertisement generated in 0s</div>
                 </div>
             </div>
         </div>
@@ -351,8 +250,8 @@
         CACS Digital Signage System — Portrait Mode
     </div>
 
+    <script src="/static/shared.js"></script>
     <script>
-        let pollingInterval = null;
         let isDragging = false;
         let currentX;
         let currentY;
@@ -365,13 +264,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             setupDraggable();
-            
+
             // Load Stream
             const host = window.location.hostname;
             const STREAM_PORT = "8889";
             document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
             updateConnectionStatus(true);
-            
+
             // Start polling for advertisements
             startPolling();
         });
@@ -382,7 +281,6 @@
         }
 
         function setupDraggable() {
-            const videoWindow = document.getElementById("floatingVideo");
             const header = document.getElementById("videoHeader");
 
             header.addEventListener("mousedown", dragStart);
@@ -395,8 +293,6 @@
         }
 
         function dragStart(e) {
-            const videoWindow = document.getElementById("floatingVideo");
-            
             if (e.type === "touchstart") {
                 initialX = e.touches[0].clientX - xOffset;
                 initialY = e.touches[0].clientY - yOffset;
@@ -413,9 +309,9 @@
         function drag(e) {
             if (isDragging) {
                 e.preventDefault();
-                
+
                 const videoWindow = document.getElementById("floatingVideo");
-                
+
                 if (e.type === "touchmove") {
                     currentX = e.touches[0].clientX - initialX;
                     currentY = e.touches[0].clientY - initialY;
@@ -441,86 +337,6 @@
             el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
         }
 
-        function startPolling() {
-            if (pollingInterval) clearInterval(pollingInterval);
-            pollForAdvertisement();
-            pollingInterval = setInterval(pollForAdvertisement, 2000);
-        }
-
-        function getBrowserFingerprint() {
-            const userAgent = navigator.userAgent;
-            const screenResolution = `${screen.width}x${screen.height}`;
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const timestamp = performance.timeOrigin;
-            const random = Math.random().toString(36).substring(2);
-            
-            let tabId = sessionStorage.getItem('tabId');
-            if (!tabId) {
-                tabId = `${Date.now()}_${random}`;
-                sessionStorage.setItem('tabId', tabId);
-            }
-            
-            const fingerprint = `${userAgent}_${screenResolution}_${timezone}_${timestamp}_${tabId}`;
-            
-            let hash = 0;
-            for (let i = 0; i < fingerprint.length; i++) {
-                const char = fingerprint.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return Math.abs(hash).toString(36);
-        }
-
-        function pollForAdvertisement() {
-            const container = document.getElementById("ad-image-container");
-            const rect = container.getBoundingClientRect();
-            const width = Math.floor(rect.width);
-            const height = Math.floor(rect.height);
-
-            const timestamp = new Date().getTime();
-            const clientId = getBrowserFingerprint();
-            
-            fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
-                .then(res => {
-                    if (res.status === 200) {
-                        res.blob().then(imageBlob => {
-                            const xgenerationTime = res.headers.get('X-Generation-Time');
-                            const imageUrl = URL.createObjectURL(imageBlob);
-
-                            if (xgenerationTime) {
-                                const generationTimeElement = document.getElementById('generationTime');
-                                generationTimeElement.textContent = `${xgenerationTime}`;
-                                generationTimeElement.style.display = 'block';
-                            }
-                            
-                            const productImage = document.getElementById('productImage');
-                            const aigServerLoading = document.getElementById('aigServerLoading');
-                        
-                            productImage.src = imageUrl;
-                            productImage.style.display = 'block';
-                            aigServerLoading.style.display = 'none';
-                        });
-                    }
-                    return;
-                })
-                .catch(err => {
-                    console.error('Error fetching advertisement:', err);
-                });
-        }
-
-        function updateConnectionStatus(connected) {
-            const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('statusText');
-
-            if (connected) {
-                statusDot.classList.add('connected');
-                statusText.textContent = 'Connected';
-            } else {
-                statusDot.classList.remove('connected');
-                statusText.textContent = 'Disconnected';
-            }
-        }
-
         function reconnectStream() {
             const btn = document.getElementById('reconnectBtn');
             const originalContent = btn.innerHTML;
@@ -539,7 +355,7 @@
         function expandVideo() {
             const videoWindow = document.getElementById("floatingVideo");
             const currentWidth = videoWindow.style.width || '280px';
-            
+
             if (parseInt(currentWidth) === 280) {
                 videoWindow.style.width = '420px';
                 videoWindow.style.height = '240px';

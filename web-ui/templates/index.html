@@ -6,81 +6,17 @@
     <title>Digital Signage - Video Stream</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/shared.css">
     <style>
-        /* ── Design tokens aligned with the ViPPET design system ── */
-        :root {
-            --brand-primary:   #0054AE; /* Classic Blue */
-            --brand-accent:    #0099EC; /* Classic Blue tint-1 */
-            --brand-hover:     #004A9D; /* Classic Blue hover */
-            --foreground:      #0F172A; /* slate-900 */
-            --muted:           #64748B; /* slate-500 */
-            --muted-fg:        #94A3B8; /* slate-400 */
-            --border:          #CBD5E1; /* slate-300 */
-            --bg:              #F4F5F5; /* spark-light-gray-100 */
-            --surface:         #FFFFFF;
-            --surface-alt:     #F8FAFC;
-            --destructive:     #DA2E56; /* electric-coral */
-            --success:         #9FD541; /* electric-moss */
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Montserrat', 'Open Sans', 'Segoe UI', sans-serif;
-            background: var(--bg);
-            color: var(--foreground);
-            height: 100vh;
-            overflow: hidden;
-        }
+        body { background: var(--bg); }
 
         /* ── Header ── */
-        .header {
-            background: var(--brand-primary);
-            padding: 0 28px;
-            height: 60px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-        }
+        .header { padding: 0 28px; height: 60px; }
+        .header h1 { font-size: 15px; letter-spacing: 1.5px; }
 
-        .header h1 {
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: 1.5px;
-            color: #ffffff;
-            text-transform: uppercase;
-        }
-
-        /* ── Status badge (adopted from ViPPET's badge component) ── */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.15);
-            font-size: 12px;
-            font-weight: 500;
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--destructive);
-            flex-shrink: 0;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .status-dot.connected { background: var(--success); animation: none; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.45; }
-        }
+        /* ── Status badge ── */
+        .status-badge { padding: 5px 12px; font-size: 12px; }
+        .status-dot { width: 8px; height: 8px; }
 
         /* ── Layout ── */
         .main-container {
@@ -88,15 +24,6 @@
             height: calc(100vh - 60px);
             padding: 16px;
             gap: 16px;
-        }
-
-        /* ── Card component (adopted from ViPPET's card style) ── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
-            overflow: hidden;
         }
 
         /* ── Video section ── */
@@ -205,7 +132,7 @@
         }
 
         /* ── Image / ad area ── */
-        .product-image-container {
+        .ad-image-container {
             position: relative;
             flex: 1;
             display: flex;
@@ -215,7 +142,7 @@
             background: var(--surface);
         }
 
-        .product-image {
+        .ad-image {
             width: 95%;
             height: 100%;
             object-fit: contain;
@@ -231,14 +158,7 @@
             gap: 14px;
         }
 
-        .spinner {
-            width: 36px;
-            height: 36px;
-            border: 3px solid var(--border);
-            border-top-color: var(--brand-accent);
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
-        }
+        .spinner { width: 36px; height: 36px; }
 
         .placeholder-text {
             font-size: 13px;
@@ -246,41 +166,8 @@
             font-style: italic;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ── Generation-time badge (adopted from ViPPET's status badge pattern) ── */
-        #generationTime {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            padding: 6px 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #ffffff;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 500;
-            border-radius: 6px;
-            z-index: 10;
-            display: none;
-        }
-
         /* ── Footer ── */
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--brand-primary);
-            padding: 8px 28px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.85);
-        }
+        .footer { padding: 8px 28px; }
 
         @media (max-width: 1200px) {
             .main-container { flex-direction: column; }
@@ -325,12 +212,12 @@
                     <div class="product-frame-header">
                         <span class="product-frame-label">Generated Advertisement</span>
                     </div>
-                    <div class="product-image-container" id="product-image-container">
+                    <div class="ad-image-container" id="ad-image-container">
                         <div id="aigServerLoading" class="image-placeholder">
                             <div class="spinner"></div>
                             <span class="placeholder-text">Waiting for initialization to complete...</span>
                         </div>
-                        <img id="productImage" class="product-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                        <img id="productImage" class="ad-image" src="" alt="Generated Product Advertisement" style="display: none;">
                         <div id="generationTime">Advertisement generated in 0s</div>
                         <div id="imagePlaceholder" class="image-placeholder"></div>
                     </div>
@@ -343,10 +230,8 @@
         CACS Digital Signage System
     </div>
 
+    <script src="/static/shared.js"></script>
     <script>
-        let pollingInterval = null;
-        let currentProduct = null;
-
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
@@ -363,105 +248,12 @@
             document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
         }
 
-        function startPolling() {
-            if (pollingInterval) clearInterval(pollingInterval);
-            pollForAdvertisement();
-            pollingInterval = setInterval(pollForAdvertisement, 2000);
-        }
-
-        function getBrowserFingerprint() {
-            // Generate a simple client fingerprint based on browser characteristics
-            const userAgent = navigator.userAgent;
-            const screenResolution = `${screen.width}x${screen.height}`;
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const timestamp = performance.timeOrigin; // Unique per tab/window
-            const random = Math.random().toString(36).substring(2); // Random component
-            
-            // Store or retrieve a unique tab ID from sessionStorage (unique per tab)
-            let tabId = sessionStorage.getItem('tabId');
-            if (!tabId) {
-                tabId = `${Date.now()}_${random}`;
-                sessionStorage.setItem('tabId', tabId);
-            }
-            
-            const fingerprint = `${userAgent}_${screenResolution}_${timezone}_${timestamp}_${tabId}`;
-            
-            // Create a simple hash
-            let hash = 0;
-            for (let i = 0; i < fingerprint.length; i++) {
-                const char = fingerprint.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return Math.abs(hash).toString(36);
-        }
-
-        function pollForAdvertisement() {
-            const container = document.getElementById("product-image-container");
-            const rect = container.getBoundingClientRect();
-            const width = Math.floor(rect.width);
-            const height = Math.floor(rect.height);
-
-            const timestamp = new Date().getTime();
-            const clientId = getBrowserFingerprint();
-            fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
-                .then(res => {
-                    if (res.status === 200) {
-                        res.blob().then(imageBlob => {
-                            // Get generation time from response header
-                            const xgenerationTime = res.headers.get('X-Generation-Time');
-
-                            // Create object URL for the image
-                            const imageUrl = URL.createObjectURL(imageBlob);
-
-                            // Update generation time display if header exists
-                            if (xgenerationTime) {
-                                const generationTimeElement = document.getElementById('generationTime');
-                                generationTimeElement.textContent = `${xgenerationTime}`;
-                                generationTimeElement.style.display = 'block';
-                            }
-                            // Display the generated image
-                            const productImage = document.getElementById('productImage');
-                            
-                            const aigServerLoading = document.getElementById('aigServerLoading');
-                        
-                            productImage.src = imageUrl;
-                            productImage.style.display = 'block';
-                            
-                            aigServerLoading.style.display = 'none';
-                            
-                        });
-                    }
-                    return;
-                })
-        }
-
-        function generateProductAdvertisement(product) {
-            // This function is now deprecated, handled by polling
-            pollForAdvertisement();
-        }
-
-        function updateConnectionStatus(connected) {
-            const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('statusText');
-
-            if (connected) {
-                statusDot.classList.add('connected');
-                statusText.textContent = 'Connected';
-            } else {
-                statusDot.classList.remove('connected');
-                statusText.textContent = 'Disconnected';
-            }
-        }
-
         function reconnectStream() {
             const btn = document.getElementById('reconnectBtn');
             btn.textContent = 'Reconnecting...';
             btn.disabled = true;
 
             const iframe = document.getElementById("myframe");
-
-            // Reload stream
             iframe.src = iframe.src;
 
             setTimeout(() => {
@@ -472,7 +264,7 @@
 
         function toggleFullscreen() {
             const videoContainer = document.getElementById('videoContainer');
-            
+
             if (!document.fullscreenElement) {
                 videoContainer.requestFullscreen().catch(err => {
                     console.error('Error attempting to enable fullscreen:', err);

@@ -4,29 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Signage - Portrait Mode</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ── Design tokens aligned with the ViPPET design system ── */
+        :root {
+            --brand-primary:   #0054AE; /* Classic Blue */
+            --brand-accent:    #0099EC; /* Classic Blue tint-1 */
+            --brand-hover:     #004A9D; /* Classic Blue hover */
+            --foreground:      #0F172A; /* slate-900 */
+            --muted:           #64748B; /* slate-500 */
+            --muted-fg:        #94A3B8; /* slate-400 */
+            --border:          #CBD5E1; /* slate-300 */
+            --bg:              #F4F5F5; /* spark-light-gray-100 */
+            --surface:         #FFFFFF;
+            --surface-alt:     #F8FAFC;
+            --destructive:     #DA2E56; /* electric-coral */
+            --success:         #9FD541; /* electric-moss */
         }
 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #ffffff 0%, #87CEEB 100%);
-            color: #333;
+            font-family: 'Montserrat', 'Open Sans', 'Segoe UI', sans-serif;
+            background: #000;
+            color: var(--foreground);
             height: 100vh;
             width: 100vw;
             overflow: hidden;
         }
 
+        /* ── Header ── */
         .header {
-            background: rgba(32, 182, 242, 0.9);
-            padding: 12px 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            background: var(--brand-primary);
+            padding: 0 20px;
+            height: 52px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
             position: fixed;
             top: 0;
             left: 0;
@@ -35,48 +51,51 @@
         }
 
         .header h1 {
-            font-size: 18px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            color: #ffffff;
+            text-transform: uppercase;
         }
 
-        .status-indicator {
-            display: flex;
+        /* ── Status badge (adopted from ViPPET's badge component) ── */
+        .status-badge {
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            font-size: 11px;
+            font-weight: 500;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #ff4444;
-            animation: pulse 2s infinite;
+            background: var(--destructive);
+            flex-shrink: 0;
+            animation: pulse 2s ease-in-out infinite;
         }
 
-        .status-dot.connected {
-            background: #44ff44;
-        }
-
-        .status-text {
-            color: white;
-            font-size: 12px;
-        }
+        .status-dot.connected { background: var(--success); animation: none; }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.45; }
         }
 
+        /* ── Ad container ── */
         .main-container {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: #000;
+            background: var(--bg);
         }
 
         .advertisement-container {
@@ -87,27 +106,31 @@
             bottom: 0;
             display: flex;
             flex-direction: column;
-            background: linear-gradient(135deg, #ffffff 0%, #87CEEB 100%);
+            background: var(--bg);
         }
 
+        /* ── Ad section header (adopted from ViPPET's section header) ── */
         .ad-header {
-            padding: 60px 20px 15px 20px;
-            background: rgba(255, 255, 255, 0.95);
-            border-bottom: 2px solid rgba(135, 206, 235, 0.3);
+            padding: 64px 20px 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         .ad-title {
-            font-size: 24px;
-            font-weight: 500;
-            color: #3ba6ed;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--brand-primary);
             text-align: center;
-            margin-bottom: 5px;
+            letter-spacing: 0.5px;
         }
 
         .ad-subtitle {
-            font-size: 14px;
-            color: #666;
+            font-size: 12px;
+            color: var(--muted);
             text-align: center;
+            margin-top: 3px;
+            font-weight: 400;
         }
 
         .ad-content {
@@ -115,20 +138,22 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 16px;
             position: relative;
             overflow: hidden;
         }
 
+        /* ── Ad image card (adopted from ViPPET's card component) ── */
         .ad-image-container {
             width: 100%;
             height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            background: var(--surface);
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
             overflow: hidden;
             position: relative;
         }
@@ -139,114 +164,112 @@
             object-fit: contain;
         }
 
+        /* ── Loading state (adopted from ViPPET's loading indicator) ── */
         .loading-indicator {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
+            gap: 16px;
         }
 
         .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(135, 206, 235, 0.3);
-            border-top: 4px solid #87CEEB;
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--brand-accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.9s linear infinite;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
         .loading-text {
-            color: #666;
-            font-size: 16px;
+            color: var(--muted-fg);
+            font-size: 14px;
             text-align: center;
+            font-style: italic;
         }
 
+        /* ── Generation-time badge (adopted from ViPPET's badge pattern) ── */
         .generation-time {
             position: absolute;
-            top: 15px;
-            left: 15px;
-            right: 15px;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.72);
+            color: #ffffff;
             text-align: center;
-            font-size: 14px;
-            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 6px;
             z-index: 10;
             display: none;
         }
 
-        /* Floating Video Window */
+        /* ── Floating video window (card style from ViPPET) ── */
         .floating-video {
             position: fixed;
-            bottom: 20px;
+            bottom: 24px;
             left: 20px;
             width: 280px;
             height: 160px;
-            background: rgba(0, 0, 0, 0.95);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            background: #000;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             overflow: hidden;
             z-index: 1000;
-            border: 2px solid rgba(135, 206, 235, 0.5);
-            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            transition: width 0.25s ease, height 0.25s ease;
         }
 
-        .floating-video:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-        }
-
+        /* ── Floating video header (adopted from ViPPET's panel header) ── */
         .floating-video-header {
-            background: rgba(59, 166, 237, 0.95);
-            padding: 6px 10px;
+            background: var(--brand-primary);
+            padding: 5px 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: move;
+            height: 30px;
         }
 
         .floating-video-title {
-            color: white;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         .floating-video-controls {
             display: flex;
-            gap: 5px;
+            gap: 4px;
         }
 
         .video-control-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
             width: 20px;
             height: 20px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 10px;
+            font-size: 11px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
+            transition: background 0.15s;
         }
 
-        .video-control-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
+        .video-control-btn:hover { background: rgba(255, 255, 255, 0.3); }
 
         .floating-video-content {
             width: 100%;
-            height: calc(100% - 32px);
-            position: relative;
+            height: calc(100% - 30px);
         }
 
         .floating-video iframe {
@@ -255,84 +278,43 @@
             border: none;
         }
 
+        /* ── Footer ── */
         .footer {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(135, 206, 235, 0.9);
-            padding: 8px 20px;
+            background: var(--brand-primary);
+            padding: 7px 20px;
             text-align: center;
             font-size: 11px;
-            color: white;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.85);
             z-index: 50;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 14px;
-            }
-
-            .floating-video {
-                width: 200px;
-                height: 115px;
-                bottom: 15px;
-                left: 15px;
-            }
-
-            .ad-title {
-                font-size: 20px;
-            }
-        }
-
-        /* Landscape mode warning */
-        @media (orientation: landscape) and (max-height: 600px) {
-            .orientation-warning {
-                display: flex;
-            }
-        }
-
-        .orientation-warning {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .orientation-warning h2 {
-            font-size: 24px;
-            margin-bottom: 15px;
-        }
-
-        .orientation-warning p {
-            font-size: 16px;
-            opacity: 0.8;
+            .header h1 { font-size: 11px; }
+            .floating-video { width: 200px; height: 115px; bottom: 15px; left: 15px; }
+            .ad-title { font-size: 14px; }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>CONTEXT-AWARE CROSS-SELLING DIGITAL SIGNAGE</h1>
-        <div class="status-indicator">
+        <h1>Context-Aware Cross-Selling Digital Signage</h1>
+        <div class="status-badge">
             <div id="statusDot" class="status-dot"></div>
-            <span id="statusText" class="status-text">Connecting...</span>
+            <span id="statusText">Connecting...</span>
         </div>
     </div>
 
     <div class="main-container">
         <div class="advertisement-container">
             <div class="ad-header">
+                <div class="ad-title">Generated Advertisement</div>
+                <div class="ad-subtitle">Context-Aware Cross-Selling — Portrait Mode</div>
             </div>
             <div class="ad-content">
                 <div class="ad-image-container" id="ad-image-container">
@@ -350,7 +332,7 @@
     <!-- Floating Video Window -->
     <div class="floating-video" id="floatingVideo">
         <div class="floating-video-header" id="videoHeader">
-            <span class="floating-video-title">LIVE STREAM</span>
+            <span class="floating-video-title">Live Stream</span>
             <div class="floating-video-controls">
                 <button id="reconnectBtn" class="video-control-btn" title="Reconnect">⟳</button>
                 <button id="expandBtn" class="video-control-btn" title="Expand">⛶</button>
@@ -366,7 +348,7 @@
     </div>
 
     <div class="footer">
-        CACS Digital Signage System - Portrait Mode
+        CACS Digital Signage System — Portrait Mode
     </div>
 
     <script>

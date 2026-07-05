@@ -155,6 +155,12 @@ services:
       - chroma_data:/tmp
       - chroma_data:/data
       - chroma_data:/tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   aig-server:
     image: aig-server:1.0.0
@@ -212,7 +218,14 @@ services:
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
-      - ase-chromadb
+      ase-chromadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AIG_PORT:-5003}/aig/hstatus/1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - "/run/udev:/run/udev:ro"
@@ -271,10 +284,20 @@ services:
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
     depends_on:
-      - mediamtx
-      - aig-server
+      mediamtx:
+        condition: service_started
+      aig-server:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro

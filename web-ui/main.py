@@ -50,6 +50,30 @@ def resolve_product_label(label):
     normalized_label = normalize_product_key(label)
     return product_association_lookup.get(normalized_label)
 
+_MAX_PROMPT_LENGTH = int(os.getenv('MAX_AD_PROMPT_LENGTH', 500))
+
+def _validate_csv_row(row, row_index):
+    """Validate a single CSV row. Returns a sanitised copy or raises ValueError."""
+    primary_product = row.get('primary_product', '').strip()
+    if not primary_product:
+        raise ValueError(f"Row {row_index}: 'primary_product' is empty")
+
+    price_str = row.get('price', '').strip()
+    try:
+        float(price_str)
+    except (ValueError, TypeError):
+        raise ValueError(f"Row {row_index} ({primary_product}): 'price' is not a valid number: {price_str!r}")
+
+    prompt = row.get('dynamic_ad_prompt', '').strip()
+    if len(prompt) > _MAX_PROMPT_LENGTH:
+        raise ValueError(
+            f"Row {row_index} ({primary_product}): 'dynamic_ad_prompt' exceeds {_MAX_PROMPT_LENGTH} chars "
+            f"({len(prompt)} chars)"
+        )
+
+    return row
+
+
 def load_product_associations(csv_path):
     """Load product associations from CSV file into dictionary"""
     global product_associations, product_association_lookup
@@ -58,7 +82,12 @@ def load_product_associations(csv_path):
         product_association_lookup = {}
         with open(csv_path, 'r') as file:
             reader = csv.DictReader(file)
-            for row in reader:
+            for row_index, row in enumerate(reader, start=1):
+                try:
+                    row = _validate_csv_row(row, row_index)
+                except ValueError as ve:
+                    logger.warning(f"Skipping invalid CSV row: {ve}")
+                    continue
                 primary_product = row['primary_product']
                 normalized_primary = normalize_product_key(primary_product)
                 product_association_lookup[normalized_primary] = primary_product
@@ -120,14 +149,17 @@ def load_product_associations(csv_path):
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'ia-mqtt-broker')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
 MQTT_TOPIC = os.getenv('MQTT_TOPIC', 'yolo_od_results')
+MQTT_USERNAME = os.getenv('MQTT_USERNAME', None)
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', None)
 
 # Store latest MQTT messages
 mqtt_messages = []
 mqtt_messages_lock = threading.Lock()
 
 
-# Queue for processing MQTT messages
-message_queue = Queue()
+# Queue for processing MQTT messages — bounded to prevent unbounded memory growth under burst detections
+MQTT_QUEUE_MAXSIZE = int(os.getenv('MQTT_QUEUE_MAXSIZE', 50))
+message_queue = Queue(maxsize=MQTT_QUEUE_MAXSIZE)
 
 class Ad_Generator(threading.Thread):
     """Process messages from queue in a separate thread"""
@@ -505,7 +537,11 @@ class MQTTSubscriber:
         self.topic = topic
         self.client = mqtt.Client()
         self.connected = False
-   
+
+        # Apply credentials when provided via MQTT_USERNAME / MQTT_PASSWORD env vars
+        if MQTT_USERNAME:
+            self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+            logger.info("MQTT client configured with username/password credentials")
         
         # Set up callbacks
         self.client.on_connect = self.on_connect
@@ -598,7 +634,10 @@ class MQTTSubscriber:
                                 label_to_process.append(label)
                     if len(label_to_process) > 0:
                         logger.debug(f"Labels to process after recency check: {label_to_process}")
-                        message_queue.put(label_to_process)
+                        try:
+                            message_queue.put_nowait(label_to_process)
+                        except Exception:
+                            logger.warning("message_queue is full; dropping detection frame to prevent backlog")
                     
                 else:
                     logger.info("No tensor data found in gva_meta")

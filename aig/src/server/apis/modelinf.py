@@ -1,6 +1,7 @@
 import io
 import os
 import gc
+import threading
 #Flask API
 from flask import send_file
 from flask_restx import Namespace, Resource, fields
@@ -28,6 +29,17 @@ if not logger.handlers:
 #AIGServer Environment
 from database.version import AigServerMetadata
 from imgproc.img_frame import ImgDecorator
+
+# Guardrail: serialise concurrent inference requests so only one generate() runs at a time.
+# Using a semaphore (not a plain lock) makes it straightforward to raise the limit in future.
+_inference_semaphore = threading.Semaphore(1)
+
+# Guardrail: configurable prompt length cap (characters).
+_MAX_DESCRIPTION_LENGTH = int(os.getenv('AIG_MAX_DESCRIPTION_LENGTH', 500))
+
+# Guardrail: optional brand-safe prompt prefix/suffix injected around every user-supplied description.
+_PROMPT_PREFIX = os.getenv('AIG_PROMPT_PREFIX', '')
+_PROMPT_SUFFIX = os.getenv('AIG_PROMPT_SUFFIX', '')
 
 
 api = Namespace('AIG - Inference with Added-Value Services', description='Advertise Image Generation')
@@ -192,6 +204,7 @@ class Minf_request_sch(object):
                 })
 class ModelInference_Img(Resource):
     @api.response(200, 'Success')
+    @api.response(400, 'Invalid request parameters')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
     @api.response(503, 'Accepted but server is busy with other requests')    
     @api.expect(minf_request_sch, validate=True, description="It expects the text description to generate the image and an optional offer to put over the message as a banner.")
@@ -204,12 +217,25 @@ class ModelInference_Img(Resource):
             errorMessage="Device not supported. Only CPU, GPU and NPU are supported."
             logger.error(errorMessage)
             return errorMessage, 500
+
+        # Guardrail: reject descriptions that exceed the configured character limit.
+        description = data.get('description', '') or ''
+        if len(description) > _MAX_DESCRIPTION_LENGTH:
+            errorMessage = (
+                f"Description too long: {len(description)} chars exceeds limit of {_MAX_DESCRIPTION_LENGTH}."
+            )
+            logger.warning(errorMessage)
+            return errorMessage, 400
+
+        # Guardrail: wrap with brand-safe prefix/suffix (no-ops when env vars are empty).
+        if _PROMPT_PREFIX or _PROMPT_SUFFIX:
+            description = f"{_PROMPT_PREFIX} {description} {_PROMPT_SUFFIX}".strip()
+            logger.debug(f"Applied prompt prefix/suffix; effective description length: {len(description)}")
         
         try:
             
             # Model
             model = AigServerMetadata.get_t2i_model_path() # Model Path only
-            description = data.get('description')
             device = data.get('device', 'GPU')
 
             pipe = None
@@ -219,21 +245,33 @@ class ModelInference_Img(Resource):
 
             if pipe is None:
                 pipe = openvino_genai.Text2ImagePipeline(model, device)
-            start_time = time.time()          
+            start_time = time.time()
             image_tensor = None
             max_retries = 3
             counter = 0
-            while counter < max_retries:
-                try:
-                    # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
-                    image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
-                                                    num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1)
-                    if image_tensor is not None and len(image_tensor.data) > 0:
-                        counter = max_retries  # Exit loop if image generation is successful
-                except Exception as e:
-                    logger.error(f"Image Generation. Attempt {counter + 1} failed with error: {str(e)}")
-                    image_tensor = None
-                    counter += 1
+
+            # Guardrail: hold the semaphore while generating to prevent concurrent inference
+            # calls from corrupting model state or causing OOM under simultaneous requests.
+            acquired = _inference_semaphore.acquire(blocking=True, timeout=5)
+            if not acquired:
+                errorMessage = "Image Generation. Server is busy — try again shortly."
+                logger.warning(errorMessage)
+                return errorMessage, 503
+
+            try:
+                while counter < max_retries:
+                    try:
+                        # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
+                        image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
+                                                        num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1)
+                        if image_tensor is not None and len(image_tensor.data) > 0:
+                            counter = max_retries  # Exit loop if image generation is successful
+                    except Exception as e:
+                        logger.error(f"Image Generation. Attempt {counter + 1} failed with error: {str(e)}")
+                        image_tensor = None
+                        counter += 1
+            finally:
+                _inference_semaphore.release()
 
             if image_tensor is None:
                 errorMessage=f"Image Generation. Service is busy."

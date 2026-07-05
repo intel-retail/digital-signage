@@ -469,18 +469,29 @@ class AseServerMetadata:
     @staticmethod
     def get_image_file_from_path(filepath: str) -> Image.Image:
         """
-        Get the image file from filepath 
+        Get the image file from filepath.
         :param filepath: The path of the image.
         :return: The image file.
         """
         if filepath is None:
             return None
-        
-        if not os.path.exists(filepath):
-            logger.warning(f"Image file not found: {filepath}")
+
+        # Guardrail: ensure the resolved path is strictly within the configured image
+        # directory to prevent path-traversal attacks when using metadata from ChromaDB.
+        allowed_dir = os.path.realpath(AseServerMetadata.get_ase_img_path())
+        resolved = os.path.realpath(filepath)
+        if not resolved.startswith(allowed_dir + os.sep) and resolved != allowed_dir:
+            logger.error(
+                f"[ASE] Rejected img_path outside allowed directory. "
+                f"path={filepath!r}, allowed_dir={allowed_dir!r}"
+            )
             return None
         
-        return Image.open(filepath)
+        if not os.path.exists(resolved):
+            logger.warning(f"Image file not found: {resolved}")
+            return None
+        
+        return Image.open(resolved)
 
     @staticmethod
     def remove_image_file(id: int):
@@ -599,12 +610,17 @@ class AseServerMetadata:
 
         try:
             result = self.collection.get(ids=[str(id)])
-            # If the id exists, result['ids'] will contain the id
-            if result is None or 'ids' not in result or not result['ids']:
+            # If the id exists, result['ids'] will contain a non-empty inner list.
+            if result is None or 'ids' not in result:
                 logger.info(f"[ChromaDB] Document with ID {id} does not exist.")
                 return False
-            
-            return str(id) in result.get('ids', [])[0]
+            ids_list = result.get('ids', [])
+            # ids_list is a list of lists (one inner list per query).  Guard against an
+            # empty outer list before indexing to avoid an IndexError.
+            if not ids_list or not ids_list[0]:
+                logger.info(f"[ChromaDB] Document with ID {id} does not exist.")
+                return False
+            return str(id) in ids_list[0]
         except Exception as e:
             logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
             return False

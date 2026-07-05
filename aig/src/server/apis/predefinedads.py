@@ -13,6 +13,10 @@ from database.version import AseServerMetadata
 from imgproc.img_frame import ImgDecorator
 import base64
 
+# Guardrail: maximum decoded image size accepted via the /predef/ upload endpoint.
+# Prevents DoS through excessively large base64 payloads (default: 10 MB decoded).
+_MAX_IMG_DECODED_BYTES = int(os.getenv('ASE_MAX_IMG_B64_BYTES', 10 * 1024 * 1024))
+
 api = Namespace('ASE - Advertise Searcher', description='It provides functionalities to define and search predefined ads.')
 
 ## Schemas
@@ -222,6 +226,14 @@ class PredefAdResource(Resource):
 
         if not img_b64:
             return {"error": "imgb64 field is required"}, 400
+
+        # Guardrail: reject excessively large payloads before decoding to prevent DoS.
+        # base64 encodes ~4/3 bytes, so estimated decoded size ≈ len(img_b64) * 3 / 4.
+        estimated_decoded_size = len(img_b64) * 3 // 4
+        if estimated_decoded_size > _MAX_IMG_DECODED_BYTES:
+            return {
+                "error": f"Image too large: estimated {estimated_decoded_size} bytes exceeds limit of {_MAX_IMG_DECODED_BYTES} bytes"
+            }, 413
         
         image=None
         try:

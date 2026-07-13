@@ -80,6 +80,7 @@ rm -rf .modelenv && \
 python3 -m venv .modelenv && \
 source .modelenv/bin/activate && \
 pip3 install -r model_download_requirements.txt && \
+rm -rf models && \
 chmod +x downloadAndQuantizeModel.sh && \
 ./downloadAndQuantizeModel.sh && \
 rm ./downloadAndQuantizeModel.sh && \

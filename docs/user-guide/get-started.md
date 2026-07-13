@@ -80,7 +80,6 @@ rm -rf .modelenv && \
 python3 -m venv .modelenv && \
 source .modelenv/bin/activate && \
 pip3 install -r model_download_requirements.txt && \
-rm -rf models && \
 chmod +x downloadAndQuantizeModel.sh && \
 ./downloadAndQuantizeModel.sh && \
 rm ./downloadAndQuantizeModel.sh && \
@@ -89,6 +88,8 @@ cd ../..
 ```
 
 The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.
+
+> **Note:** If the objects you need to detect are not included in the pretrained YOLO11 model classes, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
 
 ### Download SDXL-Turbo and MiniLM Models (for AIG)
 

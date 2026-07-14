@@ -90,6 +90,8 @@ cd ../..
 
 The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.
 
+> **Note:** If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
+
 ### Download SDXL-Turbo and MiniLM Models (for AIG)
 
 > Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.

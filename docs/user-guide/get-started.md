@@ -115,11 +115,11 @@ Models are downloaded to `./aig/models/`.
 
 Edit the `.env` file in the repository root and set the following required variables:
 
-| Variable                           | Description                                                                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------- |
-| `HOST_IP`                          | IP address of the host system                                                      |
-| `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters)                       |
-| `MTX_WEBRTCICESERVERS2_0_PASSWORD` | WebRTC ICE server password (minimum 8 alphanumeric characters, at least one digit) |
+| Variable                           | Description                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `HOST_IP`                          | Defaults to `localhost`; use the host system IP address if you want to access the web UI remotely |
+| `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters)                                      |
+| `MTX_WEBRTCICESERVERS2_0_PASSWORD` | WebRTC ICE server password (minimum 8 alphanumeric characters, at least one digit)                |
 
 **Optional variables:**
 
@@ -147,8 +147,10 @@ This command validates your environment configuration, verifies that required mo
 Open Google Chrome and navigate to:
 
 ```text
-https://<HOST_IP>:5000
+https://localhost:5000
 ```
+
+> **Note:** If you are accessing the UI remotely, replace `localhost` with the host system IP address.
 
 You should see the live video stream and dynamic advertisements.
 

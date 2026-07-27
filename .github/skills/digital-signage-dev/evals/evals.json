@@ -1,0 +1,47 @@
+{
+  "skill_name": "digital-signage-dev",
+  "evals": [
+    {
+      "id": 0,
+      "name": "add-list-endpoint",
+      "prompt": "I need a way to see what's actually stored in the ad database without pulling down megabytes of base64. Add a GET /ase/predef/list endpoint that returns every stored ad's id and description — no images. Show me the code.",
+      "expected_output": "A new Resource in aig/src/server/apis/predefinedads.py using the established Flask-RESTX pattern: a new api.model for the lightweight response, @api.route on the existing namespace, @api.marshal_list_with, @api.response decorators, and retrieval through the AseServerMetadata ChromaDB helpers rather than a raw client.",
+      "files": [],
+      "assertions": [
+        "Adds the endpoint in aig/src/server/apis/predefinedads.py on the existing namespace rather than creating a new module or registering a new namespace",
+        "Uses the Flask-RESTX pattern established in the file: api.model for the response schema plus @api.route and @api.marshal_list_with / @api.response decorators",
+        "Retrieves data through the AseServerMetadata singleton / chromadb_* helpers rather than instantiating a ChromaDB client directly",
+        "Correctly reflects that the namespace is mounted at /ase so @api.route('/predef/list') yields /ase/predef/list",
+        "Excludes the base64 image field from the response schema, satisfying the stated purpose"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "configurable-ad-cooldown",
+      "prompt": "Ads for the same product come round again way too fast when only a couple of items are in frame. I want a configurable cooldown — once we've shown an ad for a product, don't show that product again for N seconds. Make N settable without rebuilding. Where does this go and what's the change?",
+      "expected_output": "A change in web-ui/main.py's Ad_Generator selection path (find_product_for_ad_generation / find_rotating_candidate), tracking a per-product last-shown timestamp, driven by a new env var added in all three places: .env, docker-compose.yml web-ui environment block, and os.getenv in code with a matching default.",
+      "files": [],
+      "assertions": [
+        "Locates the change in web-ui/main.py within the Ad_Generator product-selection path (find_product_for_ad_generation or find_rotating_candidate)",
+        "Adds the new environment variable in all three required places: .env, the web-ui environment block in docker-compose.yml, and os.getenv in the code",
+        "Uses an os.getenv default matching the value placed in .env",
+        "Handles the case where the cooldown would exclude every candidate, rather than allowing selection to return nothing indefinitely",
+        "Notes that web-ui is baked into its image so the change needs make build (not just a container restart), unlike aig/src which is bind-mounted"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "reenable-price-overlay",
+      "prompt": "Something's off with /aig/minf/ — I send price_details and the API accepts it, but the price never shows up on the generated image. Meanwhile the same field works fine through the predefined-ad path. Figure out why and fix it.",
+      "expected_output": "Identifies that the price-drawing block is commented out in aig/src/server/apis/modelinf.py while predefinedads.py applies it, then re-enables it in the correct position in the price -> promo -> frame -> logo -> slogan chain, keeping the img_postprice variable threading intact.",
+      "files": [],
+      "assertions": [
+        "Identifies that the price block is commented out in aig/src/server/apis/modelinf.py as the root cause",
+        "Notes the asymmetry that predefinedads.py does apply the price overlay, explaining the reported difference between the two paths",
+        "Places the re-enabled price drawing before promo in the overlay chain and keeps the image variable threading (img_postprice feeding into the promo step) consistent",
+        "Uses the existing ImgDecorator methods (draw_price_circle / draw_price_raw) and respects the price_in_circle flag rather than writing new drawing code",
+        "Mentions that aig/src is bind-mounted so the change can be verified with docker restart aig-server rather than a full rebuild"
+      ]
+    }
+  ]
+}

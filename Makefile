@@ -19,6 +19,13 @@ export ACCEL_MOUNT_PATH
 # Define the path to the .env file and scripts
 ENV_FILE = ./.env
 HELM_PACKAGE_SCRIPT = ./package_helm.sh
+SCRIPTS_DIR = ./scripts
+DOWNLOAD_MODELS_SCRIPT = $(SCRIPTS_DIR)/download-models.sh
+CHECK_STACK_SCRIPT = $(SCRIPTS_DIR)/check-stack.sh
+
+# Pass FORCE=1 to re-download models that are already present
+FORCE ?=
+MODEL_FORCE_FLAG = $(if $(filter 1 true yes,$(FORCE)),--force,)
 
 include $(ENV_FILE)
 export $(shell sed 's/=.*//' $(ENV_FILE))
@@ -54,6 +61,24 @@ check_models:
 		echo "Models found in $$dir directory."; \
 	done
 
+
+# Download and prepare every model the stack needs: YOLO11s (detection) into
+# configs/pid/models/, SDXL-Turbo and MiniLM into aig/models/. Idempotent - already
+# populated targets are skipped unless FORCE=1 is passed. Expect tens of minutes on a
+# first run, mostly the SDXL-Turbo export.
+.PHONY: download_models
+download_models:
+	@$(DOWNLOAD_MODELS_SCRIPT) $(MODEL_FORCE_FLAG)
+
+# Only the YOLO11s detection model (configs/pid/models/)
+.PHONY: download_models_pid
+download_models_pid:
+	@$(DOWNLOAD_MODELS_SCRIPT) --pid-only $(MODEL_FORCE_FLAG)
+
+# Only the SDXL-Turbo and MiniLM models (aig/models/)
+.PHONY: download_models_aig
+download_models_aig:
+	@$(DOWNLOAD_MODELS_SCRIPT) --aig-only $(MODEL_FORCE_FLAG)
 
 .PHONY: validate_host_ip
 validate_host_ip:
@@ -112,40 +137,17 @@ up: check_models check_env_variables validate_host_ip down
 	$(DOCKER_COMPOSE) up -d;
 	
 
+# Health of the deployed stack: container state and restart counts, recent log errors,
+# and live probes of the web UI and AIG API endpoints. Exits non-zero on failures.
+.PHONY: check_stack
+check_stack:
+	@$(CHECK_STACK_SCRIPT)
+
 # Status of the deployed containers
 .PHONY: status
-status:
-	@echo "Status of the deployed containers..."; \
-	docker ps -a --filter "name=^ia-" --filter "name=mr_" --filter "name=model_" --filter "name=wind-turbine" --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"; \
-	echo "Parsing the logs of all containers to catch any error messages..."; \
-	sleep 20; \
-	containers=$$(docker ps -a --filter "name=^ia-" --filter "name=mr_" --filter "name=model_" --filter "name=wind-turbine" --format "{{.Names}}"); \
-	failure_cont_flag=0; \
-	for container in $$containers; do \
-		errors=$$(docker logs --tail 5 $$container 2>&1 | grep -i "error"); \
-		error_count=0; \
-		if [ -n "$$errors" ]; then \
-			error_count=$$(echo "$$errors" | wc -l); \
-		fi; \
-		if [ $$error_count -gt 0 ]; then \
-			echo ""; \
-			echo "=============Found errors in container $$container========"; \
-			echo "$$errors"; \
-			echo "******************************************************"; \
-			echo ""; \
-			failure_cont_flag=1; \
-		fi; \
-	done; \
-	if [ $$failure_cont_flag -eq 0 ]; then \
-		echo ""; \
-		echo "All containers are up and running without errors."; \
-		echo ""; \
-	else \
-		echo ""; \
-		echo "Some containers have errors. Please check the logs above."; \
-		echo ""; \
-	fi;
-	
+status: check_stack
+
+
 # Removes docker compose containers and volumes
 .PHONY: down
 down:
@@ -165,11 +167,18 @@ push_images: build
 .PHONY: help
 help:
 	@echo "Makefile commands:"
-	@echo "  make build    - Build Docker containers"
+	@echo "  make download_models        - Download and prepare all models (YOLO11s, SDXL-Turbo, MiniLM)"
+	@echo "  make download_models_pid    - Download only the YOLO11s detection model"
+	@echo "  make download_models_aig    - Download only the SDXL-Turbo and MiniLM models"
+	@echo "                                add FORCE=1 to re-download models already present"
+	@echo "  make build                  - Build Docker containers"
 	@echo "  make build_copyleft_sources - Build Docker containers including copyleft licensed sources"
-	@echo "  make up    - Start Docker containers"
-	@echo "  make down     - Stop Docker containers"
-	@echo "  make restart  - Restart Docker containers"
-	@echo "  make clean    - Remove all stopped containers and unused images"
-	@echo "  make push_images     - Push the images to docker registry"
-	@echo "  make help     - Display this help message"
+	@echo "  make up                     - Validate env and models, then start Docker containers"
+	@echo "  make down                   - Stop Docker containers and remove volumes"
+	@echo "  make status                 - Check stack health: containers, logs and endpoints"
+	@echo "  make check_stack            - Same as 'make status'"
+	@echo "  make check_models           - Verify the model directories are populated"
+	@echo "  make check_env_variables    - Verify the WebRTC credentials in .env"
+	@echo "  make validate_host_ip       - Verify HOST_IP in .env"
+	@echo "  make push_images            - Push the images to docker registry"
+	@echo "  make help                   - Display this help message"

@@ -1,0 +1,47 @@
+{
+  "skill_name": "digital-signage-user",
+  "evals": [
+    {
+      "id": 0,
+      "name": "fresh-clone-bringup",
+      "prompt": "I just cloned this digital-signage repo onto a fresh NUC with an Intel iGPU. Docker's installed and that's about it. Walk me through everything I need to do to get the demo actually running in a browser — I've never deployed this before and I'd rather not discover a missing step three hours in.",
+      "expected_output": "An ordered bring-up procedure covering: model download (all three models), setting the two empty MTX WebRTC credentials in .env with their validation rules, HOST_IP guidance, make build && make up, verification, and the correct URL https://localhost:5000 over HTTPS with a self-signed-cert warning.",
+      "files": [],
+      "assertions": [
+        "States that MTX_WEBRTCICESERVERS2_0_USERNAME and MTX_WEBRTCICESERVERS2_0_PASSWORD ship empty and must be set before make up will succeed",
+        "Gives the actual validation rules for those credentials (username letters-only min 5; password alphanumeric min 8 with at least one digit)",
+        "Covers downloading all three models (YOLO11s detection, SDXL-Turbo, MiniLM embeddings) before make up",
+        "Gives the access URL as https on port 5000 (not http) and mentions the self-signed certificate warning",
+        "Presents the steps in a workable order with model download and .env config before make up"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "black-video-stuck-ad",
+      "prompt": "ok so the stack is up, all containers running, and I can load the web ui from my laptop at https://192.168.1.50:5000 — but the video area is just black and the ad panel is stuck showing the same image forever. worked fine when i was testing on the machine itself. what's going on",
+      "expected_output": "Identifies HOST_IP still being localhost (or otherwise wrong) as the likely root cause of the black video for a remote browser, because HOST_IP is interpolated into the TURN URL handed to the browser. Separately explains the stuck ad panel, including the 204 No Content polling semantics.",
+      "files": [],
+      "assertions": [
+        "Identifies HOST_IP as the likely cause of the black video and explains it is substituted into the TURN/ICE server URL given to the browser",
+        "Notes that the symptom appearing only for a remote browser (worked locally) is the diagnostic signal for HOST_IP=localhost",
+        "Addresses the stuck ad panel as a separate issue rather than assuming one root cause explains both",
+        "Mentions concrete diagnostic commands or log checks rather than only offering speculation",
+        "States that .env changes require make up (not docker restart) to take effect"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "npu-and-rtsp-camera",
+      "prompt": "two changes i need to make: run the object detection on the NPU instead of CPU, and stop using the sample video — point it at our RTSP camera at 10.0.0.42 (creds are viewer/viewer123, path is /stream1). tell me exactly what to edit.",
+      "expected_output": "Names configs/pid/config.json for both changes: the device field under payload.parameters.detection-properties, and the pipeline string's source element replaced with rtspsrc plus rtph264depay. Distinguishes detection device from AIG_MODEL_DEVICE.",
+      "files": [],
+      "assertions": [
+        "Names configs/pid/config.json as the file to edit for BOTH the device change and the RTSP source change",
+        "Sets the detection device via the payload parameters detection-properties device field, not via an environment variable",
+        "Provides an rtspsrc pipeline that includes rtph264depay before h264parse",
+        "Distinguishes the detection device from the AIG/SDXL generation device (AIG_MODEL_DEVICE) rather than conflating them",
+        "Mentions the NPU requires /dev/accel on the host, or otherwise flags the device-availability prerequisite"
+      ]
+    }
+  ]
+}

@@ -18,7 +18,7 @@ services:
       - app_network
   
   dlstreamer-pipeline-server:
-    image: intel/dlstreamer-pipeline-server:2026.1.0-ubuntu24
+    image: ${DOCKER_REGISTRY}${DLSTREAMER_PIPELINE_SERVER_IMAGE}
     hostname: dlstreamer-pipeline-server
     container_name: dlstreamer-pipeline-server
     read_only: true
@@ -92,7 +92,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.18.2
+    image: bluenviron/mediamtx:1.19.3
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
@@ -157,7 +157,7 @@ services:
       - chroma_data:/tmp
 
   aig-server:
-    image: aig-server:1.0.0
+    image: ${DOCKER_REGISTRY}${AIG_SERVER_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     hostname: aig-server
     container_name: aig-server
     read_only: true
@@ -243,7 +243,7 @@ services:
       - "/dev/dri:/dev/dri"
 
   web-ui:
-    image: digital-signage-webui:1.0.0
+    image: ${DOCKER_REGISTRY}${WEB_UI_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     hostname: web-ui
     container_name: web-ui
     read_only: true
@@ -280,7 +280,7 @@ services:
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
   
   nginx:
-    image: nginx:1.31.1-trixie-perl
+    image: nginx:1.31.3
     container_name: nginx_proxy
     read_only: true
     security_opt:

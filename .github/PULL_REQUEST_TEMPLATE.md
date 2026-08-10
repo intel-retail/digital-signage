@@ -1,82 +1,21 @@
-<!-- Please fill out the following pull request template for non-trivial changes to help us process your PR faster and more efficiently.-->
 
-### PULL DESCRIPTION
-<!--
-* I added this neat new feature
-* Also fixed a typo in a parameter name in module_xxx
--->
+### Description
 
-## Basic Info
+Please include a summary of the changes and the related issue. List any dependencies that are required for this change.
 
-| Info | Please fill out this column |
-| ------ | ----------- |
-| Environment used | (e.g. Ubuntu 20.04) |
-| ROS Version | (e.g. Foxy) |
-| Ticket Link | (e.g. https://jira.devtools.intel.com/browse/SL6-1100) |
+Fixes # (issue)
 
----
-### REFERENCES
-Reference URL for issue tracking (JIRA/HSD/Github): **\<URL to be filled>**
-- [ ] **_Added label to the Pull Request following the template: ISDM\_\<Complexity>\*_** \
-	Note-1: Depending on complexity of code changes, use the suitable word for complexity: Low/Medium/High \
-	Example: PR for Slim boot loader project with medium complexity can have the label as: ISDM_Medium
-- [ ] Added label to the Pull Request for easier discoverability and search
+### Any Newly Introduced Dependencies
 
-### CODE MAINTAINABILITY
-- [ ] **_Commit Message meets guidelines as indicated in the URL\*_** -> defined in [Contributing](CONTRIBUTING.md)
-- [ ] **_Every commit is a single defect fix and does not mix feature addition or changes\*_**
-- [ ] Added required tests -> Added required new tests relevant to the changes
-	- [ ] PR contains URL links to functional tests executed with the new tests 
-- [ ] Updated relevant documentation
-- [ ] Updated build steps/commands
-- [ ] PR change contains code related to security
-- [ ] PR introduces breaking change. (If YES, please provide description)
-- [ ] Specific instructions or information for code reviewers (If any):
+Please describe any newly introduced 3rd party dependencies in this change. List their name, license information and how they are used in the project.
 
+### How Has This Been Tested?
 
-Maintainer Mandatory (to be filled by PR Reviewer/Approving Maintainer)
------------------------------------------------------------------------
-- Maintainer who approves the Pull Request for merge is required to mark the checklist below as appropriate for the PR change reviewed as key proof of attestation indicating reasons for merge. 
-- Those checklist items which are not marked are considered as not applicable for the PR change. 
-- Items marked with an asterisk suffix are mandatory items to check and if not marked will be treated as non-compliant pull requests by the maintainers for ISDM compliance.
+Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
 
-### QUALITY CHECKS
-- [ ] Architectural and Design Fit
-- [ ] **_Quality of code (At least one should be checked as applicable)\*_**
-	- [ ] Commit Message meets guidelines
-	- [ ] PR changes adhere to industry practices and standards
-	- [ ] Upstream expectations are met
-	- [ ] Adopted domain specific coding standards
-	- [ ] Error and exception code paths implemented correctly
-	- [ ] Code reviewed for domain or language specific anti-patterns
-	- [ ] Code is adequately commented
-	- [ ] Code copyright is correct
-	- [ ] Tracing output are minimized and logic
-	- [ ] Confusing logic is explained in comments
-	- [ ] Commit comment can be used to design a new test case for the changes
-- [ ] **_Test coverage shows adequate coverage with required CI functional tests pass on all supported platforms\*_**
-- [ ] **_Static code scan report shows zero critical issues\*_**
+### Checklist:
 
-### CODE REVIEW IMPACT
-- Summary of Defects Detected in Code Review: **\<%P1*xx,P2*xx,P3*xx,P4*xx%>** \
-Note P1/P2/P3/P4 denotes severity of defects found (Showstopper/High/Medium/Low) and xx denotes number of defects found
-
-
-### SECURITY CHECKS
-Please check if your PR fulfills the following requirements:
-
-- [ ] Avoid checks that rely on the result of undefined C behavior.
-Instead, clarify the check condition using defined behaviors. Example: `if (x > INT_MAX-100)` instead of `if (x + 100 < x)`
-- [ ] Use safe arithmetic to avoid integer overflow.
-- [ ] Follow best practices when handling primitive data types
-- [ ] Follow security best practices when dealing with pointers
-- [ ] Avoid uncontrolled format strings
-- [ ] Prevent buffer overflow/underflow
-- [ ] Avoid unsafe functions
-- [ ] Configure minimal permissions when opening pipes and ports
-- [ ] Check contents within input structures are valid before use
-- [ ] All forms of input validated
-- [ ] Avoid inter-process race conditions
-- [ ] Error and exception handling implemented
-- [ ] Use keywords and #pragma to constrain gcc compiler optimization
-- [ ] Prevent compiler from optimizing out security checks
+- [ ] I agree to use the APACHE-2.0 license for my code changes.
+- [ ] I have not introduced any 3rd party components incompatible with APACHE-2.0. 
+- [ ] I have not included any company confidential information, trade secret, password or security token. 
+- [ ] I have performed a self-review of my code.

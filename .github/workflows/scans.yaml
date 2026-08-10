@@ -134,7 +134,7 @@ jobs:
       - name: Upload Trivy Image Scan Report
         if: ${{ always() && ((inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans')) }}
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Trivy Report - Image Scan
           path: trivy-image-scan*
@@ -152,7 +152,7 @@ jobs:
       - name: Upload Trivy FS Scan Report
         if: ${{ always() && ((inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans')) }}
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Trivy Report - Filesystem Scan
           path: |
@@ -238,7 +238,7 @@ jobs:
         EOF
         python3 convert_json_to_csv.py
     - name: Upload Scan Reports
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
       with:
         name: bandit-report
         path: |
@@ -265,7 +265,7 @@ jobs:
           > ./reports/clamav-digital-signage-report.txt || true
         echo "Please find full report in clamav-digital-signage-report.txt" >> $GITHUB_STEP_SUMMARY
     - name: Upload Scan Reports
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
       with:
         name: virus-reports
         path: reports/clamav-digital-signage-report.txt
@@ -366,7 +366,7 @@ jobs:
 
       - name: Upload DBS Scan artifact to Github
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: DBS_digital_signage
           path: dbs_scan_digital_signage.txt
@@ -444,7 +444,7 @@ jobs:
           zip codeql_digital_signage_reports.zip results-digital-signage/python.sarif sarif_digital_signage_report.pdf
 
       - name: Upload ZIP Artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Digital Signage CodeQL Reports
           path: codeql_digital_signage_reports.zip
@@ -477,7 +477,7 @@ jobs:
           pylint web-ui/ > web-ui/pylint-report.txt 2>&1 || true
 
       - name: Upload Pylint reports
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: pylint-reports
           path: |

@@ -1,7 +1,7 @@
 openvino-tokenizers==2026.2.1.0
 
-optimum-intel[nncf]==1.27.0
-diffusers==0.38.0
+optimum-intel[nncf]==2.0.0
+diffusers==0.39.0
 
 hf_transfer==0.1.9
-huggingface-hub==0.36.0
+huggingface-hub==1.26.0

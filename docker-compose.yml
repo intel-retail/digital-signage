@@ -215,6 +215,7 @@ services:
       - ase-chromadb
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
+      - vol_pipeline_root:/home/ubuntu/.cache
       - "/run/udev:/run/udev:ro"
       - "/dev/dri:/dev/dri"
       - "/tmp:/tmp"

@@ -175,7 +175,7 @@ jobs:
           - dockerfile-path: web-ui/Dockerfile
             output-report-path: trivy-webui-dockerfile.json
             scan-name: Digital Signage Web UI Dockerfile
-    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@e6e04af3dbca805db9118b85a22ad2998f7eec39
+    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@7fd82949f313423d30c39d43c0c0be638ea522c7
     with:
       dockerfile-path: ${{ matrix.dockerfile-path }}
       trivy-report-format: 'json'

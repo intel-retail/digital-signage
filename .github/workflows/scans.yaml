@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install Trivy from Aqua Security APT repo
@@ -134,7 +134,7 @@ jobs:
       - name: Upload Trivy Image Scan Report
         if: ${{ always() && ((inputs.target == 'trivy-image-scan') || (inputs.target == 'all-scans')) }}
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Trivy Report - Image Scan
           path: trivy-image-scan*
@@ -152,7 +152,7 @@ jobs:
       - name: Upload Trivy FS Scan Report
         if: ${{ always() && ((inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans')) }}
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Trivy Report - Filesystem Scan
           path: |
@@ -175,7 +175,7 @@ jobs:
           - dockerfile-path: web-ui/Dockerfile
             output-report-path: trivy-webui-dockerfile.json
             scan-name: Digital Signage Web UI Dockerfile
-    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@e6e04af3dbca805db9118b85a22ad2998f7eec39
+    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@7fd82949f313423d30c39d43c0c0be638ea522c7
     with:
       dockerfile-path: ${{ matrix.dockerfile-path }}
       trivy-report-format: 'json'
@@ -191,7 +191,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Checkout digital-signage repository
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
@@ -238,7 +238,7 @@ jobs:
         EOF
         python3 convert_json_to_csv.py
     - name: Upload Scan Reports
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
       with:
         name: bandit-report
         path: |
@@ -253,7 +253,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Checkout digital-signage repository
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
     - name: Run Virus Scan
@@ -265,7 +265,7 @@ jobs:
           > ./reports/clamav-digital-signage-report.txt || true
         echo "Please find full report in clamav-digital-signage-report.txt" >> $GITHUB_STEP_SUMMARY
     - name: Upload Scan Reports
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
       with:
         name: virus-reports
         path: reports/clamav-digital-signage-report.txt
@@ -277,7 +277,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Check the system
@@ -289,7 +289,7 @@ jobs:
           docker compose version
 
       - name: Checkout docker/docker-bench-security (v1.6.1)
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: docker/docker-bench-security
           ref: 154869da6418089decf7e1ab0cfca0e1cdfc5c49 # v1.6.1
@@ -366,7 +366,7 @@ jobs:
 
       - name: Upload DBS Scan artifact to Github
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: DBS_digital_signage
           path: dbs_scan_digital_signage.txt
@@ -382,24 +382,24 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           languages: 'python'
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           category: "/language:python"
           upload: "never"
           output: results-digital-signage
 
       - name: Set up Python
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
         with:
           python-version: '3.x'
 
@@ -444,7 +444,7 @@ jobs:
           zip codeql_digital_signage_reports.zip results-digital-signage/python.sarif sarif_digital_signage_report.pdf
 
       - name: Upload ZIP Artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: Digital Signage CodeQL Reports
           path: codeql_digital_signage_reports.zip
@@ -457,12 +457,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
         with:
           python-version: '3.11'
 
@@ -477,7 +477,7 @@ jobs:
           pylint web-ui/ > web-ui/pylint-report.txt 2>&1 || true
 
       - name: Upload Pylint reports
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: pylint-reports
           path: |

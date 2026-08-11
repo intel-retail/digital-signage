@@ -1,0 +1,125 @@
+---
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+name: "[Industrial Edge Insights Multimodal and Time Series] Push Docker Images and Helm Charts"
+run-name: "[Industrial Edge Insights Multimodal and Time Series] Push Docker Images and Helm Charts (by @${{ github.actor }} via ${{ github.event_name }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Branch or tag to checkout (default: main)'
+        required: false
+        type: string
+        default: 'main'
+      image_suffix:
+        description: 'Suffix to append to the Docker image tag'
+        required: false
+        type: string
+        default: ''
+      weekly_build_date:
+        description: 'Date value format: yyyymmdd (e.g., 20260101)'
+        required: false
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Branch or tag to checkout (default: main)'
+        required: false
+        type: string
+        default: 'main'
+      image_suffix:
+        description: 'Suffix to append to the Docker image tag'
+        required: false
+        type: string
+        default: ''
+      weekly_build_date:
+        description: 'Date value format: yyyymmdd (e.g., 20260101)'
+        required: false
+        type: string
+        default: ''
+permissions: {}
+
+concurrency:
+  group: timeseries-push-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || 'main' }}
+  IMAGE_SUFFIX: ${{ inputs.image_suffix || '' }}
+  WEEKLY_BUILD_DATE: ${{ inputs.weekly_build_date || '' }}
+
+
+jobs:
+  build-docker-images:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Fix git safe directory for self-hosted runner
+        run: git config --global --add safe.directory '*'
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Print workflow inputs
+        run: |
+          echo "tag               : $TAG"
+          echo "image_suffix      : $IMAGE_SUFFIX"
+          echo "weekly_build_date : $WEEKLY_BUILD_DATE"
+      - name: Print Docker info
+        run: |
+          docker version
+          docker info | grep -i storage
+      - name: Runner workspace path
+        run: |
+          echo "Cleaning up previous run"
+          if [ -n "$(docker ps -aq)" ]; then
+              docker stop $(docker ps -aq)
+          fi
+          if [ -n "$(docker ps -aq)" ]; then
+              docker rm $(docker ps -aq)
+          fi
+          docker images --quiet --filter=dangling=true | xargs --no-run-if-empty docker rmi -f
+      
+      - name: Update .env with image suffix
+        if: ${{ inputs.image_suffix != '' }}
+        run: |
+          cd "${{ github.workspace }}"
+          sed -i "s|^IMAGE_SUFFIX=.*|IMAGE_SUFFIX=\"${IMAGE_SUFFIX}\"|" ./.env
+
+      - name: Update .env with weekly build date
+        if: ${{ inputs.weekly_build_date != '' }}
+        run: |
+          cd "${{ github.workspace }}"
+          sed -i "s|^WEEKLY_BUILD_DATE=.*|WEEKLY_BUILD_DATE=\"${WEEKLY_BUILD_DATE}\"|" ./.env
+
+      - name: Building images
+        run: |
+          cd "${{ github.workspace }}"
+          make down
+          make build
+  
+  push-docker-images:
+    needs: [build-docker-images]
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: login to docker registry
+        run: |
+          echo ${{ secrets.TS_DOCKER_HUB }} | docker login -u oepbot --password-stdin
+  
+      - name: Push images to registry
+        run: |
+          cd "${{ github.workspace }}"
+          source .env
+          make down
+          make push_images

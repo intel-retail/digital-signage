@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-name: "[Industrial Edge Insights Multimodal and Time Series] Push Docker Images and Helm Charts"
-run-name: "[Industrial Edge Insights Multimodal and Time Series] Push Docker Images and Helm Charts (by @${{ github.actor }} via ${{ github.event_name }})"
+name: "[Digital Signage] Push Docker Images"
+run-name: "[Digital Signage] Push Docker Images (by @${{ github.actor }} via ${{ github.event_name }})"
 
 on:
   workflow_dispatch:

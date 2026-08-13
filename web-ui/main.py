@@ -25,6 +25,7 @@ AIG_SERVER_URL = os.getenv('AIG_SERVER_URL', 'http://aig-server:5003')
 AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
 AIG_PREDEFINED_AD_STORE_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/"
 AIG_PREDEFINED_AD_QUERY_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/query/ad"
+AIG_INFERENCE_DEVICE = (os.getenv('AIG_INFERENCE_DEVICE', 'GPU')).upper()  # Default to GPU if not specified
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -430,7 +431,7 @@ class Ad_Generator(threading.Thread):
             if not data_available_predefined:
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
-                aig_payload["device"] = "GPU"
+                aig_payload["device"] = AIG_INFERENCE_DEVICE
                 dynamic_http_start = time.time()
                 aig_response = self.http_session.post(
                     AIG_DYNAMIC_AD_ENDPOINT,

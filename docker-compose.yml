@@ -272,6 +272,7 @@ services:
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
+      - AIG_INFERENCE_DEVICE=${AIG_MODEL_DEVICE} # Default Device to run the model on (e.g., CPU, GPU)
     depends_on:
       - mediamtx
       - aig-server

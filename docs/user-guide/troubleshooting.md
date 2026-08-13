@@ -170,3 +170,28 @@ In this scenario, `ENOSPC` is usually not caused by hard drive capacity. It is c
 
 If needed, also verify inode availability (`df -i`) and open file limits (`ulimit -n`) on the host.
 
+## 7. SDXL-Turbo and MiniLM Models (for AIG) Download Failed
+
+**Issue**
+
+The AIG model download fails with the following error:
+
+```bash
+save_model(model, path, compress_to_fp16)
+RuntimeError: basic_ios::clear: iostream error
+```
+
+**Reason**
+
+The `/tmp` partition has less than 15 GB of free space, which is required to stage model files during download.
+
+**Solution**
+
+Choose one of the following options:
+
+1. Increase the available space on `/tmp` to at least 15 GB.
+2. Redirect the temporary directory to your home folder by running the following commands, then re-run the model download in the same shell session:
+
+   ```bash
+   mkdir -p ~/tmp
+   export TMPDIR=$HOME/tmp

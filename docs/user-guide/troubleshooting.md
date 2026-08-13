@@ -192,6 +192,7 @@ Choose one of the following options:
 1. Increase the available space on `/tmp` to at least 15 GB.
 2. Redirect the temporary directory to your home folder by running the following commands, then re-run the model download in the same shell session:
 
-   ```bash
-   mkdir -p ~/tmp
-   export TMPDIR=$HOME/tmp
+  ```bash
+  mkdir -p ~/tmp
+  export TMPDIR=$HOME/tmp
+  ```

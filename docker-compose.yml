@@ -289,7 +289,7 @@ services:
     - no-new-privileges
     restart: unless-stopped
     command: >
-     /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
+     /bin/sh -c "sh /usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
     environment:
       no_proxy: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
       NO_PROXY: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"

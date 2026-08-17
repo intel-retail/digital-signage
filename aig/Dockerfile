@@ -26,7 +26,7 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 # Install Intel GPU tools and clean up
-RUN apt-get update && apt-get install -y curl libnuma1 ocl-icd-libopencl1 --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* && update-ca-certificates && \
+RUN apt-get update && apt-get install -y --no-install-recommends curl libnuma1 ocl-icd-libopencl1 ca-certificates && rm -rf /var/lib/apt/lists/* && update-ca-certificates && \
     mkdir /tmp/gpu_deps && cd /tmp/gpu_deps && \
     # intel graphics compiler
     curl --fail -L -O https://github.com/intel/intel-graphics-compiler/releases/download/v2.38.2/intel-igc-core-2_2.38.2+22051_amd64.deb && \

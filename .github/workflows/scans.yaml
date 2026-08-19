@@ -175,7 +175,7 @@ jobs:
           - dockerfile-path: web-ui/Dockerfile
             output-report-path: trivy-webui-dockerfile.json
             scan-name: Digital Signage Web UI Dockerfile
-    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@26b6e9a501f22167e8b844324dfdb1f346110623
+    uses: open-edge-platform/edge-ai-libraries/.github/workflows/trivy-config-mode.yaml@186b8cb8dded6f928cc9017649fb17edab873e55
     with:
       dockerfile-path: ${{ matrix.dockerfile-path }}
       trivy-report-format: 'json'
@@ -339,7 +339,7 @@ jobs:
           pip3 install -r export-requirements.txt && \
           export HF_HUB_ENABLE_HF_TRANSFER=1 && \
           optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-          huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
+          hf download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
           deactivate && \
           cd ../
 
@@ -387,12 +387,12 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           languages: 'python'
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           category: "/language:python"
           upload: "never"

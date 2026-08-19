@@ -285,6 +285,7 @@ services:
     image: nginx:1.31.3
     container_name: nginx_proxy
     read_only: true
+    user: "2999:2999" # Use a non-root user for security
     security_opt:
     - no-new-privileges
     restart: unless-stopped

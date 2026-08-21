@@ -1,3 +1,12 @@
+<!-- markdownlint-disable MD013 MD033 MD041 MD042 -->
+<div align="center">
+
+[![Pull Request](https://github.com/intel-retail/digital-signage/actions/workflows/pull-request.yaml/badge.svg)](https://github.com/intel-retail/digital-signage/actions/workflows/pull-request.yaml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/intel-retail/digital-signage/badge)](https://securityscorecards.dev/viewer/?uri=github.com/intel-retail/digital-signage)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
+
 # Digital Signage: Context-Aware, Cross-Selling
 
 ## Overview

@@ -181,3 +181,4 @@ configs/pid/.modelenv
 configs/pid/models/
 configs/pid/downloadAndQuantizeModel*.sh
 aig/sharedata/imgs/
+aig/test/__pycache__/

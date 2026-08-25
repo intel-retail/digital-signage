@@ -189,6 +189,7 @@ services:
       - REST_SERVER_PORT=${AIG_PORT}      
       - SERVICE_NAME=aig-server
       - ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so
+      - AIG_VERSION=${IMAGE_SUFFIX}
       - AIG_PORT=${AIG_PORT}
       - AIG_LOGO_PATH=${AIG_LOGO_PATH}
       - AIG_FONT_PATH=${AIG_FONT_PATH}

@@ -6,7 +6,8 @@
 
 This release introduces **multi-object detection with priority-based ad selection**,
 **WCL integration for improved product matching**, and **CI/CD GitHub Actions workflows**,
-along with a repository reorganization and various dependency upgrades and bug fixes.
+along with deployment hardening, expanded user-guide coverage, and various dependency
+upgrades and bug fixes.
 
 **New**
 
@@ -27,9 +28,16 @@ along with a repository reorganization and various dependency upgrades and bug f
 - **Nginx**: the nginx reverse proxy service is now active in the Docker Compose deployment.
 - **AIG Container**: AIG base image updated to Ubuntu 24.04 with aligned container and
   dependency versions.
+- **Web UI Runtime Configuration**: web UI now uses configurable runtime parameters
+  from environment settings, with matching updates in Compose, CI workflows, and
+  troubleshooting guidance.
+- **Deployment Hardening**: hardened repository download and extraction handling in
+  container build and deployment flows to reduce risk from malformed zip payloads.
 - **PTL Platform Support**: added Intel PTL platform drivers for the AIG module.
 - **Configurable AIG Inference Steps**: AIG inference steps are now configurable via
   the environment.
+- **Documentation**: expanded the user guide with setup, API reference, troubleshooting,
+  custom-model usage notes, and an updated architecture diagram.
 - **Security**: fixed a vulnerability in web UI request handling; upgraded urllib3,
   diffusers, pillow, requests, and flask to latest available versions.
 
@@ -37,6 +45,12 @@ along with a repository reorganization and various dependency upgrades and bug f
 
 - **ChromaDB Startup**: fixed a connectivity issue that prevented the ASe service from
   starting correctly.
+- **AIG API Proxy Routing**: fixed AIG API endpoint behavior behind nginx so
+  proxied requests and swagger-triggered calls resolve to the correct service routes.
+- **Nginx Runtime User**: fixed nginx container runtime user mapping to UID 2999 for
+  consistent execution in the deployed stack.
+- **Tokenizer Compatibility**: fixed an openvino-tokenizers version mismatch in AIG
+  requirements and model inference dependency alignment.
 
 ---
 

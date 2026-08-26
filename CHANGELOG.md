@@ -2,6 +2,66 @@
 
 All notable changes to this project are documented in this file.
 
+## [2026.2] - September 2026
+
+### Added
+- Added multi-object detection and recency-based filtering in web UI, with configurable confidence and ad display timing controls. ([#13])
+- Added WCL-based product label normalization and association lookup to improve ad selection and rotation behavior. ([#26])
+- Added pull-request and security scan workflows, along with in-repo skills for changelog and release-note generation. ([#29]) ([#31]) ([#32])
+- Added PTL driver support and GitHub governance templates for contributor workflows. ([a8fd2b7]) ([998f874])
+
+### Changed
+- Reorganized repository paths under configs and enabled nginx reverse proxy in the default Compose deployment. ([#28])
+- Changed web UI and deployment runtime settings to use configurable parameters and localhost-based host access. ([#63]) ([#40])
+- Updated container image details, DL Streamer baseline tag, and architecture assets used in documentation. ([#44]) ([a439412]) ([#37])
+- Hardened zip-based deployment behavior by invoking cert-generation through shell, adding CA certificates, and enforcing startup script permissions. ([#66])
+
+### Removed
+- Removed the Basket simulation video from default PID resources. ([8eaca2c])
+
+### Fixed
+- Fixed AIG server API behavior and nginx runtime UID mapping in deployment. ([#78]) ([#75])
+- Fixed OpenVINO tokenizer version mismatch and ChromaDB startup/runtime issues. ([#34]) ([ac8e48e])
+- Fixed pillow version pinning mismatch in requirements. ([#8])
+
+### Security
+- Bumped key dependencies including urllib3, diffusers, pillow, requests, and flask across AIG and web UI components. ([#14]) ([#15]) ([#19]) ([#20]) ([#23]) ([#41]) ([be09a7e]) ([0f73556]) ([5d29dae]) ([75143e5]) ([60379d3])
+
+### Documentation
+- Added docs site structure and expanded user guides, including custom model usage notes, MediaMTX troubleshooting, and prepublishing review updates. ([#30]) ([#35]) ([#36]) ([#39])
+- Updated contributing guidance documentation. ([e4816df]) ([2221c13])
+
+---
+[#8]: https://github.com/intel-retail/digital-signage/pull/8
+[#13]: https://github.com/intel-retail/digital-signage/pull/13
+[#14]: https://github.com/intel-retail/digital-signage/pull/14
+[#15]: https://github.com/intel-retail/digital-signage/pull/15
+[#19]: https://github.com/intel-retail/digital-signage/pull/19
+[#20]: https://github.com/intel-retail/digital-signage/pull/20
+[#23]: https://github.com/intel-retail/digital-signage/pull/23
+[#37]: https://github.com/intel-retail/digital-signage/pull/37
+[#39]: https://github.com/intel-retail/digital-signage/pull/39
+[#40]: https://github.com/intel-retail/digital-signage/pull/40
+[#41]: https://github.com/intel-retail/digital-signage/pull/41
+[#44]: https://github.com/intel-retail/digital-signage/pull/44
+[#63]: https://github.com/intel-retail/digital-signage/pull/63
+[#66]: https://github.com/intel-retail/digital-signage/pull/66
+[#75]: https://github.com/intel-retail/digital-signage/pull/75
+[#78]: https://github.com/intel-retail/digital-signage/pull/78
+[0f73556]: https://github.com/intel-retail/digital-signage/commit/0f735566bdeae7e2dc9b405f452c70af95ac3b9b
+[2221c13]: https://github.com/intel-retail/digital-signage/commit/2221c130fc85977dadd83f0ef4cf3264074487db
+[5d29dae]: https://github.com/intel-retail/digital-signage/commit/5d29dae79c0f739d7781f50891e43d946a383303
+[60379d3]: https://github.com/intel-retail/digital-signage/commit/60379d301a6755e5f90748c609ded46ecb5ba3c2
+[75143e5]: https://github.com/intel-retail/digital-signage/commit/75143e5d6e7298001a99b75448c8518c6e5413e7
+[8eaca2c]: https://github.com/intel-retail/digital-signage/commit/8eaca2c8cc8d091b977039b3375c3ee9e15b5fa7
+[998f874]: https://github.com/intel-retail/digital-signage/commit/998f874a2ad2fd2857d72aa53a22cc156648ad0e
+[a439412]: https://github.com/intel-retail/digital-signage/commit/a439412be8a72d2d7d9869fe5ec336f6617f83c9
+[a8fd2b7]: https://github.com/intel-retail/digital-signage/commit/a8fd2b731facad516823f1d2b9f90f79d0b6a378
+[ac8e48e]: https://github.com/intel-retail/digital-signage/commit/ac8e48e32c0792d46f965bf61cd37a0eea8277f6
+[be09a7e]: https://github.com/intel-retail/digital-signage/commit/be09a7e5cf171c50e27afc5a2543d92272699103
+[e4816df]: https://github.com/intel-retail/digital-signage/commit/e4816df363bb793776dcb47b0e63467add27d4fc
+
+
 ## [1.0.0] - January 2026
 
 ### Added

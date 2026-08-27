@@ -87,7 +87,10 @@ COPY src/requirements.txt /home/aigserver/src/requirements.txt
 USER root
 
 RUN /python3venv/bin/pip3 install --no-cache-dir -r /home/aigserver/src/requirements.txt
-RUN rm -rf /python3venv/lib/python3.12/site-packages/setuptools/_vendor/jaraco.context-5.3.0.dist-info
+RUN rm -rf /python3venv/lib/python3.12/site-packages/setuptools/_vendor/jaraco.context-5.3.0.dist-info && \
+    python -m pip uninstall -y pip && \
+    rm -rf /usr/lib/python3/dist-packages/python3/dist-packages/pip/_vendor && \
+    rm -rf /usr/lib/python3/dist-packages/setuptools-68.1.2.egg-info
 
 # Copy source code
 COPY ./run.sh .

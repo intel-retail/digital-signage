@@ -92,7 +92,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.19.3
+    image: bluenviron/mediamtx:1.20.1
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
@@ -283,7 +283,7 @@ services:
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
   
   nginx:
-    image: nginx:1.31.3
+    image: nginx:1.31.4
     container_name: nginx_proxy
     read_only: true
     user: "2999:2999" # Use a non-root user for security

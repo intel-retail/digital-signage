@@ -18,7 +18,7 @@ Docker images pulled from docker hub:
 =====================================
 
 License-Identifier: MIT
-- bluenviron/mediamtx:1.19.3
+- bluenviron/mediamtx:1.20.1
 ----------------------------------------------------------------------
 
 License-Identifier: EPL-2.0/EPL-1.0
@@ -31,12 +31,12 @@ License-Identifier: Apache 2.0
 ----------------------------------------------------------------------
 
 License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").
-- coturn/coturn:4.12.0
+- coturn/coturn:4.17.2-alpine
 
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-2-Clause
-- nginx:1.31.3
+- nginx:1.31.4
 
 ---------------------------------------------------------------------------------------------------------------------------
 

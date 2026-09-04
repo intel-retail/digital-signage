@@ -55,7 +55,7 @@ To configure Docker:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/intel-retail/digital-signage
+git clone https://github.com/intel-retail/digital-signage -b main
 cd digital-signage
 ```
 

@@ -64,4 +64,4 @@ Returns the current advertisement for the requesting browser client.
 
 PID is powered by DL Streamer Pipeline Server. The full REST API reference for pipeline management and status is available at:
 
-- [DL Streamer Pipeline Server API Reference](https://docs.openedgeplatform.intel.com/2026.1/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)
+- [DL Streamer Pipeline Server API Reference](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)

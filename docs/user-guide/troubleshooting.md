@@ -1,20 +1,20 @@
 # Troubleshooting
 
-This article contains troubleshooting steps for known issues. If you encounter a problem not listed here, check the [GitHub Issues](https://github.com/intel-retail/digital-signage/issues) board or file a new ticket after reviewing the [Contributing guidelines](https://github.com/intel-retail/digital-signage/blob/main/CONTRIBUTING.md).
+This article contains troubleshooting steps for known issues. If you encounter a problem not listed here, check the [GitHub Issues](https://github.com/intel-retail/digital-signage/issues) board or file a new ticket after reviewing the [Contributing guidelines](https://github.com/intel-retail/digital-signage/blob/release-2026.2.0/CONTRIBUTING.md).
 
 ---
 
 ## 1. Build Fails During `make build`
 
-**Issue**
+**Issue**:
 
 `make build` exits with an error during Docker image construction.
 
-**Reason**
+**Reason**:
 
 Docker Engine or Docker Compose is not installed, not running, or the host cannot reach the internet to download dependencies.
 
-**Solution**
+**Solution**:
 
 - Verify Docker Engine and Docker Compose are installed and running:
 
@@ -29,11 +29,11 @@ Docker Engine or Docker Compose is not installed, not running, or the host canno
 
 ## 2. Containers Keep Restarting
 
-**Issue**
+**Issue**:
 
 One or more containers enter a restart loop after `make up`.
 
-**Solution**
+**Solution**:
 
 Check which container is restarting and review its logs:
 
@@ -51,15 +51,15 @@ Common causes:
 
 ## 3. No Advertisements Displayed in the Browser
 
-**Issue**
+**Issue**:
 
 The Web UI loads but no advertisements appear.
 
-**Reason**
+**Reason**:
 
 Detections are not reaching the Web UI via MQTT, or detected labels are not mapped in `ProductAssociations.csv`.
 
-**Solution**
+**Solution**:
 
 1. Confirm that PID is publishing detections to MQTT by checking PID container logs:
 
@@ -81,15 +81,15 @@ Detections are not reaching the Web UI via MQTT, or detected labels are not mapp
 
 ## 4. Slow Ad Generation on Low-Resource Systems
 
-**Issue**
+**Issue**:
 
 Ad generation is slow on low-resource systems.
 
-**Reason**
+**Reason**:
 
 Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the two compete for GPU resources, leaving insufficient capacity for AIG and causing slow ad generation rendering instability.
 
-**Solution**
+**Solution**:
 
 - Use Google Chrome.
 - On low-resource systems, launch Chrome with GPU acceleration disabled:
@@ -110,11 +110,11 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
 ## 5. Model Download Fails
 
-**Issue**
+**Issue**:
 
 The YOLO11s or AIG model download step exits with an error.
 
-**Solution**
+**Solution**:
 
 - Confirm internet access and proxy settings.
 - Ensure Python virtual environment creation succeeds (`python3 -m venv`).
@@ -125,54 +125,54 @@ The YOLO11s or AIG model download step exits with an error.
 
 ## 6. Video Not Rendering in Browser (MediaMTX `no space left on device`)
 
-**Issue**
+**Issue**:
 
 The browser page loads, but video does not render. MediaMTX logs show `no space left on device` (`ENOSPC`).
 
-**Reason**
+**Reason**:
 
 In this scenario, `ENOSPC` is usually not caused by hard drive capacity. It is commonly caused by exhausting Linux host resources such as inotify watches, inotify instances, open file descriptor limits, or filesystem inodes.
 
-**Solution**
+**Solution**:
 
 1. Confirm current inotify limits on the host:
 
-  ```bash
-  cat /proc/sys/fs/inotify/max_user_watches
-  cat /proc/sys/fs/inotify/max_user_instances
-  ```
+   ```bash
+   cat /proc/sys/fs/inotify/max_user_watches
+   cat /proc/sys/fs/inotify/max_user_instances
+   ```
 
 2. Increase the limits by editing sysctl configuration:
 
-  ```bash
-  sudo nano /etc/sysctl.conf
-  ```
+   ```bash
+   sudo nano /etc/sysctl.conf
+   ```
 
 3. Append the following values at the end of the file:
 
-  ```text
-  fs.inotify.max_user_watches=1048576
-  fs.inotify.max_user_instances=10000
-  ```
+   ```text
+   fs.inotify.max_user_watches=1048576
+   fs.inotify.max_user_instances=10000
+   ```
 
 4. Apply the updated kernel parameters immediately:
 
-  ```bash
-  sudo sysctl -p
-  ```
+   ```bash
+   sudo sysctl -p
+   ```
 
 5. Redeploy the Digital Signage stack and verify MediaMTX is healthy:
 
-  ```bash
-  make up
-  docker logs -f mediamtx
-  ```
+   ```bash
+   make up
+   docker logs -f mediamtx
+   ```
 
 If needed, also verify inode availability (`df -i`) and open file limits (`ulimit -n`) on the host.
 
 ## 7. SDXL-Turbo and MiniLM Models (for AIG) Download Failed
 
-**Issue**
+**Issue**:
 
 The AIG model download fails with the following error:
 
@@ -181,11 +181,11 @@ save_model(model, path, compress_to_fp16)
 RuntimeError: basic_ios::clear: iostream error
 ```
 
-**Reason**
+**Reason**:
 
 The `/tmp` partition has less than 15 GB of free space, which is required to stage model files during download.
 
-**Solution**
+**Solution**:
 
 Choose one of the following options:
 

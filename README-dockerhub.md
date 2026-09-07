@@ -2,11 +2,11 @@
 
 ## Digital Signage Web UI
 
-The Digital Signage web UI delivers the storefront experience for the solution, rendering live or simulated video streams, product detections, and promotional content in a retail environment. It serves as the user-facing layer for presenting dynamic recommendations, predefined ads, and contextual product messaging.
+The Digital Signage web UI is a Flask-based microservice that subscribes to product detection events published over MQTT, applies temporal filtering and product-selection logic against `ProductAssociations.csv`, and requests a predefined or AI-generated advertisement (from ASe or AIG) for each selected product. It then serves the live video stream and the current advertisement to browser clients.
 
 ## Advertise Image Generator Server
 
-The Advertise Image Generator (AIG) server creates context-aware promotional content based on detected products and configured product associations. It uses AI-driven ad generation to produce relevant visuals and messaging that align with the current scene and retail context.
+The Advertise Image Generator (AIG) server is an AI microservice that generates dynamic advertisement images using a Stable Diffusion XL Turbo text-to-image model via OpenVINO™ GenAI. It receives product details (price, promo text, slogan) from the Web UI's `/aig/minf/` request and returns a generated ad image when no predefined advertisement is available.
 
 ## Supported Versions
 

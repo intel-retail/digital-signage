@@ -4,3 +4,4 @@ requests==2.34.2
 numpy==2.5.1
 Pillow==12.3.0
 paho-mqtt==2.1.0
+mcp>=1.2.0,<2

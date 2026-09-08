@@ -270,6 +270,7 @@ services:
       - TIME_TO_DISPLAY_AD_SECONDS=${TIME_TO_DISPLAY_AD_SECONDS}
       - OBJECT_RECENCY_FRAME_COUNT=${OBJECT_RECENCY_FRAME_COUNT}
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
+      - AIG_DEVICE=${AIG_MODEL_DEVICE:-GPU} # Device for dynamic ad generation; should match what AIG can serve
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
     depends_on:
@@ -279,6 +280,11 @@ services:
     volumes:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
+      - ./web-ui/context_rules.json:/app/context_rules.json:ro
+    expose:
+      - "5100" # MCP server (agent-facing tools), reached internally via nginx
+    ports:
+      - "5100:5100" # TEMP: direct plain-HTTP access for MCP client debugging; remove once TLS/proxy path is confirmed working
   
   nginx:
     image: nginx:1.31.1-trixie-perl
@@ -288,7 +294,7 @@ services:
     - no-new-privileges
     restart: unless-stopped
     command: >
-     /bin/sh -c "/usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
+     /bin/sh -c "sh /usr/local/bin/nginx-cert-gen.sh && exec nginx -g 'daemon off;'"
     environment:
       no_proxy: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
       NO_PROXY: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"

@@ -1,6 +1,7 @@
 import io
 import os
 import gc
+import threading
 #Flask API
 from flask import send_file
 from flask_restx import Namespace, Resource, fields
@@ -28,6 +29,9 @@ if not logger.handlers:
 #AIGServer Environment
 from database.version import AigServerMetadata
 from imgproc.img_frame import ImgDecorator
+
+# Text2ImagePipeline.generate() is not thread-safe; serialize access across concurrent requests
+model_lock = threading.Lock()
 
 
 api = Namespace('AIG - Inference with Added-Value Services', description='Advertise Image Generation')
@@ -218,7 +222,11 @@ class ModelInference_Img(Resource):
                 pipe = AigServerMetadata().get_preloaded_model()
 
             if pipe is None:
-                pipe = openvino_genai.Text2ImagePipeline(model, device)
+                try:
+                    pipe = openvino_genai.Text2ImagePipeline(model, device)
+                except Exception as e:
+                    logger.error(f"Image Generation. Failed to create pipeline for device {device}: {e}")
+                    return f"Device {device} unavailable: {str(e)[:200]}", 500
             start_time = time.time()          
             image_tensor = None
             max_retries = 3
@@ -226,8 +234,9 @@ class ModelInference_Img(Resource):
             while counter < max_retries:
                 try:
                     # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
-                    image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
-                                                    num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1)
+                    with model_lock:
+                        image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
+                                                        num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1)
                     if image_tensor is not None and len(image_tensor.data) > 0:
                         counter = max_retries  # Exit loop if image generation is successful
                 except Exception as e:

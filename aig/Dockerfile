@@ -90,5 +90,7 @@ RUN rm -rf /python3venv/lib/python3.10/site-packages/setuptools/_vendor/jaraco.c
 COPY ./run.sh .
 COPY ./src/ ./src
 
+RUN chmod +x ./run.sh
+
 USER ${USER}
 ENTRYPOINT ["./run.sh"]

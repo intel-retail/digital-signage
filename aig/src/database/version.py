@@ -107,21 +107,14 @@ class AigServerMetadata:
 
     @staticmethod
     def is_device_available(device: str) -> bool:
-        """
-        Check if the specified device is available.
-        :param device: Device type (e.g., 'GPU', 'CPU').
-        :return: True if the device is available, False otherwise.
-        """
+        if device.upper() == 'CPU':
+            return True  # CPU is always present; skip ov.Core() which probes GPU and crashes without hardware
         try:
             core = ov.Core()
-            core.available_devices
-            if device in core.available_devices:
-                return True
+            return device in core.available_devices
         except Exception as e:
             logger.error(f"[OpenVINO] Error checking device availability: {e}")
             return False
-        
-        return False
         
     @staticmethod
     def version():

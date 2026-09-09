@@ -100,7 +100,7 @@ class AigServerMetadata:
     """
     Metadata for AIG Server.
     """
-    __version__ = "0.1.0"
+    __version__ = os.getenv("AIG_VERSION")
     __name_short = "AIG Server"
     __name_extended = "Advertise Image Generator (AIG) Server"
     __description_short = "It creates advertise image dyncamically based on a text description."

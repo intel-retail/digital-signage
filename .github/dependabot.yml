@@ -12,7 +12,20 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "/web-ui"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      python-deps:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/aig/src"
     schedule:
       interval: "daily"
     cooldown:

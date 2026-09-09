@@ -21,7 +21,7 @@ product detection. You can replace it with your own video file.
    "multifilesrc loop=TRUE location=/home/pipeline-server/resources/externalvideos/<VIDEO_FILE_NAME>.avi name=source ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark displ-cfg=\"font-scale=1.5,thickness=3,color-idx=2,font-type=plain\" ! gvafpscounter ! appsink name=destination"
    ```
 
-   > **Note:** To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/2026.1/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
+   > **Note:** To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/2026.2/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
 
 3. **Redeploy** the application:
 

@@ -271,10 +271,9 @@ services:
       - TIME_TO_DISPLAY_AD_SECONDS=${TIME_TO_DISPLAY_AD_SECONDS}
       - OBJECT_RECENCY_FRAME_COUNT=${OBJECT_RECENCY_FRAME_COUNT}
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
-      - AIG_DEVICE=${AIG_MODEL_DEVICE:-GPU} # Device for dynamic ad generation; should match what AIG can serve
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
-      - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Default Device to run the model on (e.g., CPU, GPU)
+      - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Device for dynamic ad generation; should match what AIG can serve
     depends_on:
       - mediamtx
       - aig-server

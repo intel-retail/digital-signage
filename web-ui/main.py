@@ -157,6 +157,7 @@ class Ad_Generator(threading.Thread):
         self.agent_override_until = 0.0
         self.agent_override_item = None
         self.agent_override_generating = False  # True while background generation is in progress
+        self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
         self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
     def run(self):
         """Main thread loop to process messages from queue"""
@@ -714,18 +715,21 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
         for a in associations:
             a['slogan'] = slogan
 
+    # Held across the acquire check and the background thread's generation so nothing can
+    # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
     if not ad_generator_Obj._generation_lock.acquire(blocking=False):
         return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
-    ad_generator_Obj._generation_lock.release()
 
     def _generate_and_set(item_name, assocs, secs):
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = item_name
+        my_epoch = ad_generator_Obj.override_epoch
         try:
-            with ad_generator_Obj._generation_lock:
-                ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-                captured = ad_generator_Obj.last_generated_ad  # capture inside lock before camera can overwrite
-            if captured:
+            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
+            captured = ad_generator_Obj.last_generated_ad
+            if ad_generator_Obj.override_epoch != my_epoch:
+                logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
+            elif captured:
                 ad_generator_Obj.agent_override_ad = captured
                 ad_generator_Obj.agent_override_until = time.time() + secs
                 logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
@@ -734,8 +738,13 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
                 ad_generator_Obj.agent_override_item = None
         finally:
             ad_generator_Obj.agent_override_generating = False
+            ad_generator_Obj._generation_lock.release()
 
-    threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    try:
+        threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    except RuntimeError:
+        ad_generator_Obj._generation_lock.release()
+        return {'error': 'Failed to start ad generation; try again in a few seconds.'}
     logger.info(f"Agent ad generation started for '{resolved}' ({display_seconds}s), returning immediately")
     return {
         'status': 'generating',
@@ -752,6 +761,7 @@ def clear_agent_override():
     ad_generator_Obj.agent_override_ad = None
     ad_generator_Obj.agent_override_until = 0.0
     ad_generator_Obj.agent_override_item = None
+    ad_generator_Obj.override_epoch += 1  # invalidates any generation started before this clear
     logger.info(f"Agent cleared override ad (was: {prev_item})")
     return {'status': 'ok', 'cleared_item': prev_item}
 
@@ -846,18 +856,21 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             'timing_ms': {'total': total_ms}, 'status': 'ok'
         }
 
+    # Held across the acquire check and the background thread's generation so nothing can
+    # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
     if not ad_generator_Obj._generation_lock.acquire(blocking=False):
         return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
-    ad_generator_Obj._generation_lock.release()
 
     def _generate_and_set(item_name, assocs, secs):
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = item_name
+        my_epoch = ad_generator_Obj.override_epoch
         try:
-            with ad_generator_Obj._generation_lock:
-                ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-                captured = ad_generator_Obj.last_generated_ad
-            if captured:
+            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
+            captured = ad_generator_Obj.last_generated_ad
+            if ad_generator_Obj.override_epoch != my_epoch:
+                logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
+            elif captured:
                 ad_generator_Obj.agent_override_ad = captured
                 ad_generator_Obj.agent_override_until = time.time() + secs
                 logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
@@ -866,8 +879,13 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
                 ad_generator_Obj.agent_override_item = None
         finally:
             ad_generator_Obj.agent_override_generating = False
+            ad_generator_Obj._generation_lock.release()
 
-    threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    try:
+        threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    except RuntimeError:
+        ad_generator_Obj._generation_lock.release()
+        return {'error': 'Failed to start ad generation; try again in a few seconds.'}
     return {'resolved_product': resolved, 'matched_rule': matched_rule, 'status': 'generating', 'display_seconds': display_seconds}
 
 

@@ -283,8 +283,6 @@ services:
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
     expose:
       - "5100" # MCP server (agent-facing tools), reached internally via nginx
-    ports:
-      - "5100:5100" # TEMP: direct plain-HTTP access for MCP client debugging; remove once TLS/proxy path is confirmed working
   
   nginx:
     image: nginx:1.31.1-trixie-perl

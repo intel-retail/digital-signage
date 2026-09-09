@@ -19,7 +19,8 @@ class AigServer:
         api.init_app(self.app) # Initializing APIs in App
         logger.info(f"API initialized")
 
-    def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port(), pdebug : bool = False): # nosec B104
+    def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port()): # nosec B104
         # threaded=True so ASe (ChromaDB) requests aren't blocked behind slow AIG image generation
-        return self.app.run(host= hostname, port=pport, debug=pdebug, threaded=True)
+        # Debug mode is never enabled from this runtime path.
+        return self.app.run(host= hostname, port=pport, debug=False, threaded=True)
     

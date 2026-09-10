@@ -1,0 +1,14 @@
+{
+  "rules": [
+    { "weather": "rain", "product": "coffee" },
+    { "weather": "cold", "product": "coffee" },
+    { "weather": "snow", "product": "coffee" },
+    { "weather": "hot",  "product": "iced_coffee" },
+    { "weather": "sunny", "product": "iced_coffee" },
+    { "daypart": "morning", "product": "coffee" },
+    { "daypart": "lunch",   "product": "sandwich" },
+    { "age_mix": "kids", "product": "hot_dog" },
+    { "demand": "high", "product": "pizza" }
+  ],
+  "default_product": "banana"
+}

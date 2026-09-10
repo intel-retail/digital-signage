@@ -273,7 +273,7 @@ services:
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
-      - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Default Device to run the model on (e.g., CPU, GPU)
+      - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Device for dynamic ad generation; should match what AIG can serve
     depends_on:
       - mediamtx
       - aig-server
@@ -281,6 +281,9 @@ services:
     volumes:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
+      - ./web-ui/context_rules.json:/app/context_rules.json:ro
+    expose:
+      - "5100" # MCP server (agent-facing tools), reached internally via nginx
   
   nginx:
     image: nginx:1.31.4

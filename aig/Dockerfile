@@ -87,8 +87,7 @@ COPY src/requirements.txt /home/aigserver/src/requirements.txt
 USER root
 
 RUN /python3venv/bin/pip3 install --no-cache-dir -r /home/aigserver/src/requirements.txt
-RUN python -m pip uninstall -y pip && \
-    rm -rf /usr/lib/python3.12/ensurepip/_bundled
+RUN python -m pip uninstall -y pip
 
 # Copy source code
 COPY ./run.sh .

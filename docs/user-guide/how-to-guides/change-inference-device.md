@@ -19,10 +19,10 @@ Update the `device` parameter in `configs/pid/config.json`:
 
 ## AIG (Advertise Image Generator)
 
-Set the `AIG_MODEL_DEVICE` variable in `.env`:
+Set the `AIG_INFERENCE_DEVICE` variable in `.env`:
 
 ```text
-AIG_MODEL_DEVICE=GPU
+AIG_INFERENCE_DEVICE=GPU
 ```
 
 **Available options:** `CPU`, `GPU`

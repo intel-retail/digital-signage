@@ -107,6 +107,11 @@ class AigServerMetadata:
 
     @staticmethod
     def is_device_available(device: str) -> bool:
+        """
+        Check if the specified device is available.
+        :param device: Device type (e.g., 'GPU', 'CPU').
+        :return: True if the device is available, False otherwise.
+        """
         if device.upper() == 'CPU':
             return True  # CPU is always present; skip ov.Core() which probes GPU and crashes without hardware
         try:

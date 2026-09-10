@@ -431,7 +431,7 @@ class Ad_Generator(threading.Thread):
             if not data_available_predefined:
                 logger.info(f"Pre-defined advertisement not found for product: {label}, Generating dynamic advertisement.")
                 aig_payload["description"] = description
-                aig_payload["device"] = AIG_INFERENCE_DEVICE
+                aig_payload["device"] = AIG_INFERENCE_DEVICE if AIG_INFERENCE_DEVICE.upper() in {"CPU", "GPU"} else "GPU"
                 dynamic_http_start = time.time()
                 aig_response = self.http_session.post(
                     AIG_DYNAMIC_AD_ENDPOINT,

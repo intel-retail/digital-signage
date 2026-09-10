@@ -7,7 +7,7 @@
 FROM python:3.13-slim
 
 # Install system dependencies for OpenCV and build tools
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libsm6 \

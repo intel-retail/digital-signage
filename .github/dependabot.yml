@@ -16,7 +16,7 @@ updates:
       github-actions-dependency:
         applies-to: version-updates
         patterns:
-          - "*
+          - "*"
 
   - package-ecosystem: "pip"
     directory: "/web-ui"

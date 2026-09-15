@@ -6,10 +6,17 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions-dependency:
+        applies-to: version-updates
+        patterns:
+          - "*
 
   - package-ecosystem: "pip"
     directory: "/web-ui"

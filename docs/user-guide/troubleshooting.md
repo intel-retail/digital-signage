@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This article contains troubleshooting steps for known issues. If you encounter a problem not listed here, check the [GitHub Issues](https://github.com/intel-retail/digital-signage/issues) board or file a new ticket after reviewing the [Contributing guidelines](https://github.com/intel-retail/digital-signage/blob/release-2026.2.0/CONTRIBUTING.md).
+This article contains troubleshooting steps for known issues. If you encounter a problem not listed here, check the [GitHub Issues](https://github.com/intel-retail/digital-signage/issues) board or file a new ticket after reviewing the [Contributing guidelines](https://github.com/intel-retail/digital-signage/blob/main/CONTRIBUTING.md).
 
 ---
 

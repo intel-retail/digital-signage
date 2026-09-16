@@ -282,8 +282,6 @@ services:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
-    expose:
-      - "5100" # MCP server (agent-facing tools), reached internally via nginx
   
   nginx:
     image: nginx:1.31.4

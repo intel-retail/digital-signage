@@ -6,12 +6,46 @@
 
 version: 2
 updates:
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/*"
+      - "/*/*"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 1
+    groups:
+      docker-deps:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker-compose"
+    directories:
+      - "/"
+      - "/*"
+      - "/*/*"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 1
+    groups:
+      docker-compose-deps:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     cooldown:
       default-days: 7
+    open-pull-requests-limit: 1
     groups:
       github-actions-dependency:
         applies-to: version-updates
@@ -19,25 +53,14 @@ updates:
           - "*"
 
   - package-ecosystem: "pip"
-    directory: "/web-ui"
+    directories:
+      - "/*"
+      - "/*/*"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     cooldown:
       default-days: 7
-    open-pull-requests-limit: 5
-    groups:
-      python-deps:
-        applies-to: version-updates
-        patterns:
-          - "*"
-
-  - package-ecosystem: "pip"
-    directory: "/aig/src"
-    schedule:
-      interval: "daily"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
     groups:
       python-deps:
         applies-to: version-updates

@@ -26,6 +26,8 @@ AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
 AIG_PREDEFINED_AD_STORE_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/"
 AIG_PREDEFINED_AD_QUERY_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/query/ad"
 AIG_INFERENCE_DEVICE = (os.getenv('AIG_INFERENCE_DEVICE', 'GPU')).upper()  # Default to GPU if not specified
+# Context rules for select_dynamic_ad (MCP action); empty dict means the feature is unavailable
+context_rules = {}
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,7 +106,7 @@ def load_product_associations(csv_path):
                                     'Content-Type': 'application/json'
                                 },
                                 json=aig_payload,
-                                timeout=5
+                                timeout=15
                             )
                         if aig_response.status_code == 200:
                             logger.info(f"Successfully stored pre-defined ad for {primary_product}")
@@ -149,6 +151,12 @@ class Ad_Generator(threading.Thread):
         self.product_generation_count = {}
         self.last_association_index_by_label = {}
         self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
+        self.agent_override_ad = None
+        self.agent_override_until = 0.0
+        self.agent_override_item = None
+        self.agent_override_generating = False  # True while background generation is in progress
+        self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
+        self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
     def run(self):
         """Main thread loop to process messages from queue"""
         self.running = True
@@ -159,6 +167,10 @@ class Ad_Generator(threading.Thread):
                 global message_queue
                 if not message_queue.empty():
                     label_set = message_queue.get(timeout=1)
+                    # Skip camera generation while agent is generating to prevent race condition
+                    if self.agent_override_generating:
+                        message_queue.task_done()
+                        continue
                     if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
                         item = self.find_product_for_ad_generation(label_set)
                         if item is None:
@@ -169,7 +181,8 @@ class Ad_Generator(threading.Thread):
                         # Prepare the API payload for AIG server
                         if not associations:
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
-                        self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                        with self._generation_lock:
+                            self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
                         self.last_generated_timestamp = time.time()
                     message_queue.task_done()
                 else:
@@ -409,7 +422,7 @@ class Ad_Generator(threading.Thread):
                         'Content-Type': 'application/json'
                     },
                     json=aig_payload,
-                    timeout=5
+                    timeout=15
                 )
                 predefined_http_elapsed = time.time() - predefined_http_start
 
@@ -477,7 +490,11 @@ class Ad_Generator(threading.Thread):
             self.last_known_height = height
         if width:
             self.last_known_width = width
-        
+
+        # Agent-commanded override takes priority; served continuously until expiry
+        if self.agent_override_ad and time.time() < self.agent_override_until:
+            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}"
+
         # Return None if no ad has been generated yet
         if self.last_generated_ad is None or client_id is None:
             return None, 0
@@ -669,6 +686,223 @@ def get_current_advertisement():
         return jsonify({'status': 'ok'}), 204
 
 
+def normalize_display_seconds(value, default=60):
+    """Coerce a display_seconds input to a positive int; falls back to default on non-numeric or non-positive values."""
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
+    """Resolve a raw item name and display its ad. Shared by the REST route and the MCP trigger_ad tool."""
+    global ad_generator_Obj, product_associations
+
+    resolved = resolve_product_label(item)
+    if not resolved or resolved not in product_associations:
+        return {'error': f'Unknown item: {item}', 'available_items': sorted(product_associations.keys())}
+
+    display_seconds = normalize_display_seconds(display_seconds)
+    associations = [dict(a) for a in product_associations[resolved]]
+    # Applied to every variant, not just index 0, since generate_advertisement may pick any variant index
+    if promo_text:
+        for a in associations:
+            a['promo_details'] = promo_text
+    if slogan:
+        for a in associations:
+            a['slogan'] = slogan
+
+    # Held across the acquire check and the background thread's generation so nothing can
+    # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
+    if not ad_generator_Obj._generation_lock.acquire(blocking=False):
+        return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
+
+    def _generate_and_set(item_name, assocs, secs):
+        ad_generator_Obj.agent_override_generating = True
+        ad_generator_Obj.agent_override_item = item_name
+        my_epoch = ad_generator_Obj.override_epoch
+        try:
+            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
+            captured = ad_generator_Obj.last_generated_ad
+            if ad_generator_Obj.override_epoch != my_epoch:
+                logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
+            elif captured:
+                ad_generator_Obj.agent_override_ad = captured
+                ad_generator_Obj.agent_override_until = time.time() + secs
+                logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
+            else:
+                logger.error(f"Agent ad generation produced no image for '{item_name}'")
+                ad_generator_Obj.agent_override_item = None
+        finally:
+            ad_generator_Obj.agent_override_generating = False
+            ad_generator_Obj._generation_lock.release()
+
+    try:
+        threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    except RuntimeError:
+        ad_generator_Obj._generation_lock.release()
+        return {'error': 'Failed to start ad generation; try again in a few seconds.'}
+    logger.info(f"Agent ad generation started for '{resolved}' ({display_seconds}s), returning immediately")
+    return {
+        'status': 'generating',
+        'item': resolved,
+        'display_seconds': display_seconds,
+        'message': f"Ad for '{resolved}' is being generated and will appear on the display shortly. Use get_active_ad to check when it is live."
+    }
+
+
+def clear_agent_override():
+    """Clear the agent-commanded override and return to camera-driven ad flow. Used by the MCP clear_ad tool."""
+    global ad_generator_Obj
+    prev_item = ad_generator_Obj.agent_override_item
+    ad_generator_Obj.agent_override_ad = None
+    ad_generator_Obj.agent_override_until = 0.0
+    ad_generator_Obj.agent_override_item = None
+    ad_generator_Obj.override_epoch += 1  # invalidates any generation started before this clear
+    logger.info(f"Agent cleared override ad (was: {prev_item})")
+    return {'status': 'ok', 'cleared_item': prev_item}
+
+
+def get_active_ad_info():
+    """Build the current display status as a dict; used by the get_current_ad MCP tool."""
+    global ad_generator_Obj
+    now = time.time()
+    if ad_generator_Obj.agent_override_generating:
+        return {'mode': 'generating', 'item': ad_generator_Obj.agent_override_item, 'seconds_remaining': None}
+    if ad_generator_Obj.agent_override_ad and now < ad_generator_Obj.agent_override_until:
+        return {'mode': 'agent', 'item': ad_generator_Obj.agent_override_item,
+                'seconds_remaining': round(ad_generator_Obj.agent_override_until - now, 1)}
+    return {'mode': 'camera', 'item': ad_generator_Obj.last_selected_item, 'seconds_remaining': None}
+
+
+def load_context_rules(path):
+    """Load context-to-product resolution rules used by select_dynamic_ad. Missing/invalid file disables the feature."""
+    global context_rules
+    try:
+        with open(path, 'r') as f:
+            context_rules = json.load(f)
+        logger.info(f"Loaded {len(context_rules.get('rules', []))} context rules from {path}")
+    except Exception as e:
+        logger.warning(f"Could not load context rules from {path}: {str(e)}. select_dynamic_ad will be unavailable.")
+        context_rules = {}
+
+
+def _normalize_context_value(value):
+    """Trim and lowercase a context value so e.g. 'Rain' / ' rain ' match the rules file's 'rain'."""
+    return str(value).strip().lower() if value is not None else None
+
+
+def resolve_context_to_product(context):
+    """Match a context dict against context_rules; the rule matching the most fields wins. Matching is
+    case/whitespace-insensitive but still requires an exact value match otherwise (no fuzzy/synonym matching)."""
+    normalized_context = {k: _normalize_context_value(v) for k, v in context.items()}
+    best_rule, best_score = None, -1
+    for rule in context_rules.get('rules', []):
+        score, matched = 0, True
+        for key in ('weather', 'demand', 'age_mix', 'daypart'):
+            rule_val = rule.get(key)
+            if rule_val is None:
+                continue
+            if normalized_context.get(key) != _normalize_context_value(rule_val):
+                matched = False
+                break
+            score += 1
+        if matched and score > best_score:
+            best_rule, best_score = rule, score
+    if best_rule:
+        return best_rule.get('product'), best_rule
+    default_product = context_rules.get('default_product')
+    return (default_product, {'default': True}) if default_product else (None, None)
+
+
+def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
+    """Resolve a context dict to a product and display its ad. Shared by the REST route and the MCP tool."""
+    global ad_generator_Obj, product_associations
+
+    product, matched_rule = resolve_context_to_product(context)
+    if not product:
+        return {'error': 'no matching rule and no default_product configured'}
+
+    resolved = resolve_product_label(product)
+    if not resolved or resolved not in product_associations:
+        return {'error': f"resolved product '{product}' is not in the catalog"}
+
+    associations = [dict(a) for a in product_associations[resolved]]
+    display_seconds = normalize_display_seconds(display_seconds)
+
+    if benchmark:
+        # Synchronous call: waiting its turn on the lock (rather than failing fast) is the expected behavior here.
+        ad_generator_Obj.agent_override_generating = True
+        ad_generator_Obj.agent_override_item = resolved
+        try:
+            start = time.time()
+            with ad_generator_Obj._generation_lock:
+                ad_generator_Obj.generate_advertisement(resolved, associations, check_predefined=True, dummy_ad=False)
+                captured = ad_generator_Obj.last_generated_ad
+            total_ms = round((time.time() - start) * 1000)
+        finally:
+            ad_generator_Obj.agent_override_generating = False
+        if not captured:
+            return {'error': f"ad generation failed for '{resolved}'"}
+        ad_generator_Obj.agent_override_ad = captured
+        ad_generator_Obj.agent_override_until = time.time() + display_seconds
+        ad_generator_Obj.agent_override_item = resolved
+        source = 'predefined' if 'Pre-defined' in (ad_generator_Obj.time_taken_last_generated_ad or '') else 'aig'
+        return {
+            'resolved_product': resolved, 'matched_rule': matched_rule, 'source': source,
+            'timing_ms': {'total': total_ms}, 'status': 'ok'
+        }
+
+    # Held across the acquire check and the background thread's generation so nothing can
+    # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
+    if not ad_generator_Obj._generation_lock.acquire(blocking=False):
+        return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
+
+    def _generate_and_set(item_name, assocs, secs):
+        ad_generator_Obj.agent_override_generating = True
+        ad_generator_Obj.agent_override_item = item_name
+        my_epoch = ad_generator_Obj.override_epoch
+        try:
+            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
+            captured = ad_generator_Obj.last_generated_ad
+            if ad_generator_Obj.override_epoch != my_epoch:
+                logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
+            elif captured:
+                ad_generator_Obj.agent_override_ad = captured
+                ad_generator_Obj.agent_override_until = time.time() + secs
+                logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
+            else:
+                logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")
+                ad_generator_Obj.agent_override_item = None
+        finally:
+            ad_generator_Obj.agent_override_generating = False
+            ad_generator_Obj._generation_lock.release()
+
+    try:
+        threading.Thread(target=_generate_and_set, args=(resolved, associations, display_seconds), daemon=True).start()
+    except RuntimeError:
+        ad_generator_Obj._generation_lock.release()
+        return {'error': 'Failed to start ad generation; try again in a few seconds.'}
+    return {'resolved_product': resolved, 'matched_rule': matched_rule, 'status': 'generating', 'display_seconds': display_seconds}
+
+
+def get_catalog_summary(full=False):
+    """Build a per-product catalog summary; used by the get_catalog MCP tool."""
+    global product_associations
+    summary = []
+    for product, entries in product_associations.items():
+        if not entries:
+            continue
+        base = entries[0]
+        cross_sells = sorted({e['associated_cross_sell'] for e in entries if e.get('associated_cross_sell')})
+        item = {'product': product, 'price': base.get('price'), 'unit': base.get('unit'), 'cross_sells': cross_sells}
+        if full:
+            item['variants'] = entries
+        summary.append(item)
+    return summary
+
+
 # Initialize the application
 def initialize_app():
     """Initialize the video streaming application"""
@@ -686,7 +920,14 @@ def initialize_app():
         load_product_associations(csv_path)
     else:
         logger.warning(f"Product associations CSV not found at {csv_path}")
-    
+
+    # Load context rules for select_dynamic_ad (MCP action); safe to be missing, feature just stays disabled
+    context_rules_path = "/app/context_rules.json"
+    if os.path.exists(context_rules_path):
+        load_context_rules(context_rules_path)
+    else:
+        logger.warning(f"Context rules file not found at {context_rules_path}. select_dynamic_ad will be unavailable.")
+
     # Start message processor thread
     try:
         ad_generator_Obj.start()
@@ -739,8 +980,16 @@ if __name__ == '__main__':
 
         # Initialize the application
         initialize_app()
-         
-        
+
+        # Start MCP server (agent-facing tools) in its own daemon thread; failures here are isolated
+        try:
+            from mcp_server import run_mcp_server
+            mcp_thread = threading.Thread(target=run_mcp_server, daemon=True)
+            mcp_thread.start()
+            logger.info("MCP server thread started")
+        except Exception as e:
+            logger.error(f"Failed to start MCP server thread: {str(e)}")
+
         # Keep main thread alive
         try:
             while True:

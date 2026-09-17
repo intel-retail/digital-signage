@@ -19,4 +19,4 @@ if __name__ == '__main__':
     aigserver = AigServer()
 
     # Registering the clean up function    
-    aigserver.run(hostname="0.0.0.0", pport=args.port, pdebug=True,) # nosec B104
+    aigserver.run(hostname="0.0.0.0", pport=args.port) # nosec B104

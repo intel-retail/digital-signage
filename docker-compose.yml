@@ -281,6 +281,7 @@ services:
     volumes:
       - ./web-ui/ProductAssociations.csv:/app/ProductAssociations.csv:ro
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
+      - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
   nginx:
     image: nginx:1.31.4

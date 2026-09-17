@@ -35,10 +35,14 @@ RUN groupadd $USER -g $UID && \
     useradd -r -u $UID -g $USER $USER
 
 COPY main.py .
+COPY mcp_server.py .
 COPY templates/ ./templates/
 
 USER ${USER}
 
 HEALTHCHECK --interval=5m CMD exit 0
+
+# MCP server (agent-facing tools), Streamable HTTP, internal-only unless proxied
+EXPOSE 5100
 
 ENTRYPOINT ["python3", "main.py"]

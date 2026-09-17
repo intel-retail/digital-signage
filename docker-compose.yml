@@ -92,7 +92,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.20.1
+    image: bluenviron/mediamtx:1.21.0
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
@@ -124,7 +124,7 @@ services:
     - app_network
 
   coturn:
-    image: coturn/coturn:4.17.2-alpine
+    image: coturn/coturn:4.18.0-alpine
     container_name: coturn
     read_only: true
     user: "1000:1000"
@@ -284,7 +284,7 @@ services:
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
   nginx:
-    image: nginx:1.31.4
+    image: nginx:1.31.6
     container_name: nginx_proxy
     read_only: true
     user: "2999:2999" # Use a non-root user for security

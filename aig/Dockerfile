@@ -4,7 +4,7 @@
 #
 
 # Specify all Docker arguments for the Dockerfile
-FROM ubuntu:26.04 AS aig-server
+FROM ubuntu:24.04 AS aig-server
 LABEL description="Advertise Image Generator Server" 
 LABEL vendor="Intel Corporation"
 

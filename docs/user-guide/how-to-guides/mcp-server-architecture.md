@@ -6,10 +6,10 @@ See [use-mcp-agent-tools.md](use-mcp-agent-tools.md) for end-user connection ins
 
 ## Overview
 
-The MCP server ([web-ui/mcp_server.py](../../../web-ui/mcp_server.py)) runs in-process
+The MCP server ([web-ui/mcp_server.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/mcp_server.py)) runs in-process
 alongside the Flask app in the `web-ui` container, on port `5100`, using the `FastMCP`
 Streamable HTTP transport. It is started as a daemon thread from
-[web-ui/main.py](../../../web-ui/main.py) after `initialize_app()` completes, so a
+[web-ui/main.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/main.py) after `initialize_app()` completes, so a
 failure to import `mcp` or bind the port only disables the MCP thread — Flask, MQTT,
 and AIG keep running.
 
@@ -42,7 +42,7 @@ natural-language capability summary instead of parsing the schema.
 ## Tools added
 
 | Tool | Signature | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `describe()` | → str | Static capability summary for the agent |
 | `get_current_ad()` | → str | What's currently on screen (camera / agent / generating) |
 | `get_catalog()` | → str | Lists products and their cross-sell promos |
@@ -53,7 +53,7 @@ natural-language capability summary instead of parsing the schema.
 ## New implementation vs. reuse of existing code
 
 | Tool | Underlying code | New vs. reused |
-|---|---|---|
+| --- | --- | --- |
 | `describe` | Inline string, no backing function | Fully new, MCP-only |
 | `get_current_ad` | `get_active_ad_info()` | New function, but reads the existing `agent_override_*` / `last_selected_item` state — the same state `Ad_Generator.get_current_advertisement()` (used by the existing `/get_current_advertisement` REST route) already checks |
 | `get_catalog` | `get_catalog_summary()` | New function built entirely on the existing `product_associations` dict, already populated from `ProductAssociations.csv` for the camera-driven flow |
@@ -62,6 +62,7 @@ natural-language capability summary instead of parsing the schema.
 | `clear_ad` | `clear_agent_override()` | Fully new; manipulates the new override state fields |
 
 **Notes:**
+
 - Despite docstrings stating some core functions are "shared by the REST route and the
   MCP tool," there is currently no REST route calling `trigger_ad_core` or
   `select_dynamic_ad_core` — only `/`, `/portrait`, and `/get_current_advertisement`
@@ -107,6 +108,9 @@ coffee-style ad. **Fix:** either add real `coffee`/`iced_coffee` rows to
 ## Control flow — client connecting and calling a tool
 
 ```mermaid
+---
+config: {"theme": "dark"}
+---
 sequenceDiagram
     participant Client as MCP Client<br/>(Inspector / LLM agent)
     participant Nginx as nginx proxy<br/>(TLS, :5000)
@@ -154,6 +158,9 @@ sequenceDiagram
 ## Data flow — state and payloads across components
 
 ```mermaid
+---
+config: {"theme": "dark"}
+---
 flowchart LR
     subgraph Client["MCP Client"]
         C1[LLM agent / Inspector]
@@ -216,6 +223,7 @@ flowchart LR
 ```
 
 **Key control-flow points:**
+
 - All 6 tools are dispatched through the single FastMCP thread; each calls back into
   `main.py`'s module-level functions via `_app()` (same process, no HTTP hop internally).
 - `trigger_ad` / `select_dynamic_ad` return immediately (status `generating`) while the
@@ -225,6 +233,7 @@ flowchart LR
   camera-driven, or agent vs. a `clear_ad` mid-flight) from corrupting shared state.
 
 **Key data-flow points:**
+
 - `agent_override_*` fields are the single hand-off point between MCP tools and the
   display: both the REST `/get_current_advertisement` route and MCP's `get_current_ad`
   read the same override state.

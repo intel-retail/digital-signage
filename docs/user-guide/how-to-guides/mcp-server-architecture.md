@@ -6,10 +6,10 @@ See [use-mcp-agent-tools.md](use-mcp-agent-tools.md) for end-user connection ins
 
 ## Overview
 
-The MCP server ([web-ui/mcp_server.py](../../../web-ui/mcp_server.py)) runs in-process
+The MCP server ([web-ui/mcp_server.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/mcp_server.py)) runs in-process
 alongside the Flask app in the `web-ui` container, on port `5100`, using the `FastMCP`
 Streamable HTTP transport. It is started as a daemon thread from
-[web-ui/main.py](../../../web-ui/main.py) after `initialize_app()` completes, so a
+[web-ui/main.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/main.py) after `initialize_app()` completes, so a
 failure to import `mcp` or bind the port only disables the MCP thread — Flask, MQTT,
 and AIG keep running.
 

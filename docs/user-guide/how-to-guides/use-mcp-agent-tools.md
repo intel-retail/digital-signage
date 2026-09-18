@@ -21,6 +21,7 @@ Port `5100` is not published directly on the host; all access goes through the T
 | `get_catalog` | Lists available products and their cross-sell promos. |
 | `select_dynamic_ad` | Resolves a shopping context (`weather`, `demand`, `age_mix`, `daypart`) to a product and displays its ad. |
 | `trigger_ad` | Directly displays a specific catalog item's ad by name, bypassing context resolution. Like `select_dynamic_ad`, it generates a dynamic (AI-generated) ad when no predefined image exists for the item. |
+| `trigger_video_ad` | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s). Takes `item` (a catalog product; uses its predefined video if provisioned, otherwise generates one with the catalog's price/promo/slogan/frame overlays), `description` (free text describing the video's content directly, no overlays), or both (item's overlays/predefined-video lookup, but generated from the given description). At least one is required. MCP-triggered only — never produced by the camera-driven flow. |
 | `clear_ad` | Clears any active agent-commanded override and returns to the camera-driven flow. |
 
 ## Connect and Test

@@ -4,5 +4,7 @@ requests==2.34.2
 numpy==2.5.3
 Pillow==12.3.0
 paho-mqtt==2.1.0
-mcp==2.2.0
+# Pinned <2: web-ui/mcp_server.py uses the v1 FastMCP API (mcp.server.fastmcp.FastMCP),
+# renamed/replaced by MCPServer in mcp 2.x.
+mcp==1.29.1
 setuptools==84.0.0

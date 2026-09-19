@@ -20,6 +20,7 @@ from io import BytesIO
 import csv
 import base64
 import random
+import unicodedata
 from PIL import Image
 
 AIG_SERVER_URL = os.getenv('AIG_SERVER_URL', 'http://aig-server:5003')
@@ -67,6 +68,15 @@ def normalize_product_key(name):
     if not name:
         return ""
     return name.strip().lower().replace("-", " ").replace("_", " ")
+
+
+def _is_blank(text):
+    """True if text has no visible content once whitespace and invisible/format unicode characters
+    (zero-width space, BOM, etc. - unicode category 'Cf') are discarded. Plain str.strip() alone
+    treats such characters as content, which would let a caller dodge required/exclusivity checks."""
+    if not text:
+        return True
+    return all(ch.isspace() or unicodedata.category(ch) == 'Cf' for ch in text)
 
 
 def resolve_product_label(label):
@@ -235,6 +245,7 @@ class Ad_Generator(threading.Thread):
         self.agent_override_until = 0.0
         self.agent_override_item = None
         self.agent_override_generating = False  # True while background generation is in progress
+        self.agent_override_cancelled = False  # True if clear_ad was called while the above was still generating
         self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
         self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
         # Video ad state (MCP-triggered only); kept fully separate from the image agent_override_* state.
@@ -244,6 +255,8 @@ class Ad_Generator(threading.Thread):
         self.video_override_until = 0.0
         self.video_override_item = None
         self.video_override_generating = False
+        self.video_override_cancelled = False  # True if clear_ad was called while the above was still generating
+        self.video_override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight video generations
         self.video_list_of_clients = []
         self._video_generation_lock = threading.Lock()
     def run(self):
@@ -612,11 +625,11 @@ class Ad_Generator(threading.Thread):
         screen for the fixed VIDEO_AD_DISPLAY_SECONDS regardless of source. Returns (None, None, None)
         on failure. MCP-triggered only; never called from the camera-driven flow.
 
-        description_override, when given, is used verbatim as the AIG prompt instead of the catalog's
-        dynamic_ad_prompt (no style suffix appended, since a caller-supplied description is expected to
-        be self-contained). If label is also given, its price/promo/logo/slogan/frame overlays still
-        apply; if label is None, no overlays are applied and no predefined-video lookup is attempted
-        (there is no catalog item to look one up for) - a plain AIG generation from the description."""
+        label and description_override are mutually exclusive (enforced by the only caller,
+        trigger_video_ad_core): when description_override is given, it is used verbatim as the AIG
+        prompt (no style suffix appended, since a caller-supplied description is expected to be
+        self-contained), with no overlays and no predefined-video lookup (there is no catalog item to
+        look one up for) - a plain AIG generation from the description."""
         global product_video_paths
 
         if label:
@@ -630,15 +643,12 @@ class Ad_Generator(threading.Thread):
                     logger.error(f"Failed to read predefined video ad for '{label}': {str(e)}")
                     return None, None, None
 
+        log_label = label or "custom description"
         start_time = time.time()
         try:
             if description_override:
-                if associations:
-                    aig_payload, _, _ = self._build_aig_payload(label, associations, style_suffix=VIDEO_AD_STYLE_SUFFIX)
-                else:
-                    aig_payload = {}
-                aig_payload["description"] = description_override
-                logger.info(f"Generating video from custom description{f' for product: {label}' if label else ''}.")
+                aig_payload = {"description": description_override}
+                logger.info("Generating video from custom description.")
             else:
                 logger.info(f"No predefined video ad for '{label}'; generating a fresh video via the AIG model.")
                 aig_payload, description, _ = self._build_aig_payload(label, associations, style_suffix=VIDEO_AD_STYLE_SUFFIX)
@@ -663,17 +673,17 @@ class Ad_Generator(threading.Thread):
                     timeout=900
                 )
             except Exception as e:
-                logger.error(f"Failed to reach AIG server while generating video ad for '{label}': {str(e)}")
+                logger.error(f"Failed to reach AIG server while generating video ad for '{log_label}': {str(e)}")
                 return None, None, None
 
             if aig_response.status_code != 200:
-                logger.error(f"AIG server error while generating video ad for '{label}': {aig_response.status_code}")
+                logger.error(f"AIG server error while generating video ad for '{log_label}': {aig_response.status_code}")
                 return None, None, None
 
             elapsed = time.time() - start_time
             return aig_response.content, 'image/webp', f"Video ad dynamically generated in {elapsed:.2f} seconds"
         except Exception as e:
-            logger.error(f"Unexpected error generating video ad for '{label}': {str(e)}")
+            logger.error(f"Unexpected error generating video ad for '{log_label}': {str(e)}")
             return None, None, None
 
     def get_current_video_ad(self, client_id=None):
@@ -927,6 +937,7 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
     def _generate_and_set(item_name, assocs, secs):
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = item_name
+        ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
             ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
@@ -959,27 +970,35 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
 
 
 def trigger_video_ad_core(item=None, description=None):
-    """Resolve an optional catalog item and/or an optional free-text description, then display a video
-    ad, live on screen for VIDEO_AD_DISPLAY_SECONDS, looping continuously. MCP-only (trigger_video_ad
-    tool); never called from the camera-driven flow. At least one of item/description is required.
+    """Resolve exactly one of a catalog item or a free-text description, then display a video ad, live
+    on screen for VIDEO_AD_DISPLAY_SECONDS, looping continuously. MCP-only (trigger_video_ad tool);
+    never called from the camera-driven flow. Exactly one of item/description is required - not both,
+    since combining them would apply one item's price/promo/slogan/frame overlays over unrelated
+    AI-generated content described by the other.
 
-    - item only: existing behavior - predefined video if provisioned for the item, else AI-generated
-      using the catalog's dynamic_ad_prompt and price/promo/slogan/frame overlays.
+    - item only: predefined video if provisioned for the item, else AI-generated using the catalog's
+      dynamic_ad_prompt and price/promo/slogan/frame overlays.
     - description only: AI-generated directly from the given text, no overlays, no predefined-video
       lookup (there is no catalog item to look one up for).
-    - both: uses the item's predefined video/overlays as above, but the AI-generated fallback uses the
-      given description instead of the catalog's dynamic_ad_prompt.
+
+    Rejected (with remaining seconds) if a video ad is still actively displaying, and separately
+    rejected if a video ad is still being generated - both require the caller to retry later rather
+    than preempting/queuing, so a fast follow-up call can never cut short a video still on screen.
     """
     global ad_generator_Obj, product_associations
 
     item = (item or '').strip()
     description = (description or '').strip()
-    if not item and not description:
-        return {'error': 'Provide at least one of item or description.'}
+    item_given = not _is_blank(item)
+    description_given = not _is_blank(description)
+    if not item_given and not description_given:
+        return {'error': 'Provide either item or description.'}
+    if item_given and description_given:
+        return {'error': 'Provide only one of item or description, not both.'}
 
     resolved = None
     associations = None
-    if item:
+    if item_given:
         resolved = resolve_product_label(item)
         if not resolved or resolved not in product_associations:
             return {'error': f'Unknown item: {item}', 'available_items': sorted(product_associations.keys())}
@@ -988,15 +1007,24 @@ def trigger_video_ad_core(item=None, description=None):
     # Label shown in status/logs when there's no catalog item to name the ad after.
     display_label = resolved or (description[:60] + ('...' if len(description) > 60 else ''))
 
+    if ad_generator_Obj.is_video_ad_active():
+        remaining = max(0.0, ad_generator_Obj.video_override_until - time.time())
+        return {'error': f"A video ad for '{ad_generator_Obj.video_override_item}' is still playing, "
+                          f"{remaining:.1f}s remaining; try again once it finishes."}
+
     if not ad_generator_Obj._video_generation_lock.acquire(blocking=False):
         return {'error': 'Another video ad generation is already in progress; try again in a few seconds.'}
 
     def _generate_and_set(label, assocs, desc_override, status_label):
         ad_generator_Obj.video_override_generating = True
         ad_generator_Obj.video_override_item = status_label
+        ad_generator_Obj.video_override_cancelled = False
+        my_epoch = ad_generator_Obj.video_override_epoch
         try:
-            video_bytes, mimetype, gen_label = ad_generator_Obj.generate_video_ad(label, assocs, description_override=desc_override or None)
-            if video_bytes:
+            video_bytes, mimetype, gen_label = ad_generator_Obj.generate_video_ad(label, assocs, description_override=desc_override or None)  # exactly one of label/desc_override is set
+            if ad_generator_Obj.video_override_epoch != my_epoch:
+                logger.info(f"Video ad for '{status_label}' discarded; override was cleared during generation")
+            elif video_bytes:
                 ad_generator_Obj.video_override_until = time.time() + VIDEO_AD_DISPLAY_SECONDS
                 ad_generator_Obj.video_list_of_clients = []  # reset so every polling client gets it once
                 ad_generator_Obj.video_override_media = (video_bytes, mimetype, gen_label)  # set last: single atomic swap
@@ -1023,15 +1051,41 @@ def trigger_video_ad_core(item=None, description=None):
 
 
 def clear_agent_override():
-    """Clear the agent-commanded override and return to camera-driven ad flow. Used by the MCP clear_ad tool."""
+    """Clear any agent-commanded overrides (image and video) and return to the camera-driven ad flow.
+    Used by the MCP clear_ad tool. Clears both unconditionally rather than first checking which one is
+    active/generating - resetting state that was already idle is a harmless no-op, and bumping both
+    epochs also invalidates any in-flight generation (image or video) so its result is discarded on
+    completion instead of appearing after the clear.
+
+    The item fields are only nulled out when their generation isn't currently in flight - otherwise
+    get_current_ad's '..._generating' status would report an item name of 'None' until that thread's
+    own finally block flips '..._generating' back to False (at which point the now-stale item name is
+    no longer read by get_active_ad_info() anyway, since neither of its mode checks match). When a
+    generation is in flight, its '..._cancelled' flag is set instead so get_active_ad_info() can report
+    that the in-progress request was abandoned, rather than implying it will still appear - the
+    generation lock itself isn't released early (the underlying AIG call can't be aborted), so a new
+    trigger may still be rejected as busy until that abandoned request completes on its own."""
     global ad_generator_Obj
     prev_item = ad_generator_Obj.agent_override_item
     ad_generator_Obj.agent_override_ad = None
     ad_generator_Obj.agent_override_until = 0.0
-    ad_generator_Obj.agent_override_item = None
-    ad_generator_Obj.override_epoch += 1  # invalidates any generation started before this clear
-    logger.info(f"Agent cleared override ad (was: {prev_item})")
-    return {'status': 'ok', 'cleared_item': prev_item}
+    if ad_generator_Obj.agent_override_generating:
+        ad_generator_Obj.agent_override_cancelled = True
+    else:
+        ad_generator_Obj.agent_override_item = None
+    ad_generator_Obj.override_epoch += 1  # invalidates any image generation started before this clear
+
+    prev_video_item = ad_generator_Obj.video_override_item
+    ad_generator_Obj.video_override_media = None
+    ad_generator_Obj.video_override_until = 0.0
+    if ad_generator_Obj.video_override_generating:
+        ad_generator_Obj.video_override_cancelled = True
+    else:
+        ad_generator_Obj.video_override_item = None
+    ad_generator_Obj.video_override_epoch += 1  # invalidates any video generation started before this clear
+
+    logger.info(f"Agent cleared override ad (image: {prev_item}, video: {prev_video_item})")
+    return {'status': 'ok', 'cleared_item': prev_item, 'cleared_video_item': prev_video_item}
 
 
 def get_active_ad_info():
@@ -1039,12 +1093,14 @@ def get_active_ad_info():
     global ad_generator_Obj
     now = time.time()
     if ad_generator_Obj.video_override_generating:
-        return {'mode': 'video_generating', 'item': ad_generator_Obj.video_override_item, 'seconds_remaining': None}
+        mode = 'video_cancelling' if ad_generator_Obj.video_override_cancelled else 'video_generating'
+        return {'mode': mode, 'item': ad_generator_Obj.video_override_item, 'seconds_remaining': None}
     if ad_generator_Obj.video_override_media and now < ad_generator_Obj.video_override_until:
         return {'mode': 'video', 'item': ad_generator_Obj.video_override_item,
                 'seconds_remaining': round(ad_generator_Obj.video_override_until - now, 1)}
     if ad_generator_Obj.agent_override_generating:
-        return {'mode': 'generating', 'item': ad_generator_Obj.agent_override_item, 'seconds_remaining': None}
+        mode = 'agent_cancelling' if ad_generator_Obj.agent_override_cancelled else 'generating'
+        return {'mode': mode, 'item': ad_generator_Obj.agent_override_item, 'seconds_remaining': None}
     if ad_generator_Obj.agent_override_ad and now < ad_generator_Obj.agent_override_until:
         return {'mode': 'agent', 'item': ad_generator_Obj.agent_override_item,
                 'seconds_remaining': round(ad_generator_Obj.agent_override_until - now, 1)}
@@ -1110,6 +1166,8 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         # Synchronous call: waiting its turn on the lock (rather than failing fast) is the expected behavior here.
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = resolved
+        ad_generator_Obj.agent_override_cancelled = False
+        my_epoch = ad_generator_Obj.override_epoch
         try:
             start = time.time()
             with ad_generator_Obj._generation_lock:
@@ -1118,6 +1176,8 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             total_ms = round((time.time() - start) * 1000)
         finally:
             ad_generator_Obj.agent_override_generating = False
+        if ad_generator_Obj.override_epoch != my_epoch:
+            return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
         if not captured:
             return {'error': f"ad generation failed for '{resolved}'"}
         ad_generator_Obj.agent_override_ad = captured
@@ -1137,6 +1197,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
     def _generate_and_set(item_name, assocs, secs):
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = item_name
+        ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
             ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)

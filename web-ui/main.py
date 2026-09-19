@@ -46,6 +46,13 @@ VIDEO_AD_DISPLAY_SECONDS = int(os.getenv('VIDEO_AD_DISPLAY_SECONDS', 5))
 VIDEO_AD_STYLE_SUFFIX = "subtle natural motion, gentle camera drift, soft realistic movement, " \
                         "steam or light shimmer where appropriate, commercial product video, smooth cinematic motion, 8k, crisp detail"
 PRE_DEFINED_ADS_DIR = '/app/pre-defined-ads'
+# Max time an agent (trigger_ad/select_dynamic_ad) call will retry acquiring _generation_lock before
+# giving up, since the camera loop can hold/reacquire it almost continuously; paired with the camera
+# loop yielding whenever an agent is waiting (see agent_wants_generation_lock()) so this window is
+# normally enough for the agent to get a turn without starving the camera indefinitely. Comfortably
+# above observed single-image generation time (~4s on CPU for SDXL-Turbo) so a request that arrives
+# just after generation started still gets a turn instead of timing out on the current holder alone.
+AGENT_LOCK_WAIT_SECONDS = 6.0
 # Context rules for select_dynamic_ad (MCP action); empty dict means the feature is unavailable
 context_rules = {}
 # Configure logging
@@ -248,6 +255,11 @@ class Ad_Generator(threading.Thread):
         self.agent_override_cancelled = False  # True if clear_ad was called while the above was still generating
         self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
         self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
+        # Lets a waiting agent call (trigger_ad/select_dynamic_ad) signal the camera loop to skip its
+        # turn for _generation_lock instead of racing it; a count (not a bool) so two overlapping agent
+        # calls can't have one clear the signal while the other is still waiting.
+        self._agent_lock_waiters = 0
+        self._agent_lock_waiters_guard = threading.Lock()
         # Video ad state (MCP-triggered only); kept fully separate from the image agent_override_* state.
         # bytes+mimetype are combined into one attribute so updates are a single atomic reference swap
         # (two separate attributes could let a concurrent poll observe new bytes with a stale mimetype).
@@ -259,6 +271,22 @@ class Ad_Generator(threading.Thread):
         self.video_override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight video generations
         self.video_list_of_clients = []
         self._video_generation_lock = threading.Lock()
+
+    def _signal_agent_wants_lock(self):
+        """Called by an agent call before it starts trying to acquire _generation_lock, so the camera
+        loop can back off instead of racing it. Must be paired with _clear_agent_wants_lock in a finally."""
+        with self._agent_lock_waiters_guard:
+            self._agent_lock_waiters += 1
+
+    def _clear_agent_wants_lock(self):
+        """Undo _signal_agent_wants_lock once the agent call is done waiting (whether it got the lock or not)."""
+        with self._agent_lock_waiters_guard:
+            self._agent_lock_waiters = max(0, self._agent_lock_waiters - 1)
+
+    def agent_wants_generation_lock(self):
+        """True while at least one agent call is actively trying to acquire _generation_lock."""
+        return self._agent_lock_waiters > 0
+
     def run(self):
         """Main thread loop to process messages from queue"""
         self.running = True
@@ -269,8 +297,9 @@ class Ad_Generator(threading.Thread):
                 global message_queue
                 if not message_queue.empty():
                     label_set = message_queue.get(timeout=1)
-                    # Skip camera generation while agent is generating to prevent race condition
-                    if self.agent_override_generating:
+                    # Skip camera generation while agent is generating (or waiting to generate) to give
+                    # trigger_ad/select_dynamic_ad a fair shot at _generation_lock instead of racing them
+                    if self.agent_override_generating or self.agent_wants_generation_lock():
                         message_queue.task_done()
                         continue
                     if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
@@ -911,6 +940,28 @@ def normalize_display_seconds(value, default=60):
     return value if value > 0 else default
 
 
+def acquire_generation_lock_for_agent(lock):
+    """Acquire the image _generation_lock on behalf of an agent call (trigger_ad/select_dynamic_ad),
+    retrying for up to AGENT_LOCK_WAIT_SECONDS instead of a single non-blocking attempt. While waiting,
+    signals the camera loop (via agent_wants_generation_lock()) to skip its own turn rather than racing
+    for the lock, since the camera loop can otherwise hold/reacquire it almost continuously. Returns
+    True once acquired, False if the window elapses first (caller must not call lock.release() in that
+    case - nothing was acquired)."""
+    global ad_generator_Obj
+    ad_generator_Obj._signal_agent_wants_lock()
+    try:
+        deadline = time.time() + AGENT_LOCK_WAIT_SECONDS
+        while True:
+            if lock.acquire(blocking=False):
+                return True
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.1, remaining))
+    finally:
+        ad_generator_Obj._clear_agent_wants_lock()
+
+
 def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
     """Resolve a raw item name and display its ad. Shared by the REST route and the MCP trigger_ad tool."""
     global ad_generator_Obj, product_associations
@@ -931,7 +982,7 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
 
     # Held across the acquire check and the background thread's generation so nothing can
     # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
-    if not ad_generator_Obj._generation_lock.acquire(blocking=False):
+    if not acquire_generation_lock_for_agent(ad_generator_Obj._generation_lock):
         return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
 
     def _generate_and_set(item_name, assocs, secs):
@@ -1163,11 +1214,13 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
     display_seconds = normalize_display_seconds(display_seconds)
 
     if benchmark:
-        # Synchronous call: waiting its turn on the lock (rather than failing fast) is the expected behavior here.
+        # Synchronous call: waiting its turn on the lock (rather than failing fast) is the expected
+        # behavior here; signaling intent lets the camera loop yield instead of racing this call for it.
         ad_generator_Obj.agent_override_generating = True
         ad_generator_Obj.agent_override_item = resolved
         ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
+        ad_generator_Obj._signal_agent_wants_lock()
         try:
             start = time.time()
             with ad_generator_Obj._generation_lock:
@@ -1175,6 +1228,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
                 captured = ad_generator_Obj.last_generated_ad
             total_ms = round((time.time() - start) * 1000)
         finally:
+            ad_generator_Obj._clear_agent_wants_lock()
             ad_generator_Obj.agent_override_generating = False
         if ad_generator_Obj.override_epoch != my_epoch:
             return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
@@ -1191,7 +1245,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
 
     # Held across the acquire check and the background thread's generation so nothing can
     # steal the lock in between (acquire-then-release-then-reacquire would race the camera thread).
-    if not ad_generator_Obj._generation_lock.acquire(blocking=False):
+    if not acquire_generation_lock_for_agent(ad_generator_Obj._generation_lock):
         return {'error': 'Another ad generation is already in progress; try again in a few seconds.'}
 
     def _generate_and_set(item_name, assocs, secs):

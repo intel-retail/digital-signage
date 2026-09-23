@@ -301,7 +301,7 @@ class PredefAdResourceDeleteGet(Resource):
                         continue # when id is not int, discard from result and move to the next one
                     
                     # Get the metadata for the document.
-                    doc_metadata = metadata_list[doc_index] if isinstance(metadata_list, list) else metadata_list
+                    doc_metadata = metadata_list[doc_index]
                     if doc_metadata is None:
                         logger.error(f"[ASE-Qdrant Result] Metadata for ID {id_int} is None.")
                         item.description = f"Metadata for ID {id_int} is None."

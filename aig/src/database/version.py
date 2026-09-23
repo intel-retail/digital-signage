@@ -3,7 +3,6 @@ from datetime import datetime
 from PIL import Image
 import os
 import gc
-import shutil
 import threading
 # GenAI
 import openvino_genai
@@ -475,17 +474,31 @@ class AseServerMetadata:
         return os.getenv('ASE_IMG_PATH', '/opt/sharedata/imgs')
 
     @staticmethod
-    def save_image_to_dir(image: Image.Image, id: int):
-        directory = AseServerMetadata.get_ase_img_path()
-        filename = f"img_{str(id)}.jpg"
-        os.makedirs(directory, exist_ok=True)
-        filepath = os.path.join(directory, filename)
+    def _build_payload(id: int, description: str, filepath: str, image: Image.Image, source: str):
+        return {
+            "source": source,
+            "id": id,
+            "description": description,
+            "img_path": filepath,
+            "img_height": image.height,
+            "img_width": image.width
+        }
+
+    @staticmethod
+    def save_image_to_path(image: Image.Image, filepath: str):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         try:
             image.save(filepath)
         except Exception as e:
             logger.error(f"[Qdrant] Error saving image to {filepath}: {e}")
             raise ValueError(f"Could not save image to {filepath}. Error: {e}")
 
+    @staticmethod
+    def save_image_to_dir(image: Image.Image, id: int):
+        directory = AseServerMetadata.get_ase_img_path()
+        filename = f"img_{str(id)}.jpg"
+        filepath = os.path.join(directory, filename)
+        AseServerMetadata.save_image_to_path(image, filepath)
         return filepath
 
     @staticmethod
@@ -559,16 +572,7 @@ class AseServerMetadata:
             logger.error(f"[Qdrant] Error processing image: {e}")
             raise ValueError("Invalid image provided.")
 
-        img_height = image.height
-        img_width = image.width
-        payload = {
-            "source": source,
-            "id": id,
-            "description": description,
-            "img_path": filepath,
-            "img_height": img_height,
-            "img_width": img_width
-        }
+        payload = AseServerMetadata._build_payload(id, description, filepath, image, source)
 
         try:
             vector = self._embed_texts([description])[0]
@@ -715,31 +719,62 @@ class AseServerMetadata:
         if id is None or description is None or image is None:
             raise ValueError("id, description, and image must be provided.")
         
-        current_record = self.qdrant_get(str(id))
-        current_metadata = None
-        if current_record is not None:
-            metadata_rows = current_record.get("metadatas", [])
-            if metadata_rows and isinstance(metadata_rows[0], list):
-                current_metadata = metadata_rows[0][0] if metadata_rows[0] else None
-            elif metadata_rows:
-                current_metadata = metadata_rows[0]
-        
-        current_img_path = current_metadata.get("img_path") if current_metadata else None
-        backup_img_path = f"{current_img_path}.bak" if current_img_path else None
-        if current_img_path and os.path.exists(current_img_path):
-            shutil.copy2(current_img_path, backup_img_path)
-        
+        point_id = AseServerMetadata._normalize_point_id(id)
+        existing_records = self.qdrant_client.retrieve(
+            collection_name=self.collection,
+            ids=[point_id],
+            with_payload=True,
+            with_vectors=False
+        )
+        if not existing_records:
+            return self.qdrant_add(id, description, image, source)
+
+        current_payload = existing_records[0].payload or {}
+        current_img_path = current_payload.get("img_path", os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{id}.jpg"))
+        temp_img_path = f"{current_img_path}.tmp"
+        previous_description = current_payload.get("description")
+        new_payload = AseServerMetadata._build_payload(id, description, current_img_path, image, source)
+
         try:
-            updated = self.qdrant_add(id, description, image, source)
-        except Exception:
-            if backup_img_path and current_img_path and os.path.exists(backup_img_path):
-                shutil.move(backup_img_path, current_img_path)
-            raise
-        
-        if backup_img_path and os.path.exists(backup_img_path):
-            os.remove(backup_img_path)
-        
-        return updated
+            AseServerMetadata.save_image_to_path(image, temp_img_path)
+            vector = self._embed_texts([description])[0]
+            self.qdrant_client.upsert(
+                collection_name=self.collection,
+                wait=True,
+                points=[
+                    models.PointStruct(
+                        id=point_id,
+                        vector=vector,
+                        payload=new_payload
+                    )
+                ]
+            )
+            os.replace(temp_img_path, current_img_path)
+            logger.info(f"[Qdrant] Document with ID {id} updated successfully.")
+            return True
+        except Exception as e:
+            if os.path.exists(temp_img_path):
+                os.remove(temp_img_path)
+
+            if previous_description is not None:
+                try:
+                    previous_vector = self._embed_texts([previous_description])[0]
+                    self.qdrant_client.upsert(
+                        collection_name=self.collection,
+                        wait=True,
+                        points=[
+                            models.PointStruct(
+                                id=point_id,
+                                vector=previous_vector,
+                                payload=current_payload
+                            )
+                        ]
+                    )
+                except Exception as restore_error:
+                    logger.error(f"[Qdrant] Failed to restore previous payload for ID {id}: {restore_error}")
+
+            logger.error(f"[Qdrant] Error updating document with ID {id}: {e}")
+            raise ValueError(f"Could not update document with ID {id} in Qdrant. Error: {e}")
     
     def qdrant_get(self, id: str):
         """

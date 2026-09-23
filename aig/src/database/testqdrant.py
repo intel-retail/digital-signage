@@ -37,11 +37,11 @@ def test_add_qdrant():
             points=[
                 models.PointStruct(
                     id=1,
-                    vector=embed_text("This is a test defining citrics and their variety."),
+                    vector=embed_text("This is a test defining citrus and their variety."),
                     payload={
                         "source": "test",
                         "id": 1,
-                        "description": "This is a test defining citrics and their variety.",
+                        "description": "This is a test defining citrus and their variety.",
                         "img_path": "/tmp/test_doc_1.jpg",
                     },
                 ),

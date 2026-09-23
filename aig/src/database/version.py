@@ -426,7 +426,8 @@ class AseServerMetadata:
                 return float(explicit_score)
 
             legacy_distance = float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 0.2))
-            return 1.0 - legacy_distance
+            translated_score = 1.0 - legacy_distance
+            return min(1.0, max(0.0, translated_score))
         except ValueError:
             return 0.8
 
@@ -755,6 +756,7 @@ class AseServerMetadata:
             current_img_path = current_payload.get("img_path", os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{id}.jpg"))
             previous_description = current_payload.get("description")
             new_payload = AseServerMetadata._build_payload(id, description, current_img_path, image, source)
+            os.makedirs(os.path.dirname(current_img_path), exist_ok=True)
             temp_fd, temp_img_path = tempfile.mkstemp(
                 prefix=f"img_{id}_",
                 suffix=".jpg",

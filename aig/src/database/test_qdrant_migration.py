@@ -27,6 +27,13 @@ class TestQdrantMigration(unittest.TestCase):
         with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "0.2"}, clear=True):
             self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.8)
 
+    def test_distance_threshold_legacy_value_is_clamped_to_valid_score_range(self):
+        with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "-0.5"}, clear=True):
+            self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 1.0)
+
+        with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "2.0"}, clear=True):
+            self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.0)
+
     def test_qdrant_match_keeps_boundary_scores(self):
         with patch.dict(os.environ, {"ASE_QDRANT_SCORE_MIN_THRESHOLD": "0.8"}, clear=True):
             self.assertFalse(AseServerMetadata.is_qdrant_match(0.79))

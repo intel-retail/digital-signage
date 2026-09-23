@@ -33,6 +33,17 @@ class TestQdrantMigration(unittest.TestCase):
             self.assertTrue(AseServerMetadata.is_qdrant_match(0.8))
             self.assertTrue(AseServerMetadata.is_qdrant_match(0.81))
 
+    def test_explicit_qdrant_threshold_takes_precedence(self):
+        with patch.dict(
+            os.environ,
+            {
+                "ASE_QDRANT_SCORE_MIN_THRESHOLD": "0.85",
+                "ASE_DISTANCE_MAX_THRESHOLD": "0.2",
+            },
+            clear=True,
+        ):
+            self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.85)
+
     def test_initialize_qdrant_creates_missing_collection(self):
         mock_client = Mock()
         mock_client.collection_exists.return_value = False

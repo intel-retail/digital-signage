@@ -3,6 +3,7 @@ from datetime import datetime
 from PIL import Image
 import os
 import gc
+import shutil
 import threading
 # GenAI
 import openvino_genai
@@ -321,6 +322,17 @@ class AseServerMetadata:
                 )
                 logger.info(f"[ASE] Collection '{collection_name}' created")
             else:
+                collection_info = self._qdrant_client.get_collection(collection_name=collection_name)
+                vectors_config = collection_info.config.params.vectors
+                vector_params = next(iter(vectors_config.values())) if isinstance(vectors_config, dict) else vectors_config
+                configured_size = getattr(vector_params, "size", None)
+                configured_distance = getattr(vector_params, "distance", None)
+                if configured_size != self._embedding_dimensions or configured_distance != models.Distance.COSINE:
+                    raise ValueError(
+                        f"Collection '{collection_name}' expects vectors of size {configured_size} "
+                        f"with distance {configured_distance}, but model '{local_path}' produces "
+                        f"size {self._embedding_dimensions} for cosine search."
+                    )
                 logger.info(f"[ASE] Collection '{collection_name}' already exists")
             self._collection = collection_name
         except Exception as e:
@@ -702,9 +714,28 @@ class AseServerMetadata:
             raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
         if id is None or description is None or image is None:
             raise ValueError("id, description, and image must be provided.")
-
-        self.qdrant_remove(str(id))
-        return self.qdrant_add(id, description, image, source)
+        
+        current_record = self.qdrant_get(str(id))
+        current_metadata = None
+        if current_record is not None:
+            current_metadata = current_record.get("metadatas", [None])[0]
+        
+        current_img_path = current_metadata.get("img_path") if current_metadata else None
+        backup_img_path = f"{current_img_path}.bak" if current_img_path else None
+        if current_img_path and os.path.exists(current_img_path):
+            shutil.copy2(current_img_path, backup_img_path)
+        
+        try:
+            updated = self.qdrant_add(id, description, image, source)
+        except Exception:
+            if backup_img_path and current_img_path and os.path.exists(backup_img_path):
+                shutil.move(backup_img_path, current_img_path)
+            raise
+        
+        if backup_img_path and os.path.exists(backup_img_path):
+            os.remove(backup_img_path)
+        
+        return updated
     
     def qdrant_get(self, id: str):
         """

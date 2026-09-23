@@ -135,4 +135,6 @@ if __name__ == "__main__":
     collection_info = qdrant_client.get_collection(collection_name=COLLECTION_NAME)
     print(f"Collection #{COLLECTION_NAME} initialized. Elements: {collection_info.points_count}")
 
+    test_add_qdrant()
     test_query_qdrant()
+    test_query_qdrant_get(1)

@@ -1,125 +1,208 @@
+import base64
+import io
+import sys
+import threading
+import types
+import unittest
+from pathlib import Path
+from unittest import mock
+
 from PIL import Image
-import requests
-import base64, io
-import os
-import json
 
-def test_ase_add_ad():
-    image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcStMP8S3VbNCqOQd7QQQcbvC_FLa1HlftCiJw&s"
-    mydic={}
+PROJECT_SRC = Path(__file__).resolve().parents[1]
+if str(PROJECT_SRC) not in sys.path:
+    sys.path.insert(0, str(PROJECT_SRC))
 
-    im = Image.open(requests.get(image_url, stream=True, timeout=30).raw)
-    buffered = io.BytesIO()
-    im.save(buffered, format="JPEG")
-    img_bytes = buffered.getvalue()
-    img_b64 = base64.b64encode(img_bytes).decode('utf-8')
-    mydic['imgb64'] = img_b64
-    mydic['description'] = "This is a test image of a llama with black background."
-    mydic['id'] = 1
-    mydic['source'] = "test_source"
+if "openvino_genai" not in sys.modules:
+    stub = types.ModuleType("openvino_genai")
+    stub.Text2ImagePipeline = object
+    sys.modules["openvino_genai"] = stub
 
-    requests.post("http://localhost:5003/ase/predef/", json=mydic, timeout=30)
+if "openvino" not in sys.modules:
+    stub = types.ModuleType("openvino")
 
-def test_ase_predef_query():
-    res = requests.post("http://localhost:5003/ase/predef/query", json={"query": "I am looking for meat", "n_results": 4}, timeout=30)
-    items = res.json()
+    class _Core:  # pylint: disable=too-few-public-methods
+        available_devices = ["CPU"]
 
-    directory=os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
-    
-    for item in items:
-        print(f"ID: {item['id']}, Description: {item['description']}, source: {item['source']}")
-        img_bytes = base64.b64decode(item['imgb64'])
-        image = Image.open(io.BytesIO(img_bytes))
-        filename=f"test_{item['id']}.jpg"
-        filepath = os.path.join(directory, filename)
-        image.save(filepath)
-        print(f"Image saved to {filepath}")
+    stub.Core = _Core
+    sys.modules["openvino"] = stub
 
-def test_ase_predef_query_with_adhoc():
-    query_data = None
-    with open("./caxselling/aig/src/database/samplequery.json", "r", encoding="utf-8") as f:
-        query_data = json.load(f)
+from server.aig_server import AigServer  # pylint: disable=wrong-import-position
+from server.apis import predefinedads  # pylint: disable=wrong-import-position
+from database import version as version_module  # pylint: disable=wrong-import-position
 
-    res = requests.post("http://localhost:5003/ase/predef/query/ad", json=query_data, timeout=30)
-    items = res.json()
 
-    directory = os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
-    
-    res_counter=0
-    for item in items:
-        print(f"Result ID: {res_counter}")
-        img_bytes = base64.b64decode(item['imgb64'])
-        image = Image.open(io.BytesIO(img_bytes))
-        filename = f"ad_with_addons_{res_counter}.jpg"
-        filepath = os.path.join(directory, filename)
-        image.save(filepath)
-        res_counter += 1
-        print(f"Image saved to {filepath}")
+class FakeAseServer:
+    exists_value = False
+    get_value = None
+    query_value = None
+    default_ad_image = Image.new("RGB", (4, 4), color="blue")
+    add_calls = []
+    update_calls = []
+    remove_calls = []
 
-def get_unique_filenames(directory):
-    files = os.listdir(directory)
-    unique_files = set()
-    for f in files:
-        name, _ = os.path.splitext(f)
-        unique_files.add(name)
-    return unique_files
+    def __init__(self):
+        self.default_ad_image = FakeAseServer.default_ad_image
 
-def test_load_sampledata():
-    namedir = "~/CACS_SignageApproach/caxselling/aig/docker/sharedata/sample"
-    directory = os.path.expanduser(namedir)
-    filenames = get_unique_filenames(directory)
+    @staticmethod
+    def reset():
+        FakeAseServer.exists_value = False
+        FakeAseServer.get_value = None
+        FakeAseServer.query_value = None
+        FakeAseServer.default_ad_image = Image.new("RGB", (4, 4), color="blue")
+        FakeAseServer.add_calls = []
+        FakeAseServer.update_calls = []
+        FakeAseServer.remove_calls = []
 
-    for filename in filenames:
-        filepath_jpg = os.path.join(directory, f"{filename}.jpg")
-        
-        im=Image.open(filepath_jpg)
+    @staticmethod
+    def get_ase_img_id():
+        return 99
+
+    @staticmethod
+    def get_ase_distance_threshold():
+        return 0.2
+
+    def chromadb_exists(self, _id):
+        return FakeAseServer.exists_value
+
+    def chromadb_add(self, image_id, description, image, source):
+        FakeAseServer.add_calls.append((image_id, description, image.size, source))
+        return True
+
+    def chromadb_update(self, image_id, description, image, source):
+        FakeAseServer.update_calls.append((image_id, description, image.size, source))
+        return True
+
+    def chromadb_remove(self, image_id):
+        FakeAseServer.remove_calls.append(image_id)
+        return True
+
+    def chromadb_get(self, _id):
+        return FakeAseServer.get_value
+
+    def chromadb_querytxt(self, _query, n_results=1):
+        return FakeAseServer.query_value
+
+    def get_image_file_from_path(self, _path):
+        return Image.new("RGB", (4, 4), color="red")
+
+    def get_logo(self):
+        return None
+
+
+class PredefinedAdsApiTests(unittest.TestCase):
+    def setUp(self):
+        FakeAseServer.reset()
+        self.ase_patch = mock.patch.object(predefinedads, "AseServerMetadata", FakeAseServer)
+        self.ase_patch.start()
+        self.client = AigServer().app.test_client()
+
+    def tearDown(self):
+        self.ase_patch.stop()
+
+    @staticmethod
+    def _jpeg_base64(color="green"):
+        image = Image.new("RGB", (4, 4), color=color)
         buffered = io.BytesIO()
-        im.save(buffered, format="JPEG")
-        img_bytes = buffered.getvalue()
-        img_b64 = base64.b64encode(img_bytes).decode('utf-8')
-        mydic={}
-        mydic['imgb64'] = img_b64
-        mydic['source'] = "marketing"
-        # To add, do not define the id because if it exists, it will be overwritten (update)
+        image.save(buffered, format="JPEG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-        filepath_txt = os.path.join(directory, f"{filename}.txt")
-        with open(filepath_txt, 'r') as f:
-            description = f.read().strip()
-        
-        mydic['description'] = description if description else "No description available."
+    def test_post_creates_new_predefined_ad(self):
+        payload = {
+            "id": 12,
+            "description": "fresh fruit",
+            "imgb64": self._jpeg_base64(),
+            "source": "marketing",
+        }
+        response = self.client.post("/ase/predef/", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(FakeAseServer.add_calls, [(12, "fresh fruit", (4, 4), "marketing")])
+        self.assertEqual(FakeAseServer.update_calls, [])
 
-        requests.post("http://localhost:5003/ase/predef/", json=mydic, timeout=30)
-        print(f"Content: {filename}")
+    def test_get_handles_multi_digit_identifier(self):
+        FakeAseServer.exists_value = True
+        FakeAseServer.get_value = {
+            "ids": ["12"],
+            "metadatas": [{"description": "fruit ad", "img_path": "/tmp/12.jpg", "source": "marketing"}],
+            "documents": ["fruit ad"],
+        }
 
-def test_ase_firstadd():
-    namedir = "~"
-    directory = os.path.expanduser(namedir)
-    filename = "first_add"
-    filepath_jpg = os.path.join(directory, f"{filename}.jpg")
+        response = self.client.get("/ase/predef/12")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["id"], 12)
+        self.assertEqual(body["description"], "fruit ad")
+        self.assertEqual(body["source"], "marketing")
+        self.assertTrue(body["imgb64"])
 
-    # This function is used to add the first ad to the database
-    json={}
-    json["query"]="What is related to healthy food?"
-    json["n_results"]=1
-    json["use_default_ad_onempty"]=True
+    def test_query_returns_matching_records_below_threshold(self):
+        FakeAseServer.query_value = {
+            "ids": [["12"]],
+            "metadatas": [[{"description": "fruit ad", "img_path": "/tmp/12.jpg", "source": "marketing"}]],
+            "documents": [["fruit ad"]],
+            "distances": [[0.1]],
+        }
 
-    image_url = "http://localhost:5003/ase/predef/query/firstad"
-    mydic = {}
-    
-    response=requests.post(image_url, json=json, timeout=30)
-    if response.status_code != 200:
-        print(f"Error fetching image: {response.status_code}")
-        return
-    
-    buffered = io.BytesIO(response.content) #R eceives binary data
-    buffered.seek(0) #Positioning at the start
-    with open(filepath_jpg, 'wb') as f:
-        f.write(buffered.read())
+        response = self.client.post("/ase/predef/query", json={"query": "fruit", "n_results": 1})
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(len(body), 1)
+        self.assertEqual(body[0]["id"], 12)
+        self.assertEqual(body[0]["source"], "marketing")
+
+    def test_firstad_falls_back_to_default_image(self):
+        FakeAseServer.query_value = {
+            "ids": [["12"]],
+            "metadatas": [[{"description": "fruit ad", "img_path": "/tmp/12.jpg", "source": "marketing"}]],
+            "documents": [["fruit ad"]],
+            "distances": [[1.0]],
+        }
+
+        response = self.client.post(
+            "/ase/predef/query/firstad",
+            json={"query": "fruit", "n_results": 1, "use_default_ad_onempty": True},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "image/jpeg")
+        image = Image.open(io.BytesIO(response.data))
+        self.assertEqual(image.size, (4, 4))
+
+
+class AseServerMetadataInitializationTests(unittest.TestCase):
+    def setUp(self):
+        if hasattr(version_module.AseServerMetadata, "instance"):
+            delattr(version_module.AseServerMetadata, "instance")
+
+    def tearDown(self):
+        if hasattr(version_module.AseServerMetadata, "instance"):
+            delattr(version_module.AseServerMetadata, "instance")
+
+    def test_lazy_initialization_runs_once_under_concurrency(self):
+        initialize_calls = []
+        sample_calls = []
+
+        def fake_initialize(self):
+            initialize_calls.append("init")
+            return object()
+
+        def fake_sample(self):
+            sample_calls.append("sample")
+
+        with mock.patch.object(version_module.AseServerMetadata, "_initialize_chromadb", fake_initialize), mock.patch.object(
+            version_module.AseServerMetadata, "process_sample_data", fake_sample
+        ), mock.patch.object(version_module.AigServerMetadata, "get_logo_path", return_value=None), mock.patch.object(
+            version_module.AseServerMetadata, "get_ase_default_ad_img", return_value="/does/not/exist.jpg"
+        ):
+            server = version_module.AseServerMetadata()
+            threads = [threading.Thread(target=lambda: server.collection) for _ in range(5)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(len(initialize_calls), 1)
+        self.assertEqual(len(sample_calls), 1)
+
 
 if __name__ == "__main__":
-    #test_ase_add_ad()
-    #test_load_sampledata()  # Run the test function to check loading sample data
-
-    #test_ase_predef_query()  #   Run the test function to check ASE predefined ads query functionality
-    #test_ase_predef_query_with_adhoc() #content related to beauty, skincare, haircare, cosmetics, and personal care products
-    test_ase_firstadd()
+    unittest.main()

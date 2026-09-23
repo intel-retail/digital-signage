@@ -29,10 +29,10 @@ The Context-Aware, Cross-Selling Digital Signage application is a fully containe
 | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **PID (Product Identification)**    | Detects products from video streams using DL Streamer Pipeline Server and YOLO models.           |
 | **AIG (Advertise Image Generator)** | Generates dynamic advertisements using Stable Diffusion XL Turbo and MiniLM via OpenVINO™ GenAI. |
-| **ASe (Advertise Searcher)**        | Retrieves and ranks relevant predefined ads from ChromaDB vector search.                         |
+| **ASe (Advertise Searcher)**        | Retrieves and ranks relevant predefined ads from Milvus vector search.                           |
 | **Web UI**                          | Displays the live video stream and current advertisements in a browser-based interface.          |
 
-**Supporting Services:** MediaMTX (WebRTC relay), Mosquitto (MQTT broker), ChromaDB (vector database), COTURN (TURN server for WebRTC).
+**Supporting Services:** MediaMTX (WebRTC relay), Mosquitto (MQTT broker), Milvus + etcd (vector database stack), COTURN (TURN server for WebRTC). A legacy ChromaDB profile remains available for export and rollback.
 
 ## User Guide
 

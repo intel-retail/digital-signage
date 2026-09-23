@@ -137,10 +137,73 @@ services:
     networks:
     - app_network
 
+  ase-etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    hostname: ase-etcd
+    container_name: ase-etcd
+    security_opt:
+      - no-new-privileges
+    command: >
+      etcd
+      -advertise-client-urls=http://127.0.0.1:2379
+      -listen-client-urls http://0.0.0.0:2379
+      --data-dir /etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: '1000'
+      ETCD_QUOTA_BACKEND_BYTES: '4294967296'
+      ETCD_SNAPSHOT_COUNT: '50000'
+      http_proxy: ''
+      https_proxy: ''
+      no_proxy: ''
+      HTTP_PROXY: ''
+      HTTPS_PROXY: ''
+      NO_PROXY: ''
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - milvus_etcd_data:/etcd
+    networks:
+      - app_network
+
+  ase-milvus:
+    image: milvusdb/milvus:v2.6.14
+    hostname: ase-milvus
+    container_name: ase-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - no-new-privileges
+    environment:
+      ETCD_ENDPOINTS: ase-etcd:2379
+      COMMON_STORAGETYPE: local
+      http_proxy: ''
+      https_proxy: ''
+      no_proxy: ''
+      HTTP_PROXY: ''
+      HTTPS_PROXY: ''
+      NO_PROXY: ''
+    depends_on:
+      ase-etcd:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 90s
+    volumes:
+      - milvus_data:/var/lib/milvus
+    networks:
+      - app_network
+
   ase-chromadb:
     image: chromadb/chroma:1.5.9
     hostname: ase-chromadb
     container_name: ase-chromadb
+    profiles: ["legacy-chroma"]
     user: "1000:1000"
     read_only: true
     security_opt:
@@ -182,7 +245,7 @@ services:
     networks: 
       - app_network
     environment:
-      - no_proxy=${no_proxy},ase-chromadb,web-ui
+      - no_proxy=${no_proxy},ase-milvus,ase-etcd,ase-chromadb,web-ui
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
@@ -202,8 +265,9 @@ services:
       - VIDEO_GROUP_ID=44 #OpenVINO & OneAPI
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
       - ASE_COLLECTION_NAME=${ASE_COLLECTION_NAME} # Name of the ASE collection to use
-      - ASE_CHROMADB_PORT=${ASE_CHROMADB_PORT} # Port for ChromaDB service      
-      - ASE_CHROMADB_HOST=ase-chromadb # Hostname for ChromaDB service
+      - ASE_MILVUS_URI=${ASE_MILVUS_URI}
+      - ASE_MILVUS_TOKEN=${ASE_MILVUS_TOKEN}
+      - ASE_EMBEDDING_MODEL_ID=${ASE_EMBEDDING_MODEL_ID}
       - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
       - ASE_MODEL_PATH=${ASE_MODEL_PATH}
       - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available
@@ -213,7 +277,8 @@ services:
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
-      - ase-chromadb
+      ase-milvus:
+        condition: service_healthy
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - vol_pipeline_root:/home/ubuntu/.cache
@@ -330,4 +395,8 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs
+  milvus_etcd_data:
+    driver: local
+  milvus_data:
+    driver: local
   chroma_data:

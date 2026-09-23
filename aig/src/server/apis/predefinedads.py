@@ -277,59 +277,63 @@ class PredefAdResourceDeleteGet(Resource):
             logger.error(f"[ASE-Chromadb] Predefined ad with ID {id} not found.")
             item.description = f"Predefined ad with ID {id} not found."
             return item, 404
-        item = None
+
         try:        
             results=server.chromadb_get(id)
             if not results:
                 item.description = f"Predefined ad with ID {id} not found."
                 return item, 404
-                
+
+            result_ids = results.get('ids', [])
+            metadatas = results.get('metadatas', [])
+            if not result_ids or not metadatas:
+                item.description = f"Predefined ad with ID {id} not found."
+                return item, 404
+
             if 'metadatas' not in results or 'ids' not in results :
                 item.description=f"[ASE-Chromadb Result] 'metadatas' or 'ids' not found in results: {results}"
                 logger.error(f"[ASE-Chromadb Result] 'metadatas' or 'ids' not found in results: {results}")
-                return {"error": "Incomplete Response from the Vector DB"}, 500
+                return item, 500
 
-            ids = results.get('ids',[])
-            metadatas = results.get('metadatas',[])
+            try:
+                row_index = result_ids.index(str(id))
+            except ValueError:
+                item.description = f"Predefined ad with ID {id} not found."
+                return item, 404
 
-            for query_index, (id_list, metadata_list) in enumerate (zip(ids, metadatas)):
-                for doc_index, doc_id in enumerate(id_list):
-                    id_int = None
-                    try:
-                        id_int = int(doc_id)
-                    except Exception as e:
-                        continue # when id is not int, discard from result and move to the next one
-                    
-                    # Get the metadata for the document    
-                    doc_metadata = metadata_list #metadata_list is the dictionary of metadata for the document
-                    if doc_metadata is None:
-                        logger.error(f"[ASE-Chromadb Result] Metadata for ID {id_int} is None.")
-                        item.description = f"Metadata for ID {id_int} is None."
-                        return item, 404
-                    
+            doc_metadata = metadatas[row_index]
+            if doc_metadata is None:
+                logger.error(f"[ASE-Chromadb Result] Metadata for ID {id} is None.")
+                item.description = f"Metadata for ID {id} is None."
+                return item, 404
 
-                    description = doc_metadata.get('description',None)
-                    img_path = doc_metadata.get('img_path',None)
-                    source = doc_metadata.get('source', None)
-                    # Get the image from the server
+            description = doc_metadata.get('description',None)
+            img_path = doc_metadata.get('img_path',None)
+            source = doc_metadata.get('source', None)
 
-                    img = server.get_image_file_from_path(img_path)
-                    img_b64 = None
-                    if img is not None:
-                        buffered = io.BytesIO()                        
-                        img.save(buffered, format="JPEG")
-                        img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-                    # Check if all required fields are present
-                    # and add to the records list
-                    if img_b64 is not None and id_int is not None and description is not None:
-                        item = Predef_ad_schema()
-                        item.id = id_int
-                        item.description = description
-                        item.source = source if source else None
-                        item.imgb64 = img_b64                        
-                    else:
-                        logger.error(f"[ASE-Chromadb Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
-                        item.description = f"Incomplete Record. id: {id_int} description: {description} image_path: {img_path}"
+            img = server.get_image_file_from_path(img_path)
+            img_b64 = None
+            if img is not None:
+                buffered = io.BytesIO()                        
+                img.save(buffered, format="JPEG")
+                img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+            id_int = None
+            try:
+                id_int = int(result_ids[row_index])
+            except Exception:
+                item.description = f"Invalid ID stored for predefined ad {id}."
+                return item, 500
+
+            if img_b64 is not None and id_int is not None and description is not None:
+                item = Predef_ad_schema()
+                item.id = id_int
+                item.description = description
+                item.source = source if source else None
+                item.imgb64 = img_b64                        
+            else:
+                logger.error(f"[ASE-Chromadb Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
+                item.description = f"Incomplete Record. id: {id_int} description: {description} image_path: {img_path}"
         except Exception as e:
             item = Predef_ad_schema()
             item.description=f"Error: {e}"

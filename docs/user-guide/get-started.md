@@ -126,6 +126,7 @@ Edit the `.env` file in the repository root and set the following required varia
 - `RTSP_CAMERA_IP` and related RTSP settings for live camera input.
 - `AIG_INFERENCE_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
 - `AIG_*` and `ASE_*` variables for advanced AIG and ASe tuning.
+- `ASE_MILVUS_URI`, `ASE_MILVUS_TOKEN`, `ASE_COLLECTION_NAME`, and `ASE_EMBEDDING_MODEL_ID` to point ASe at Milvus and validate the embedding contract.
 - `OBJECT_CONFIDENCE_THRESHOLD` and `OBJECT_RECENCY_FRAME_COUNT` for detection filtering.
 - `TIME_TO_DISPLAY_AD_SECONDS` for controlling ad rotation frequency.
 

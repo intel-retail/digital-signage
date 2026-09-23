@@ -1,7 +1,7 @@
 # Configure Predefined Advertisements
 
 Predefined advertisements are static JPEG/JPG images that the Advertise Searcher (ASe) service
-stores in ChromaDB and returns when a matching product is detected. This guide explains how
+stores in Milvus and returns when a matching product is detected. This guide explains how
 to provision products with predefined ads.
 
 ## Prerequisites
@@ -34,3 +34,66 @@ to provision products with predefined ads.
    make down
    make up
    ```
+
+## Milvus Catalog Migration and Rollback
+
+Use this cutover only while advertisement writes are stopped. Do **not** run `docker compose down -v`; the legacy Chroma volume is intentionally retained for rollback.
+
+1. **Back up the existing catalog assets**:
+
+   ```bash
+   cp -a ./aig/sharedata ./aig/sharedata.backup.$(date +%Y%m%d%H%M%S)
+   docker volume inspect digitalsignage_chroma_data
+   ```
+
+2. **Save the old source tree and old AIG image reference** before rebuilding.
+
+3. **From the saved pre-migration checkout/image, export the existing Chroma catalog with the legacy profile**:
+
+   ```bash
+   docker compose --profile legacy-chroma up -d ase-chromadb
+   docker compose run --rm \
+     -e ASE_CHROMADB_HOST=ase-chromadb \
+     aig-server \
+     python3 -m src.database.migrate_chroma export \
+       --collection-name "${ASE_COLLECTION_NAME}" \
+       --output /opt/sharedata/ase-chroma-backup.ndjson
+   ```
+
+4. **Build and validate the Milvus-based stack**:
+
+   ```bash
+   docker compose config -q
+   make build
+   docker compose up -d ase-etcd ase-milvus
+   docker compose ps
+   ```
+
+5. **Import into a fresh Milvus target**:
+
+   ```bash
+   docker compose run --rm aig-server \
+     python3 -m src.database.migrate_chroma import \
+       --input /opt/sharedata/ase-chroma-backup.ndjson \
+       --collection-name "${ASE_COLLECTION_NAME}"
+   ```
+
+6. **Start AIG and validate representative CRUD/search flows**, then restart once to confirm persistence:
+
+   ```bash
+   docker compose up -d aig-server web-ui nginx
+   docker compose restart ase-milvus aig-server
+   ```
+
+7. **Rollback** if needed by restoring the old source/config/image, keeping `chroma_data` untouched, and bringing the legacy profile back up:
+
+   ```bash
+   docker compose down
+   docker compose --profile legacy-chroma up -d ase-chromadb aig-server web-ui nginx
+   ```
+
+Notes:
+
+- `./aig/sharedata:/opt/sharedata`, `./aig/src:/home/aigserver/src`, and `./aig/models:/opt/models` are bind-mounted into `aig-server`; the migration utility reads and writes through those paths.
+- The local Compose deployment keeps Milvus unauthenticated on the internal Docker network by default. Use `ASE_MILVUS_TOKEN` only when pointing ASe at an external secured Milvus endpoint.
+- Post-cutover writes are **not** mirrored back into Chroma automatically.

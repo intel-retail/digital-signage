@@ -4,18 +4,21 @@ from PIL import Image
 import os
 import gc
 import threading
+import tempfile
 # GenAI
 import openvino_genai
 import openvino as ov
 # Logging
 import logging
-# ChromaDB
-import chromadb
-from chromadb.utils import embedding_functions
 # numpy
 import numpy as np
 # Utils 
 from database.utils import SharedUtils
+from database.milvus_collection import (
+    DuplicateIdError,
+    LocalSentenceTransformerEmbeddings,
+    MilvusAdvertisementCollection,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -227,92 +230,67 @@ class AseServerMetadata:
         return cls.instance
     
     def __init__(self):
-        # It avoids re-initialization of the instance for the singleton pattern
-        if not hasattr(self, 'chroma_client'):
-            # Lazy initialization - client is None until first use
-            self._chroma_client = None
-            self._collection = None
-            self._embedding_function = None
-            self._chromadb_lock = threading.Lock()
-            
-            #Load the Default Ad image
-            self.default_ad_image = None
-            try:
-                self.default_ad_image=Image.open(AseServerMetadata.get_ase_default_ad_img())
-            except Exception as e:
-                logger.error(f"[ASE] Error loading default ad image: {e}")
-                self.default_ad_image = None
+        if getattr(self, '_ase_initialized', False):
+            return
 
-            self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
-            
-            logger.info("[ASE] ChromaDB will be loaded on-demand (lazy loading enabled)")
+        self._ase_initialized = True
+        self._collection = None
+        self._embedding_function = None
+        self._chromadb_lock = threading.Lock()
+        self._sampledata_lock = threading.Lock()
+        self._sampledata_loaded = False
+        self._sampledata_attempted = False
+
+        #Load the Default Ad image
+        self.default_ad_image = None
+        try:
+            self.default_ad_image=Image.open(AseServerMetadata.get_ase_default_ad_img())
+        except Exception as e:
+            logger.error(f"[ASE] Error loading default ad image: {e}")
+            self.default_ad_image = None
+
+        self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
+        
+        logger.info("[ASE] Milvus-backed advertisement catalog will be loaded on-demand (lazy loading enabled)")
     
     @property
     def chroma_client(self):
-        """Lazy-load ChromaDB client on first access"""
-        if self._chroma_client is None:
-            with self._chromadb_lock:
-                if self._chroma_client is None:  # Double-check locking
-                    self._initialize_chromadb()
-        return self._chroma_client
+        """Backward-compatible alias for the lazily initialized vector catalog."""
+        return self.collection
     
     @property
     def collection(self):
         """Lazy-load collection on first access"""
         if self._collection is None:
-            # Accessing chroma_client will trigger initialization
-            _ = self.chroma_client
+            with self._chromadb_lock:
+                if self._collection is None:
+                    self._collection = self._initialize_chromadb()
+            self.process_sample_data()
         return self._collection
     
     def _initialize_chromadb(self):
-        """Initialize ChromaDB client and collection (called lazily)"""
-        logger.info("[ASE] Initializing ChromaDB client with persistent storage...")
-        try:
-            self._chroma_client = chromadb.HttpClient(
-                host=AseServerMetadata.get_ase_chromadb_host(), 
-                port=AseServerMetadata.get_ase_chromadb_port()
-            )
-            logger.info(f"[ASE] ChromaDB client connected to {AseServerMetadata.get_ase_chromadb_host()}:{AseServerMetadata.get_ase_chromadb_port()}")
-        except Exception as e:
-            logger.error(f"[ASE] Error initializing ChromaDB client: {e}")
-            self._chroma_client = None
-            return
-
-        if self._chroma_client is not None:
-            local_path = os.getenv('ASE_MODEL_PATH')
-            try:
-                self._embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=local_path)
-                logger.info(f"[ASE] Embedding function initialized with model: {local_path}")
-            except Exception as e:
-                logger.error(f"[ASE] Error initializing embedding function with model '{local_path}': {e}")
-                logger.warning("[ASE] Falling back to default embedding function.")
-                self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
-            
-            try:
-                self._collection = self._chroma_client.get_or_create_collection(
-                    name=AseServerMetadata.get_ase_collection_name(), 
-                    embedding_function=self._embedding_function
-                )
-                logger.info(f"[ASE] Collection '{AseServerMetadata.get_ase_collection_name()}' ready")
-            except Exception as e:
-                logger.error(f"[ASE] Failed to create collection: {e}")
-                self._collection = None
-            
-            # Load sample data after collection is ready
-            self.process_sample_data()
-        else:
-            logger.error("[ASE] Failed to initialize ChromaDB client.")
-            self._collection = None
+        """Initialize the Milvus-backed collection (called lazily)."""
+        logger.info("[ASE] Initializing Milvus collection with persistent storage...")
+        local_path = os.getenv('ASE_MODEL_PATH')
+        model_id = AseServerMetadata.get_ase_embedding_model_id()
+        self._embedding_function = LocalSentenceTransformerEmbeddings(local_path, model_id=model_id)
+        collection = MilvusAdvertisementCollection(
+            uri=AseServerMetadata.get_ase_milvus_uri(),
+            token=AseServerMetadata.get_ase_milvus_token(),
+            collection_name=AseServerMetadata.get_ase_collection_name(),
+            embedding_provider=self._embedding_function,
+        )
+        logger.info(f"[ASE] Milvus collection '{AseServerMetadata.get_ase_collection_name()}' ready at {AseServerMetadata.get_ase_milvus_uri()}")
+        return collection
             
     
     def chromadb_heartbeat(self):
         """
         Check the Chromadb reachability.
         """
-        if self.chroma_client is not None:
-            return self.chroma_client.heartbeat()
-        else:            
-            return None
+        if self.collection is not None:
+            return self.collection.heartbeat()
+        return None
     
     def process_sample_data(self):
         """
@@ -320,6 +298,14 @@ class AseServerMetadata:
         """
         if not AseServerMetadata.get_ase_enable_sampledata():
             return
+        if self._sampledata_loaded or self._sampledata_attempted:
+            return
+
+        with self._sampledata_lock:
+            if self._sampledata_loaded or self._sampledata_attempted:
+                return
+            self._sampledata_attempted = True
+
         path_sample_data = os.getenv('ASE_ENABLE_SAMPLEDATA_DIR', '/opt/sharedata/sample')
         if path_sample_data is None or not os.path.exists(path_sample_data):
             logger.error(f"[ChromaDB] Sample data directory {path_sample_data} does not exist.")
@@ -348,6 +334,7 @@ class AseServerMetadata:
             except Exception as e:
                 logger.error(f"[ChromaDB] Error processing sample data: {e}")
 
+        self._sampledata_loaded = True
         logger.warning(f"[ChromaDB] {count} of {total} Sample data loaded successfully.")
         
 
@@ -397,23 +384,25 @@ class AseServerMetadata:
         
     @staticmethod
     def get_ase_collection_name():
-        return os.getenv('ASE_COLLECTION_NAME', 'ase-collection') # ASE collection name
+        return os.getenv('ASE_COLLECTION_NAME', 'ase_collection') # ASE collection name
     
     @staticmethod
-    def get_ase_chromadb_port() ->int:
+    def get_ase_milvus_uri():
         """
-        Get the ASE Chroma DB Port.
-        Default is '8000'.
+        Get the ASE Milvus URI.
         """
-        return int(os.getenv('ASE_CHROMADB_PORT', 8000)) # Default host for Chroma DB
+        return os.getenv('ASE_MILVUS_URI', 'http://ase-milvus:19530')
     
     @staticmethod
-    def get_ase_chromadb_host():
+    def get_ase_milvus_token():
         """
-        Get the ASE Chroma DB host.
-        Default is 'ase-chromadb'.
+        Get the optional ASE Milvus token.
         """
-        return os.getenv('ASE_CHROMADB_HOST', 'ase-chromadb') # Default host for Chroma DB        
+        return os.getenv('ASE_MILVUS_TOKEN')
+
+    @staticmethod
+    def get_ase_embedding_model_id():
+        return os.getenv('ASE_EMBEDDING_MODEL_ID', 'sentence-transformers/all-MiniLM-L12-v2')
     
     @staticmethod
     def get_ase_default_ad_img():
@@ -445,6 +434,21 @@ class AseServerMetadata:
             logger.error(f"[ChromaDB] Error saving image to {filepath}: {e}")
             raise ValueError(f"Could not save image to {filepath}. Error: {e}")
 
+        return filepath
+
+    @staticmethod
+    def save_image_to_temp_dir(image: Image.Image, id: int):
+        directory = AseServerMetadata.get_ase_img_path()
+        os.makedirs(directory, exist_ok=True)
+        file_descriptor, filepath = tempfile.mkstemp(prefix=f"img_{str(id)}_", suffix=".jpg", dir=directory)
+        os.close(file_descriptor)
+        try:
+            image.save(filepath)
+        except Exception as e:
+            if os.path.exists(filepath):
+                os.unlink(filepath)
+            logger.error(f"[ChromaDB] Error saving temporary image to {filepath}: {e}")
+            raise ValueError(f"Could not save temporary image to {filepath}. Error: {e}")
         return filepath
 
     @staticmethod
@@ -511,9 +515,13 @@ class AseServerMetadata:
         if id is None or description is None or image is None:
             raise ValueError("id, description and image must be provided.")
 
-        filepath = None
+        if self.chromadb_exists(id):
+            raise DuplicateIdError(f"Document with ID {id} already exists.")
+
+        filepath = os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{str(id)}.jpg")
+        temp_filepath = None
         try:
-            filepath=AseServerMetadata.save_image_to_dir(image, id)
+            temp_filepath = AseServerMetadata.save_image_to_temp_dir(image, id)
         except Exception as e:
             logger.error(f"[ChromaDB] Error processing image: {e}")
             raise ValueError("Invalid image provided.") 
@@ -527,9 +535,15 @@ class AseServerMetadata:
                 metadatas=[{"source": source, "id": id, "description": description, "img_path": filepath, "img_height": img_height, "img_width": img_width}],
                 ids=[str(id)]
             )
+            os.replace(temp_filepath, filepath)
             logger.info(f"[ChromaDB] Document with ID {id} added successfully.")
         except Exception as e:
-            AseServerMetadata.remove_image_file(id)
+            if temp_filepath is not None and os.path.exists(temp_filepath):
+                os.unlink(temp_filepath)
+            try:
+                self.collection.delete(ids=[str(id)])
+            except Exception:
+                pass
             logger.error(f"[ChromaDB] Error adding document with ID {id}: {e}")
             raise ValueError(f"Could not add document with ID {id} to ChromaDB. Error: {e}")
         
@@ -546,7 +560,7 @@ class AseServerMetadata:
             raise ValueError("id must be provided.")
 
         try:
-            self.collection.delete(ids=[id])
+            self.collection.delete(ids=[str(id)])
             try:
                 AseServerMetadata.remove_image_file(int(id))
             except ValueError as e:
@@ -602,10 +616,10 @@ class AseServerMetadata:
                 logger.info(f"[ChromaDB] Document with ID {id} does not exist.")
                 return False
             
-            return str(id) in result.get('ids', [])[0]
+            return str(id) in set(result.get('ids', []))
         except Exception as e:
             logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
-            return False
+            raise
         
     def chromadb_update(self, id, description: str, image: Image.Image, source: str = "ase"):
         """
@@ -641,5 +655,5 @@ class AseServerMetadata:
             return result
         except Exception as e:
             logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
-            return None
+            raise
     

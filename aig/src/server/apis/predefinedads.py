@@ -375,7 +375,7 @@ class PredefAdResourceQuery(Resource):
                 for doc_index, doc_id in enumerate(id_list):
                     doc_score = distance_list[doc_index]
 
-                    if doc_score is not None and doc_score >= AseServerMetadata.get_ase_distance_threshold():
+                    if AseServerMetadata.is_qdrant_match(doc_score):
                         id_int = None
                         try:
                             id_int = int(doc_id)
@@ -472,7 +472,7 @@ class Predefined_Adhocad_Img(Resource):
                         for doc_index, doc_id in enumerate(id_list):
                             doc_score = distance_list[doc_index]
 
-                            if doc_score is not None and doc_score >= AseServerMetadata.get_ase_distance_threshold():
+                            if AseServerMetadata.is_qdrant_match(doc_score):
                                 # Get the metadata for the document    
                                 doc_metadata = metadata_list[doc_index]                                                
                                 img_path = doc_metadata.get('img_path',None)
@@ -703,7 +703,7 @@ class Predefined_Adhocad_Img(Resource):
                         for doc_index, doc_id in enumerate(id_list):
                             doc_score = distance_list[doc_index]
 
-                            if doc_score is not None and doc_score >= AseServerMetadata.get_ase_distance_threshold():
+                            if AseServerMetadata.is_qdrant_match(doc_score):
                                 # Get the metadata for the document    
                                 doc_metadata = metadata_list[doc_index]                    
                                 img_path = doc_metadata.get('img_path',None)

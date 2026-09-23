@@ -207,6 +207,7 @@ services:
       - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available
       - ASE_ENABLE_SAMPLEDATA=${ASE_ENABLE_SAMPLEDATA} # Enable sample data for the ASE service
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
+      - ASE_QDRANT_SCORE_MIN_THRESHOLD=${ASE_QDRANT_SCORE_MIN_THRESHOLD} # Minimum cosine similarity score for Qdrant matches
       - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)

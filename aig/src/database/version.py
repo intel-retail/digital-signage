@@ -3,6 +3,7 @@ from datetime import datetime
 from PIL import Image
 import os
 import gc
+import tempfile
 import threading
 # GenAI
 import openvino_genai
@@ -235,6 +236,8 @@ class AseServerMetadata:
             self._embedding_model = None
             self._embedding_dimensions = None
             self._qdrant_lock = threading.Lock()
+            self._record_locks = {}
+            self._record_locks_lock = threading.Lock()
             
             # Load the Default Ad image
             self.default_ad_image = None
@@ -279,6 +282,12 @@ class AseServerMetadata:
             raise ValueError("Qdrant embedding model is not initialized. Please check the connection settings.")
         embeddings = self._embedding_model.encode(texts, normalize_embeddings=True)
         return embeddings.tolist() if hasattr(embeddings, "tolist") else embeddings
+
+    def _get_record_lock(self, point_id: int):
+        with self._record_locks_lock:
+            if point_id not in self._record_locks:
+                self._record_locks[point_id] = threading.Lock()
+            return self._record_locks[point_id]
     
     def _initialize_qdrant(self):
         """Initialize Qdrant client, embedding model and collection (called lazily)."""
@@ -406,15 +415,27 @@ class AseServerMetadata:
     def get_ase_distance_threshold() -> float:
         """
         Get the ASE similarity threshold for predefined ad matching.
-        The legacy environment variable name is kept for compatibility, but with Qdrant
-        cosine search the value is now interpreted as a minimum similarity score
-        (higher is closer) instead of a maximum distance (lower is closer).
-        Default 0.8 roughly matches the previous distance cutoff of 0.2.
+        Prefer ASE_QDRANT_SCORE_MIN_THRESHOLD for Qdrant deployments.
+        For backward compatibility, when only the legacy ASE_DISTANCE_MAX_THRESHOLD
+        is set, it is translated from a maximum distance into an equivalent minimum
+        cosine similarity score by using (1.0 - distance).
         """
         try:
-            return float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 0.8))
+            explicit_score = os.getenv('ASE_QDRANT_SCORE_MIN_THRESHOLD')
+            if explicit_score is not None:
+                return float(explicit_score)
+
+            legacy_distance = float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 0.2))
+            return 1.0 - legacy_distance
         except ValueError:
             return 0.8
+
+    @staticmethod
+    def is_qdrant_match(score: float) -> bool:
+        """
+        Return True when the Qdrant cosine similarity score passes the configured threshold.
+        """
+        return score is not None and score >= AseServerMetadata.get_ase_distance_threshold()
     
     @staticmethod
     def get_ase_img_id():
@@ -720,61 +741,67 @@ class AseServerMetadata:
             raise ValueError("id, description, and image must be provided.")
         
         point_id = AseServerMetadata._normalize_point_id(id)
-        existing_records = self.qdrant_client.retrieve(
-            collection_name=self.collection,
-            ids=[point_id],
-            with_payload=True,
-            with_vectors=False
-        )
-        if not existing_records:
-            return self.qdrant_add(id, description, image, source)
-
-        current_payload = existing_records[0].payload or {}
-        current_img_path = current_payload.get("img_path", os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{id}.jpg"))
-        temp_img_path = f"{current_img_path}.tmp"
-        previous_description = current_payload.get("description")
-        new_payload = AseServerMetadata._build_payload(id, description, current_img_path, image, source)
-
-        try:
-            AseServerMetadata.save_image_to_path(image, temp_img_path)
-            vector = self._embed_texts([description])[0]
-            self.qdrant_client.upsert(
+        with self._get_record_lock(point_id):
+            existing_records = self.qdrant_client.retrieve(
                 collection_name=self.collection,
-                wait=True,
-                points=[
-                    models.PointStruct(
-                        id=point_id,
-                        vector=vector,
-                        payload=new_payload
-                    )
-                ]
+                ids=[point_id],
+                with_payload=True,
+                with_vectors=False
             )
-            os.replace(temp_img_path, current_img_path)
-            logger.info(f"[Qdrant] Document with ID {id} updated successfully.")
-            return True
-        except Exception as e:
-            if os.path.exists(temp_img_path):
-                os.remove(temp_img_path)
+            if not existing_records:
+                return self.qdrant_add(id, description, image, source)
 
-            if previous_description is not None:
-                try:
-                    previous_vector = self._embed_texts([previous_description])[0]
-                    self.qdrant_client.upsert(
-                        collection_name=self.collection,
-                        wait=True,
-                        points=[
-                            models.PointStruct(
-                                id=point_id,
-                                vector=previous_vector,
-                                payload=current_payload
-                            )
-                        ]
-                    )
-                except Exception as restore_error:
-                    logger.error(f"[Qdrant] Failed to restore previous payload for ID {id}: {restore_error}")
+            current_payload = existing_records[0].payload or {}
+            current_img_path = current_payload.get("img_path", os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{id}.jpg"))
+            previous_description = current_payload.get("description")
+            new_payload = AseServerMetadata._build_payload(id, description, current_img_path, image, source)
+            temp_fd, temp_img_path = tempfile.mkstemp(
+                prefix=f"img_{id}_",
+                suffix=".jpg",
+                dir=os.path.dirname(current_img_path)
+            )
+            os.close(temp_fd)
 
-            logger.error(f"[Qdrant] Error updating document with ID {id}: {e}")
-            raise ValueError(f"Could not update document with ID {id} in Qdrant. Error: {e}")
+            try:
+                AseServerMetadata.save_image_to_path(image, temp_img_path)
+                vector = self._embed_texts([description])[0]
+                self.qdrant_client.upsert(
+                    collection_name=self.collection,
+                    wait=True,
+                    points=[
+                        models.PointStruct(
+                            id=point_id,
+                            vector=vector,
+                            payload=new_payload
+                        )
+                    ]
+                )
+                os.replace(temp_img_path, current_img_path)
+                logger.info(f"[Qdrant] Document with ID {id} updated successfully.")
+                return True
+            except Exception as e:
+                if os.path.exists(temp_img_path):
+                    os.remove(temp_img_path)
+
+                if previous_description is not None:
+                    try:
+                        previous_vector = self._embed_texts([previous_description])[0]
+                        self.qdrant_client.upsert(
+                            collection_name=self.collection,
+                            wait=True,
+                            points=[
+                                models.PointStruct(
+                                    id=point_id,
+                                    vector=previous_vector,
+                                    payload=current_payload
+                                )
+                            ]
+                        )
+                    except Exception as restore_error:
+                        logger.error(f"[Qdrant] Failed to restore previous payload for ID {id}: {restore_error}")
+
+                logger.error(f"[Qdrant] Error updating document with ID {id}: {e}")
+                raise ValueError(f"Could not update document with ID {id} in Qdrant. Error: {e}")
     
     def qdrant_get(self, id: str):
         """

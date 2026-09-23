@@ -201,7 +201,7 @@ services:
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
       - ASE_COLLECTION_NAME=${ASE_COLLECTION_NAME} # Name of the ASE collection to use
       - ASE_QDRANT_PORT=${ASE_QDRANT_PORT} # Port for Qdrant service
-      - ASE_QDRANT_HOST=${ASE_QDRANT_HOST} # Hostname for Qdrant service
+      - ASE_QDRANT_HOST=${ASE_QDRANT_HOST:-ase-qdrant} # Hostname for Qdrant service
       - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
       - ASE_MODEL_PATH=${ASE_MODEL_PATH}
       - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available

@@ -718,7 +718,11 @@ class AseServerMetadata:
         current_record = self.qdrant_get(str(id))
         current_metadata = None
         if current_record is not None:
-            current_metadata = current_record.get("metadatas", [None])[0]
+            metadata_rows = current_record.get("metadatas", [])
+            if metadata_rows and isinstance(metadata_rows[0], list):
+                current_metadata = metadata_rows[0][0] if metadata_rows[0] else None
+            elif metadata_rows:
+                current_metadata = metadata_rows[0]
         
         current_img_path = current_metadata.get("img_path") if current_metadata else None
         backup_img_path = f"{current_img_path}.bak" if current_img_path else None
@@ -759,7 +763,7 @@ class AseServerMetadata:
             payload = result[0].payload or {}
             return {
                 "ids": [[str(result[0].id)]],
-                "metadatas": [payload],
+                "metadatas": [[payload]],
                 "documents": [[payload.get("description")]]
             }
         except Exception as e:

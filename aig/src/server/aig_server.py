@@ -20,7 +20,7 @@ class AigServer:
         logger.info(f"API initialized")
 
     def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port()): # nosec B104
-        # threaded=True so ASe (ChromaDB) requests aren't blocked behind slow AIG image generation
+        # threaded=True so ASe (Qdrant) requests aren't blocked behind slow AIG image generation
         # Debug mode is never enabled from this runtime path.
         return self.app.run(host= hostname, port=pport, debug=False, threaded=True)
     

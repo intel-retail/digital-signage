@@ -27,7 +27,7 @@ License-Identifier: EPL-2.0/EPL-1.0
 
 License-Identifier: Apache 2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
-- chromadb/chroma:1.5.9
+- qdrant/qdrant:v1.19.1-unprivileged
 ----------------------------------------------------------------------
 
 License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").
@@ -97,7 +97,7 @@ pillow==12.3.0
 License-Identifier: Apache License 2.0
 openvino_genai==2026.2.1.0
 diffusers==0.38.0
-chromadb==1.5.9
+qdrant-client==1.19.1
 sentence-transformers==5.2.0
 ----------------------------------------------------------------------
 

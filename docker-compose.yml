@@ -137,10 +137,10 @@ services:
     networks:
     - app_network
 
-  ase-chromadb:
-    image: chromadb/chroma:1.5.9
-    hostname: ase-chromadb
-    container_name: ase-chromadb
+  ase-qdrant:
+    image: qdrant/qdrant:v1.19.1-unprivileged
+    hostname: ase-qdrant
+    container_name: ase-qdrant
     user: "1000:1000"
     read_only: true
     security_opt:
@@ -152,9 +152,7 @@ services:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
     volumes:
-      - chroma_data:/tmp
-      - chroma_data:/data
-      - chroma_data:/tmp
+      - qdrant_data:/qdrant/storage
 
   aig-server:
     image: ${DOCKER_REGISTRY}${AIG_SERVER_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
@@ -182,7 +180,7 @@ services:
     networks: 
       - app_network
     environment:
-      - no_proxy=${no_proxy},ase-chromadb,web-ui
+      - no_proxy=${no_proxy},ase-qdrant,web-ui
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
@@ -202,18 +200,19 @@ services:
       - VIDEO_GROUP_ID=44 #OpenVINO & OneAPI
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
       - ASE_COLLECTION_NAME=${ASE_COLLECTION_NAME} # Name of the ASE collection to use
-      - ASE_CHROMADB_PORT=${ASE_CHROMADB_PORT} # Port for ChromaDB service      
-      - ASE_CHROMADB_HOST=ase-chromadb # Hostname for ChromaDB service
+      - ASE_QDRANT_PORT=${ASE_QDRANT_PORT} # Port for Qdrant service
+      - ASE_QDRANT_HOST=${ASE_QDRANT_HOST:-ase-qdrant} # Hostname for Qdrant service
       - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
       - ASE_MODEL_PATH=${ASE_MODEL_PATH}
       - ASE_IMG_DEFAULT_AD=${ASE_IMG_DEFAULT_AD} # Default image when no ads are available
       - ASE_ENABLE_SAMPLEDATA=${ASE_ENABLE_SAMPLEDATA} # Enable sample data for the ASE service
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
+      - ASE_QDRANT_SCORE_MIN_THRESHOLD=${ASE_QDRANT_SCORE_MIN_THRESHOLD} # Minimum cosine similarity score for Qdrant matches
       - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
-      - ase-chromadb
+      - ase-qdrant
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - vol_pipeline_root:/home/ubuntu/.cache
@@ -330,4 +329,4 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs
-  chroma_data:
+  qdrant_data:

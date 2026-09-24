@@ -1,7 +1,7 @@
 # Configure Predefined Advertisements
 
 Predefined advertisements are static JPEG/JPG images that the Advertise Searcher (ASe) service
-stores in ChromaDB and returns when a matching product is detected. This guide explains how
+stores in Qdrant and returns when a matching product is detected. This guide explains how
 to provision products with predefined ads.
 
 ## Prerequisites

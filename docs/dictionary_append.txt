@@ -4,7 +4,7 @@ PID
 MQTT
 WebRTC
 RTSP
-ChromaDB
+Qdrant
 MediaMTX
 COTURN
 GenAI

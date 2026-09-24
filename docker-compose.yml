@@ -198,6 +198,16 @@ services:
       - AIG_MODEL_NUM_INFERENCE_STEPS=${AIG_MODEL_NUM_INFERENCE_STEPS} # Number of inference steps for the model
       - AIG_IMG_WIDTH_DEFAULT=${AIG_IMG_WIDTH_DEFAULT} # Default image width for the model
       - AIG_IMG_HEIGHT_DEFAULT=${AIG_IMG_HEIGHT_DEFAULT} # Default image height for the model
+      - AIG_VIDEO_MODEL_PATH=${AIG_VIDEO_MODEL_PATH} # Path to the converted LTX-Video (Text2VideoPipeline) model, used only by trigger_video_ad
+      - AIG_VIDEO_MODEL_DEVICE=${AIG_VIDEO_INFERENCE_DEVICE:-GPU} # Default device to run the video model on
+      - AIG_VIDEO_WIDTH_DEFAULT=${AIG_VIDEO_WIDTH_DEFAULT} # Video resolution, independent from the image model's
+      - AIG_VIDEO_HEIGHT_DEFAULT=${AIG_VIDEO_HEIGHT_DEFAULT}
+      - AIG_VIDEO_NUM_FRAMES=${AIG_VIDEO_NUM_FRAMES} # Number of frames to generate per video ad
+      - AIG_VIDEO_NUM_INFERENCE_STEPS=${AIG_VIDEO_NUM_INFERENCE_STEPS} # Number of inference steps for the video model
+      - AIG_VIDEO_GUIDANCE_SCALE=${AIG_VIDEO_GUIDANCE_SCALE} # Classifier-free guidance scale for the video model
+      - AIG_VIDEO_FRAME_RATE=${AIG_VIDEO_FRAME_RATE} # Frame rate used by the video model's own temporal generation
+      - AIG_VIDEO_LOOP_SECONDS=${AIG_VIDEO_LOOP_SECONDS} # Duration of one loop pass through the generated frames in the encoded WEBP
+      - AIG_VIDEO_NEGATIVE_PROMPT=${AIG_VIDEO_NEGATIVE_PROMPT} # Negative prompt discouraging blurry/jittery/distorted video output
       - LIBVA_DRIVER_NAME=iHD #OpenVINO & OneAPI
       - VIDEO_GROUP_ID=44 #OpenVINO & OneAPI
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
@@ -251,6 +261,8 @@ services:
     read_only: true
     security_opt:
       - no-new-privileges
+    tmpfs:
+      - /tmp  # writable scratch space for encoding video ad clips (read_only rootfs has no /tmp otherwise)
     build:
       context: $PWD/web-ui
       dockerfile: $PWD/web-ui/Dockerfile
@@ -269,11 +281,13 @@ services:
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       - TIME_TO_DISPLAY_AD_SECONDS=${TIME_TO_DISPLAY_AD_SECONDS}
+      - VIDEO_AD_DISPLAY_SECONDS=${VIDEO_AD_DISPLAY_SECONDS} # Must match AIG_VIDEO_LOOP_SECONDS (aig-server)
       - OBJECT_RECENCY_FRAME_COUNT=${OBJECT_RECENCY_FRAME_COUNT}
       - OBJECT_CONFIDENCE_THRESHOLD=${OBJECT_CONFIDENCE_THRESHOLD}
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
       - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Default Device to run the model on (e.g., CPU, GPU)
+      - AIG_VIDEO_INFERENCE_DEVICE=${AIG_VIDEO_INFERENCE_DEVICE:-GPU} # Must match aig-server's AIG_VIDEO_MODEL_DEVICE
     depends_on:
       - mediamtx
       - aig-server

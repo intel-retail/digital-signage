@@ -65,10 +65,6 @@ mkdir -p \
     "$REPO_ROOT/aig/models/.model-download" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov"
 require_path "$MODEL_DOWNLOAD_CONFIG"
-if ! grep -Eq '^[[:space:]]*-[[:space:]]*name:' "$MODEL_DOWNLOAD_CONFIG"; then
-    echo "No startup models are configured in $MODEL_DOWNLOAD_CONFIG" >&2
-    exit 1
-fi
 
 log "Starting model-download microservice container"
 DOCKER_ARGS=(
@@ -88,7 +84,7 @@ DOCKER_ARGS=(
 )
 
 if [[ -n "$HF_TOKEN_VALUE" ]]; then
-    DOCKER_ARGS+=(--env "HF_TOKEN=$HF_TOKEN_VALUE")
+    DOCKER_ARGS+=(--env "HF_TOKEN=$HF_TOKEN_VALUE" --env "HUGGINGFACEHUB_API_TOKEN=$HF_TOKEN_VALUE")
 fi
 
 DOCKER_ARGS+=(
@@ -127,6 +123,7 @@ done
 
 log "Polling startup model jobs"
 poll_deadline=$((SECONDS + MODEL_DOWNLOAD_TIMEOUT_SECONDS))
+job_creation_deadline=$((SECONDS + 30))
 while true; do
     jobs_json="$(curl -fsS "${MODEL_DOWNLOAD_URL}/jobs" || true)"
     if [[ -z "$jobs_json" ]]; then
@@ -162,6 +159,20 @@ PY
     if [[ -z "$job_summary" ]]; then
         if (( SECONDS >= poll_deadline )); then
             echo "Timed out while waiting for valid startup job status responses" >&2
+            docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
+            exit 1
+        fi
+        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
+        continue
+    fi
+    if python3 - <<'PY' "$job_summary"
+import json
+import sys
+sys.exit(0 if json.loads(sys.argv[1]).get("count") == 0 else 1)
+PY
+    then
+        if (( SECONDS >= job_creation_deadline )); then
+            echo "No startup model jobs were created from $MODEL_DOWNLOAD_CONFIG" >&2
             docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
             exit 1
         fi

@@ -175,6 +175,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 caxselling/pid/e2e_detections.json
+aig/models
 aig/models/**
+configs/pid/models/
 configs/pid/models/**
 aig/sharedata/imgs/

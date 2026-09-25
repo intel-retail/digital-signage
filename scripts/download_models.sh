@@ -203,7 +203,7 @@ PY
 
     if (( SECONDS >= poll_deadline )); then
         echo "Timed out while waiting for startup jobs to finish" >&2
-        python3 -m json.tool <<<"$job_summary" >&2 || true
+        python3 -m json.tool <<<"$jobs_json" >&2 || true
         docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
         exit 1
     fi
@@ -213,11 +213,12 @@ PY
 done
 
 log "Normalizing model paths for Digital Signage"
+sdxl_source_dir="$(find "$REPO_ROOT/aig/models/.model-download/sdxl_turbo_ov/openvino_models" -type d -path '*/int8/stabilityai/sdxl-turbo' | head -1)"
 copy_directory \
     "$REPO_ROOT/configs/pid/models/object_detection/.model-download/yolo11s/ultralytics/public/yolo11s" \
     "$REPO_ROOT/configs/pid/models/object_detection/yolo11s"
 link_directory \
-    "$REPO_ROOT/aig/models/.model-download/sdxl_turbo_ov/openvino_models/cpu/int8/stabilityai/sdxl-turbo" \
+    "$sdxl_source_dir" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov/int8"
 link_directory \
     "$REPO_ROOT/aig/models/.model-download/all-MiniLM-L12-v2/huggingface/sentence-transformers_all-MiniLM-L12-v2" \

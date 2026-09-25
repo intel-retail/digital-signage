@@ -65,6 +65,10 @@ mkdir -p \
     "$REPO_ROOT/aig/models/.model-download" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov"
 require_path "$MODEL_DOWNLOAD_CONFIG"
+if ! grep -Eq '^[[:space:]]*-[[:space:]]*name:' "$MODEL_DOWNLOAD_CONFIG"; then
+    echo "No startup models are configured in $MODEL_DOWNLOAD_CONFIG" >&2
+    exit 1
+fi
 
 log "Starting model-download microservice container"
 DOCKER_ARGS=(
@@ -94,7 +98,7 @@ DOCKER_ARGS+=(
 
 "${DOCKER_ARGS[@]}" >/dev/null
 
-MODEL_DOWNLOAD_PORT="$(docker port "$MODEL_DOWNLOAD_CONTAINER_NAME" "${MODEL_DOWNLOAD_SERVICE_PORT}/tcp" | head -1 | sed 's/.*://')"
+MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8000/tcp") 0).HostPort}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
 if [[ -z "$MODEL_DOWNLOAD_PORT" ]]; then
     echo "Failed to determine model-download microservice port" >&2
     docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true

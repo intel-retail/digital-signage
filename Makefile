@@ -9,6 +9,8 @@ INCLUDE ?= default_INCLUDE
 DOCKER_COMPOSE_FILE = ./docker-compose.yml
 DOCKER_COMPOSE = docker compose
 SECURE_MODE='false'
+MODEL_DOWNLOAD_IMAGE = intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849
+MODEL_DOWNLOAD_CONFIG = $(CURDIR)/configs/model-download/startup-models.yaml
 
 DRI_MOUNT_PATH := $(shell [ -d /dev/dri ] && [ -n "$$(ls -A /dev/dri 2>/dev/null)" ] && echo "/dev/dri" || echo "/dev/null")
 export DRI_MOUNT_PATH
@@ -33,6 +35,18 @@ SHA_ALGO="sha384"
 build:
 	@echo "Building Docker containers..."
 	$(DOCKER_COMPOSE) build --pull;
+
+.PHONY: build_model_download_image
+build_model_download_image:
+	@echo "Pulling pinned model-download microservice image..."
+	docker pull $(MODEL_DOWNLOAD_IMAGE)
+
+.PHONY: download_models
+download_models: build_model_download_image
+	@echo "Downloading Digital Signage models with the model-download microservice..."
+	@MODEL_DOWNLOAD_IMAGE="$(MODEL_DOWNLOAD_IMAGE)" \
+	MODEL_DOWNLOAD_CONFIG="$(MODEL_DOWNLOAD_CONFIG)" \
+	./scripts/download_models.sh
 
 .PHONY: build_copyleft_sources
 build_copyleft_sources:
@@ -166,6 +180,7 @@ push_images: build
 help:
 	@echo "Makefile commands:"
 	@echo "  make build    - Build Docker containers"
+	@echo "  make download_models - Download required PID and AIG models"
 	@echo "  make build_copyleft_sources - Build Docker containers including copyleft licensed sources"
 	@echo "  make up    - Start Docker containers"
 	@echo "  make down     - Stop Docker containers"

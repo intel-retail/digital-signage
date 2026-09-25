@@ -28,6 +28,7 @@ License-Identifier: EPL-2.0/EPL-1.0
 License-Identifier: Apache 2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
 - chromadb/chroma:1.5.9
+- intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849
 ----------------------------------------------------------------------
 
 License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").
@@ -108,47 +109,6 @@ jaraco.context==6.1.0
 pip==25.3
 
 ---------------------------------------------------------------------------------------------------------------------------
-
-aig/export-requirements.txt
-============================
-
-
-License-Identifier: Apache License 2.0 / Apache Software License
-openvino-tokenizers==2026.2.1.0
-optimum-intel[nncf]==2.0.0
-diffusers==0.37.0
-hf_transfer==0.1.9
-huggingface-hub==1.26.0
-----------------------------------------------------------------------
-
-configs/pid/model_download_requirements.txt
-===========================================
-
-
-License-Identifier: Apache License 2.0 / Apache Software License
-openvino==2025.4.1.0
-nncf[torch]==2.14.0
-nncf==2.14.0
-timm==1.0.20
-tensorflow-cpu==2.19.1
-tensorflow_datasets==4.9.9
-opencv-python==4.11.0.86
-opencv-contrib-python==4.11.0.86
-----------------------------------------------------------------------
-
-License-Identifier:  BSD-3-Clause License
-numpy==1.26.4
-
-----------------------------------------------------------------------
-
-License-Identifier: MIT License / Proprietary
-rich==14.1.0
-
-----------------------------------------------------------------------
-
-License-Identifier: GNU Affero General Public License v3 or later (AGPLv3+) (AGPL-3.0)
-
-ultralytics==8.3.203
 
 ---------------------------------------------------------------------------------------------------------------------------
 * Other names and brands may be claimed as the property of others.

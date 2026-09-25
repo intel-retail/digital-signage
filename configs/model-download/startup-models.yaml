@@ -1,0 +1,24 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+download_path: .
+parallel_downloads: false
+models:
+  - name: yolo11s
+    hub: ultralytics
+    type: vision
+    download_path: pid/object_detection/.model-download/yolo11s
+    config:
+      quantize: coco128
+  - name: stabilityai/sdxl-turbo
+    hub: openvino
+    type: image_generation
+    is_ovms: true
+    download_path: aig/models/.model-download/sdxl_turbo_ov
+    config:
+      precision: int8
+      device: CPU
+  - name: sentence-transformers/all-MiniLM-L12-v2
+    hub: huggingface
+    type: embeddings
+    download_path: aig/models/.model-download/all-MiniLM-L12-v2

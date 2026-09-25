@@ -112,14 +112,15 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
 **Issue**:
 
-The YOLO11s or AIG model download step exits with an error.
+`make download_models` exits with an error.
 
 **Solution**:
 
-- Confirm internet access and proxy settings.
-- Ensure Python virtual environment creation succeeds (`python3 -m venv`).
-- For Hugging Face downloads, set the `HF_HUB_ENABLE_HF_TRANSFER=1` environment variable as documented in [Build from Source](./get-started/build-from-source.md).
-- Ensure sufficient disk space (500 GB free recommended).
+- Confirm Docker Engine is running and `docker buildx version` succeeds.
+- Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
+- Re-run `make download_models`; the command prints the model-download container logs when a startup job fails.
+- Verify that `configs/model-download/startup-models.yaml` has not been modified to point outside the repository model directories.
+- Ensure sufficient free disk space for the downloaded models and the temporary Docker image layers (500 GB free recommended).
 
 ---
 
@@ -174,25 +175,20 @@ If needed, also verify inode availability (`df -i`) and open file limits (`ulimi
 
 **Issue**
 
-The AIG model download fails with the following error:
-
-```bash
-save_model(model, path, compress_to_fp16)
-RuntimeError: basic_ios::clear: iostream error
-```
+The AIG startup job inside `make download_models` fails while preparing SDXL-Turbo or all-MiniLM-L12-v2.
 
 **Reason**
 
-The `/tmp` partition has less than 15 GB of free space, which is required to stage model files during download.
+The model-download container writes directly into `./aig/models`, so failures are usually caused by insufficient free disk space, interrupted network access, or a partial previous download left in the staging directory.
 
 **Solution**
 
-Choose one of the following options:
+1. Ensure the filesystem that contains the repository has enough free space for `./aig/models`.
+2. Remove any incomplete staged AIG download and retry:
 
-1. Increase the available space on `/tmp` to at least 15 GB.
-2. Redirect the temporary directory to your home folder by running the following commands, then re-run the model download in the same shell session:
+   ```bash
+   rm -rf ./aig/models/.model-download/sdxl_turbo_ov ./aig/models/.model-download/all-MiniLM-L12-v2
+   make download_models
+   ```
 
-  ```bash
-  mkdir -p ~/tmp
-  export TMPDIR=$HOME/tmp
-  ```
+3. If the failure persists, review the model-download logs emitted by `make download_models` and verify host network/proxy access to Hugging Face.

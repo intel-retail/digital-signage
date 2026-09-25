@@ -93,7 +93,7 @@ All notable changes to this project are documented in this file.
 - Added a comprehensive digital signage system for context-aware cross-selling. ([c912c24])
 - Updated architecture diagrams. ([#33])
 - Updated RTSP pipeline for Axis camera. ([#34])
-- Updated public ports and `export-requirements.txt`. ([#35])
+- Updated public ports and AIG export dependencies. ([#35])
 - Merged main branch updates. ([0a3209e])
 - Updated overview text. ([dcaff95])
 - Addressed review comments. ([2c7e033])

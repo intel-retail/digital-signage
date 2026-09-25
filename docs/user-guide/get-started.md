@@ -67,49 +67,27 @@ make build
 
 ## Step 3: Download AI Models
 
-### Download YOLO11s Model (for PID)
+Digital Signage now uses the reusable `open-edge-platform/edge-ai-libraries` model-download microservice instead of local Python virtual environments.
 
-> Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) before downloading.
+> Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
 ```bash
-cd configs/pid && \
-wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
-sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
-sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
-rm -rf .modelenv && \
-python3 -m venv .modelenv && \
-source .modelenv/bin/activate && \
-pip3 install -r model_download_requirements.txt && \
-rm -rf models && \
-chmod +x downloadAndQuantizeModel.sh && \
-./downloadAndQuantizeModel.sh && \
-rm ./downloadAndQuantizeModel.sh && \
-deactivate && \
-cd ../..
+make download_models
 ```
 
-The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.
+This target:
+
+- Pulls the pinned published `intel/model-download` microservice image that matches the `open-edge-platform/edge-ai-libraries` model-download behavior validated for commit `664a5ddd730083fccbbf93a71e58bc666198dc0a`
+- Downloads and quantizes YOLO11s for PID
+- Downloads SDXL-Turbo (OpenVINO™ INT8) and all-MiniLM-L12-v2 for AIG
+- Maps the downloaded artifacts to the paths already used by Digital Signage:
+  - `./configs/pid/models/object_detection/yolo11s`
+  - `./aig/models/sdxl_turbo_ov/int8`
+  - `./aig/models/all-MiniLM-L12-v2`
+
+The startup model list is defined in `./configs/model-download/startup-models.yaml`.
 
 > **Note:** If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
-
-### Download SDXL-Turbo and MiniLM Models (for AIG)
-
-> Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
-
-```bash
-cd aig && \
-rm -rf .modelenv && \
-python3 -m venv .modelenv && \
-source ./.modelenv/bin/activate && \
-pip3 install -r export-requirements.txt && \
-export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-hf download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
-deactivate && \
-cd ../
-```
-
-Models are downloaded to `./aig/models/`.
 
 ## Step 4: Configure Environment
 

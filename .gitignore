@@ -129,7 +129,6 @@ celerybeat.pid
 
 # Environments
 #.env
-.modelenv
 .env_aig
 .env_bor
 .venv
@@ -177,7 +176,5 @@ cython_debug/
 .pypirc
 caxselling/pid/e2e_detections.json
 aig/models
-configs/pid/.modelenv
 configs/pid/models/
-configs/pid/downloadAndQuantizeModel*.sh
 aig/sharedata/imgs/

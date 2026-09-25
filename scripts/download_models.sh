@@ -94,7 +94,7 @@ DOCKER_ARGS+=(
 
 "${DOCKER_ARGS[@]}" >/dev/null
 
-MODEL_DOWNLOAD_PORT="$(docker port "$MODEL_DOWNLOAD_CONTAINER_NAME" "${MODEL_DOWNLOAD_SERVICE_PORT}/tcp" | head -1 | cut -d: -f2)"
+MODEL_DOWNLOAD_PORT="$(docker port "$MODEL_DOWNLOAD_CONTAINER_NAME" "${MODEL_DOWNLOAD_SERVICE_PORT}/tcp" | head -1 | sed 's/.*://')"
 if [[ -z "$MODEL_DOWNLOAD_PORT" ]]; then
     echo "Failed to determine model-download microservice port" >&2
     docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
@@ -128,7 +128,8 @@ while true; do
         continue
     fi
 
-    job_summary="$(python3 - <<'PY' "$jobs_json"
+    job_summary="$(
+python3 - "$jobs_json" 2>/dev/null <<'PY' || true
 import json
 import sys
 
@@ -147,6 +148,15 @@ print(json.dumps({
 }, sort_keys=True))
 PY
 )"
+    if [[ -z "$job_summary" ]]; then
+        if (( SECONDS >= poll_deadline )); then
+            echo "Timed out while waiting for valid startup job status responses" >&2
+            docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
+            exit 1
+        fi
+        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
+        continue
+    fi
 
     failed_jobs="$(python3 - <<'PY' "$job_summary"
 import json

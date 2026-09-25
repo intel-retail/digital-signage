@@ -1,0 +1,5 @@
+primary_product,price,unit,weight,cross_sell_discount,promo_details,slogan,associated_cross_sell,dynamic_ad_prompt,pre_defined_ad_image
+banana,0.59,/Kg,1,30%,"Buy 1Kg Bananas, Get 30% off Peanut Butter",Spread the Goodness,peanut butter,"Creamy peanut butter close-up",
+banana,0.59,/Kg,1,50%,"Buy 1Kg Bananas, Get 50% off Bread",Two Essentials,bread,"Fresh bananas next to bread",
+apple,1.99,/Kg,1,50%,"Buy 1Kg Apples, Get 50% off Cheese",Timeless Taste,cheese,"Cheese and apple platter",
+coffee,4.50,/unit,1,10%,"Buy Coffee, Get 10% off Pastry",Wake Up Right,pastry,"Steaming cup of coffee",

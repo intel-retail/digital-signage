@@ -1,0 +1,9 @@
+# Test-only dependencies for the AIG server unit test suite.
+# Heavy runtime ML/DB dependencies (openvino_genai, chromadb, diffusers, ...)
+# from aig/src/requirements.txt are stubbed out in aig/src/tests/conftest.py
+# so they are NOT required to run this suite.
+pytest==8.3.5
+pytest-mock==3.14.0
+Pillow==12.3.0
+flask==3.1.3
+flask-restx==1.3.2

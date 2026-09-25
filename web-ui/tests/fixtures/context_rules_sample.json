@@ -1,0 +1,9 @@
+{
+  "rules": [
+    { "weather": "rain", "product": "coffee" },
+    { "weather": "hot", "product": "apple" },
+    { "daypart": "morning", "product": "coffee" },
+    { "demand": "high", "product": "banana" }
+  ],
+  "default_product": "banana"
+}

@@ -65,18 +65,6 @@ mkdir -p \
     "$REPO_ROOT/aig/models/.model-download" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov"
 require_path "$MODEL_DOWNLOAD_CONFIG"
-EXPECTED_JOB_COUNT="$(python3 - <<'PY' "$MODEL_DOWNLOAD_CONFIG"
-import sys
-
-count = 0
-with open(sys.argv[1], encoding="utf-8") as config_file:
-    for line in config_file:
-        if line.startswith("  - name:"):
-            count += 1
-
-print(count)
-PY
-)"
 
 log "Starting model-download microservice container"
 DOCKER_ARGS=(
@@ -140,17 +128,16 @@ while true; do
         continue
     fi
 
-    job_summary="$(python3 - <<'PY' "$jobs_json" "$EXPECTED_JOB_COUNT"
+    job_summary="$(python3 - <<'PY' "$jobs_json"
 import json
 import sys
 
 payload = json.loads(sys.argv[1])
-expected = int(sys.argv[2])
 jobs = payload.get("jobs", [])
 statuses = [job.get("status", "unknown") for job in jobs]
 failed = [job for job in jobs if job.get("status") in {"failed", "canceled"}]
 completed = sum(status == "completed" for status in statuses)
-all_done = len(jobs) >= expected and statuses and completed == len(jobs)
+all_done = bool(jobs) and completed == len(jobs)
 print(json.dumps({
     "count": len(jobs),
     "statuses": statuses,

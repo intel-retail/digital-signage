@@ -79,6 +79,7 @@ mkdir -p \
 require_path "$MODEL_DOWNLOAD_CONFIG"
 
 log "Starting model-download microservice container"
+MODEL_DOWNLOAD_PORT_KEY="${MODEL_DOWNLOAD_SERVICE_PORT}/tcp"
 DOCKER_ARGS=(
     docker run -d --rm
     --name "$MODEL_DOWNLOAD_CONTAINER_NAME"
@@ -108,7 +109,7 @@ DOCKER_ARGS+=(
 
 port_deadline=$((SECONDS + 30))
 while true; do
-    MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{with index .NetworkSettings.Ports "8000/tcp"}}{{(index . 0).HostPort}}{{end}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
+    MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{with index .NetworkSettings.Ports "'"$MODEL_DOWNLOAD_PORT_KEY"'"}}{{(index . 0).HostPort}}{{end}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
     if [[ -n "$MODEL_DOWNLOAD_PORT" ]]; then
         break
     fi
@@ -159,13 +160,10 @@ statuses = [job.get("status", "unknown") for job in jobs]
 failed = [job for job in jobs if job.get("status") in {"failed", "canceled"}]
 completed = sum(status == "completed" for status in statuses)
 all_done = bool(jobs) and completed == len(jobs)
-print(json.dumps({
-    "count": len(jobs),
-    "statuses": statuses,
-    "completed": completed,
-    "all_done": all_done,
-    "failed": failed,
-}, sort_keys=True))
+print(len(jobs))
+print(1 if all_done else 0)
+print(json.dumps(failed))
+print(", ".join(statuses))
 PY
 )"
     if [[ -z "$job_summary" ]]; then
@@ -177,12 +175,13 @@ PY
         sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
         continue
     fi
-    if python3 - <<'PY' "$job_summary"
-import json
-import sys
-sys.exit(0 if json.loads(sys.argv[1]).get("count") == 0 else 1)
-PY
-    then
+    mapfile -t job_summary_lines <<<"$job_summary"
+    job_count="${job_summary_lines[0]:-0}"
+    all_done="${job_summary_lines[1]:-0}"
+    failed_jobs="${job_summary_lines[2]:-[]}"
+    job_statuses="${job_summary_lines[3]:-}"
+
+    if [[ "$job_count" == "0" ]]; then
         if (( SECONDS >= job_creation_deadline )); then
             echo "No startup model jobs were created from $MODEL_DOWNLOAD_CONFIG" >&2
             docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
@@ -191,13 +190,6 @@ PY
         sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
         continue
     fi
-
-    failed_jobs="$(python3 - <<'PY' "$job_summary"
-import json
-import sys
-print(json.dumps(json.loads(sys.argv[1]).get("failed", [])))
-PY
-)"
     if [[ "$failed_jobs" != "[]" ]]; then
         echo "Model download job failed" >&2
         python3 -m json.tool <<<"$failed_jobs" >&2 || true
@@ -205,12 +197,7 @@ PY
         exit 1
     fi
 
-    if python3 - <<'PY' "$job_summary"
-import json
-import sys
-sys.exit(0 if json.loads(sys.argv[1]).get("all_done") else 1)
-PY
-    then
+    if [[ "$all_done" == "1" ]]; then
         break
     fi
 
@@ -221,13 +208,7 @@ PY
         exit 1
     fi
 
-    log "Current job summary: $(python3 - <<'PY' "$job_summary"
-import json
-import sys
-summary = json.loads(sys.argv[1])
-print(f'{summary["count"]} job(s): {", ".join(summary["statuses"])}')
-PY
-)"
+    log "Current job summary: ${job_count} job(s): ${job_statuses}"
     sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
 done
 

@@ -9,7 +9,6 @@ INCLUDE ?= default_INCLUDE
 DOCKER_COMPOSE_FILE = ./docker-compose.yml
 DOCKER_COMPOSE = docker compose
 SECURE_MODE='false'
-MODEL_DOWNLOAD_COMMIT = 664a5ddd730083fccbbf93a71e58bc666198dc0a
 MODEL_DOWNLOAD_IMAGE = intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849
 MODEL_DOWNLOAD_CONFIG = $(CURDIR)/configs/model-download/startup-models.yaml
 

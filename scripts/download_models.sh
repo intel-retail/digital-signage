@@ -106,7 +106,11 @@ DOCKER_ARGS+=(
     --plugins "$MODEL_DOWNLOAD_PLUGINS"
 )
 
-"${DOCKER_ARGS[@]}" >/dev/null
+if ! docker_run_output="$("${DOCKER_ARGS[@]}" 2>&1)"; then
+    echo "Failed to start model-download microservice container" >&2
+    echo "$docker_run_output" >&2
+    exit 1
+fi
 
 port_deadline=$((SECONDS + 30))
 while true; do

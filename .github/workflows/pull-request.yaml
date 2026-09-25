@@ -25,6 +25,28 @@ permissions:
   actions: read
 
 jobs:
+  digital-signage-unit-tests:
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+          persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
+      with:
+        python-version: '3.12'
+    - name: Install test dependencies
+      run: |
+        cd "${{ github.workspace }}"
+        pip3 install -r web-ui/requirements.txt -r web-ui/requirements-test.txt
+        pip3 install -r aig/src/requirements-test.txt
+    - name: Run unit tests (web-ui + aig)
+      run: |
+        cd "${{ github.workspace }}"
+        python3 -m pytest -v
+
   digital-signage-pre-merge-build:
     permissions:
       contents: read
@@ -93,7 +115,42 @@ jobs:
         make up
         sleep 60 # wait for containers to start and stabilize
         docker ps
-    
+
+    - name: Functional API smoke tests
+      run: |
+        cd "${{ github.workspace }}"
+        HOST_IP=$(grep -m1 '^HOST_IP=' .env | cut -d '=' -f2)
+        BASE_URL="https://${HOST_IP}:5000"
+
+        check_status() {
+          description="$1"
+          url="$2"
+          expected="$3" # space separated list of acceptable HTTP status codes
+          for attempt in $(seq 1 10); do
+            code=$(curl -k -s -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo "000")
+            for want in $expected; do
+              if [ "$code" = "$want" ]; then
+                echo "OK: $description ($url) -> $code"
+                return 0
+              fi
+            done
+            echo "Retry $attempt/10: $description ($url) -> $code (expected one of: $expected)"
+            sleep 5
+          done
+          echo "FAIL: $description ($url) -> $code (expected one of: $expected)"
+          return 1
+        }
+
+        status=0
+        check_status "Web UI landing page" "$BASE_URL/" "200" || status=1
+        check_status "Web UI portrait page" "$BASE_URL/portrait" "200" || status=1
+        # No product may be on-screen yet, so a 204 (no ad yet) is an acceptable response.
+        check_status "Web UI current advertisement endpoint" "$BASE_URL/get_current_advertisement?client_id=ci-smoke-test" "200 204" || status=1
+        check_status "AIG health status endpoint" "$BASE_URL/aig-api/aig/hstatus/7" "200" || status=1
+        check_status "AIG version endpoint" "$BASE_URL/aig-api/aig/versions" "200" || status=1
+
+        exit $status
+
     - name: Check container logs for errors
       if: always()
       run: |

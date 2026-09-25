@@ -13,7 +13,6 @@ MODEL_DOWNLOAD_PLUGINS="${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralyti
 MODEL_DOWNLOAD_TIMEOUT_SECONDS="${MODEL_DOWNLOAD_TIMEOUT_SECONDS:-7200}"
 MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS="${MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS:-10}"
 MODEL_DOWNLOAD_SERVICE_PORT=8000
-EXPECTED_JOB_COUNT=3
 
 HF_TOKEN_VALUE="${HUGGINGFACEHUB_API_TOKEN:-${HF_TOKEN:-}}"
 MODEL_DOWNLOAD_PORT=""
@@ -66,6 +65,18 @@ mkdir -p \
     "$REPO_ROOT/aig/models/.model-download" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov"
 require_path "$MODEL_DOWNLOAD_CONFIG"
+EXPECTED_JOB_COUNT="$(python3 - <<'PY' "$MODEL_DOWNLOAD_CONFIG"
+import sys
+
+count = 0
+with open(sys.argv[1], encoding="utf-8") as config_file:
+    for line in config_file:
+        if line.startswith("  - name:"):
+            count += 1
+
+print(count)
+PY
+)"
 
 log "Starting model-download microservice container"
 DOCKER_ARGS=(

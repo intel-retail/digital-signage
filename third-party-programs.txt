@@ -28,7 +28,7 @@ License-Identifier: EPL-2.0/EPL-1.0
 License-Identifier: Apache 2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
 - chromadb/chroma:1.5.9
-- intel/model-download:latest
+- intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849
 ----------------------------------------------------------------------
 
 License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").

@@ -98,12 +98,19 @@ DOCKER_ARGS+=(
 
 "${DOCKER_ARGS[@]}" >/dev/null
 
-MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8000/tcp") 0).HostPort}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
-if [[ -z "$MODEL_DOWNLOAD_PORT" ]]; then
-    echo "Failed to determine model-download microservice port" >&2
-    docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-    exit 1
-fi
+port_deadline=$((SECONDS + 30))
+while true; do
+    MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{with index .NetworkSettings.Ports "8000/tcp"}}{{(index . 0).HostPort}}{{end}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
+    if [[ -n "$MODEL_DOWNLOAD_PORT" ]]; then
+        break
+    fi
+    if (( SECONDS >= port_deadline )); then
+        echo "Failed to determine model-download microservice port" >&2
+        docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
+        exit 1
+    fi
+    sleep 1
+done
 
 MODEL_DOWNLOAD_URL="http://localhost:${MODEL_DOWNLOAD_PORT}"
 log "Waiting for service health at ${MODEL_DOWNLOAD_URL}/health"

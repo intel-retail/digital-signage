@@ -213,15 +213,31 @@ PY
 done
 
 log "Normalizing model paths for Digital Signage"
+pid_source_dir="$REPO_ROOT/configs/pid/models/object_detection/.model-download/yolo11s/ultralytics/public/yolo11s"
 sdxl_source_dir="$(find "$REPO_ROOT/aig/models/.model-download/sdxl_turbo_ov/openvino_models" -type d -path '*/int8/stabilityai/sdxl-turbo' | head -1)"
+minilm_source_dir="$REPO_ROOT/aig/models/.model-download/all-MiniLM-L12-v2/huggingface/sentence-transformers_all-MiniLM-L12-v2"
+
+if [[ ! -d "$pid_source_dir" ]]; then
+    echo "Expected YOLO11s output was not found at $pid_source_dir" >&2
+    exit 1
+fi
+if [[ -z "$sdxl_source_dir" || ! -d "$sdxl_source_dir" ]]; then
+    echo "Expected SDXL-Turbo output was not found under $REPO_ROOT/aig/models/.model-download/sdxl_turbo_ov/openvino_models" >&2
+    exit 1
+fi
+if [[ ! -d "$minilm_source_dir" ]]; then
+    echo "Expected MiniLM output was not found at $minilm_source_dir" >&2
+    exit 1
+fi
+
 copy_directory \
-    "$REPO_ROOT/configs/pid/models/object_detection/.model-download/yolo11s/ultralytics/public/yolo11s" \
+    "$pid_source_dir" \
     "$REPO_ROOT/configs/pid/models/object_detection/yolo11s"
 link_directory \
     "$sdxl_source_dir" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov/int8"
 link_directory \
-    "$REPO_ROOT/aig/models/.model-download/all-MiniLM-L12-v2/huggingface/sentence-transformers_all-MiniLM-L12-v2" \
+    "$minilm_source_dir" \
     "$REPO_ROOT/aig/models/all-MiniLM-L12-v2"
 
 log "Models are ready for make up"

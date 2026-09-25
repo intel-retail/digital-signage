@@ -36,6 +36,18 @@ require_path() {
     fi
 }
 
+copy_directory() {
+    local source_dir="$1"
+    local target_dir="$2"
+    local target_parent
+
+    require_path "$source_dir"
+    target_parent="$(dirname "$target_dir")"
+    mkdir -p "$target_parent"
+    rm -rf "$target_dir"
+    cp -a "$source_dir" "$target_dir"
+}
+
 link_directory() {
     local source_dir="$1"
     local target_dir="$2"
@@ -220,7 +232,7 @@ PY
 done
 
 log "Normalizing model paths for Digital Signage"
-link_directory \
+copy_directory \
     "$REPO_ROOT/configs/pid/models/object_detection/.model-download/yolo11s/ultralytics/public/yolo11s" \
     "$REPO_ROOT/configs/pid/models/object_detection/yolo11s"
 link_directory \

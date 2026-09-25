@@ -77,7 +77,7 @@ make download_models
 
 This target:
 
-- Pulls the pinned published `intel/model-download` microservice image that matches the `open-edge-platform/edge-ai-libraries` model-download behavior validated for commit `664a5ddd730083fccbbf93a71e58bc666198dc0a`
+- Pulls the pinned published `intel/model-download` microservice image digest configured by this repository
 - Downloads and quantizes YOLO11s for PID
 - Downloads SDXL-Turbo (OpenVINO™ INT8) and all-MiniLM-L12-v2 for AIG
 - Maps the downloaded artifacts to the paths already used by Digital Signage:

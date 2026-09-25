@@ -116,7 +116,12 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
 **Solution**:
 
-- Confirm Docker Engine is running and `docker buildx version` succeeds.
+- Confirm Docker Engine is running and that standard Docker commands succeed:
+
+  ```bash
+  docker version
+  docker pull intel/model-download:latest
+  ```
 - Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
 - Re-run `make download_models`; the command prints the model-download container logs when a startup job fails.
 - Verify that `configs/model-download/startup-models.yaml` has not been modified to point outside the repository model directories.

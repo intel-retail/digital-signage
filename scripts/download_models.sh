@@ -92,7 +92,8 @@ DOCKER_ARGS=(
     --env "HTTP_PROXY=${HTTP_PROXY:-${http_proxy:-}}"
     --env "HTTPS_PROXY=${HTTPS_PROXY:-${https_proxy:-}}"
     --env "NO_PROXY=${NO_PROXY:-${no_proxy:-}}"
-    --volume "$REPO_ROOT:/opt/models"
+    --volume "$REPO_ROOT/configs/pid/models/object_detection:/opt/models/pid/object_detection"
+    --volume "$REPO_ROOT/aig/models:/opt/models/aig/models"
     --volume "$MODEL_DOWNLOAD_CONFIG:/opt/model-download/config/startup-models.yaml:ro"
 )
 

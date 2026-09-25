@@ -7,7 +7,7 @@ models:
   - name: yolo11s
     hub: ultralytics
     type: vision
-    download_path: configs/pid/models/object_detection/.model-download/yolo11s
+    download_path: pid/object_detection/.model-download/yolo11s
     config:
       quantize: coco128
   - name: stabilityai/sdxl-turbo

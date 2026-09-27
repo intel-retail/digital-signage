@@ -284,7 +284,7 @@ services:
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
   nginx:
-    image: nginx:1.31.5
+    image: nginx:1.31.6
     container_name: nginx_proxy
     read_only: true
     user: "2999:2999" # Use a non-root user for security

@@ -415,19 +415,10 @@ class AseServerMetadata:
     def get_ase_distance_threshold() -> float:
         """
         Get the ASE similarity threshold for predefined ad matching.
-        Prefer ASE_QDRANT_SCORE_MIN_THRESHOLD for Qdrant deployments.
-        For backward compatibility, when only the legacy ASE_DISTANCE_MAX_THRESHOLD
-        is set, it is translated from a maximum distance into an equivalent minimum
-        cosine similarity score by using (1.0 - distance).
+        Read the minimum cosine similarity score configured for Qdrant.
         """
         try:
-            explicit_score = os.getenv('ASE_QDRANT_SCORE_MIN_THRESHOLD')
-            if explicit_score is not None:
-                return float(explicit_score)
-
-            legacy_distance = float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 0.2))
-            translated_score = 1.0 - legacy_distance
-            return min(1.0, max(0.0, translated_score))
+            return float(os.getenv('ASE_QDRANT_SCORE_MIN_THRESHOLD', 0.8))
         except ValueError:
             return 0.8
 

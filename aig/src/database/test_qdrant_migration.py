@@ -23,16 +23,9 @@ class TestQdrantMigration(unittest.TestCase):
         if hasattr(AseServerMetadata, "instance"):
             delattr(AseServerMetadata, "instance")
 
-    def test_distance_threshold_legacy_value_is_translated_to_similarity(self):
-        with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "0.2"}, clear=True):
+    def test_similarity_threshold_defaults_to_point_eight(self):
+        with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.8)
-
-    def test_distance_threshold_legacy_value_is_clamped_to_valid_score_range(self):
-        with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "-0.5"}, clear=True):
-            self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 1.0)
-
-        with patch.dict(os.environ, {"ASE_DISTANCE_MAX_THRESHOLD": "2.0"}, clear=True):
-            self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.0)
 
     def test_qdrant_match_keeps_boundary_scores(self):
         with patch.dict(os.environ, {"ASE_QDRANT_SCORE_MIN_THRESHOLD": "0.8"}, clear=True):
@@ -40,15 +33,8 @@ class TestQdrantMigration(unittest.TestCase):
             self.assertTrue(AseServerMetadata.is_qdrant_match(0.8))
             self.assertTrue(AseServerMetadata.is_qdrant_match(0.81))
 
-    def test_explicit_qdrant_threshold_takes_precedence(self):
-        with patch.dict(
-            os.environ,
-            {
-                "ASE_QDRANT_SCORE_MIN_THRESHOLD": "0.85",
-                "ASE_DISTANCE_MAX_THRESHOLD": "0.2",
-            },
-            clear=True,
-        ):
+    def test_configured_qdrant_threshold_is_used(self):
+        with patch.dict(os.environ, {"ASE_QDRANT_SCORE_MIN_THRESHOLD": "0.85"}, clear=True):
             self.assertEqual(AseServerMetadata.get_ase_distance_threshold(), 0.85)
 
     def test_initialize_qdrant_creates_missing_collection(self):

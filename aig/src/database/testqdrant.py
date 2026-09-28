@@ -8,16 +8,7 @@ COLLECTION_NAME = os.getenv("ASE_COLLECTION_NAME", "ase-collection")
 MODEL_PATH = os.getenv("ASE_MODEL_PATH", "/opt/models/all-MiniLM-L12-v2")
 
 
-def get_similarity_threshold() -> float:
-    explicit_score = os.getenv("ASE_QDRANT_SCORE_MIN_THRESHOLD")
-    if explicit_score is not None:
-        return float(explicit_score)
-
-    legacy_distance = float(os.getenv("ASE_DISTANCE_MAX_THRESHOLD", 0.2))
-    return 1.0 - legacy_distance
-
-
-SIMILARITY_THRESHOLD = get_similarity_threshold()
+SIMILARITY_THRESHOLD = float(os.getenv("ASE_QDRANT_SCORE_MIN_THRESHOLD", 0.8))
 
 qdrant_client = QdrantClient(host=HOST, port=PORT)
 embedding_model = SentenceTransformer(MODEL_PATH)

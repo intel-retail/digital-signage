@@ -92,7 +92,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.21.0
+    image: bluenviron/mediamtx:1.21.1
     container_name: mediamtx
     restart: unless-stopped
     read_only: true

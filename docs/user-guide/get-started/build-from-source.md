@@ -17,12 +17,4 @@ cd digital-signage
 make build
 ```
 
-## Step 3: Download AI Models
-
-```bash
-make download_models
-```
-
-This command pulls the pinned published model-download microservice image, applies the startup configuration from `configs/model-download/startup-models.yaml`, and prepares the PID and AIG model directories expected by Docker Compose.
-
-Continue with the remaining steps in the [Get Started guide](../get-started.md#step-4-configure-environment).
+Follow the remaining setup and deployment steps in the [Get Started guide](https://github.com/intel-retail/digital-signage/blob/main/docs/user-guide/get-started.md#step-3-download-ai-models).

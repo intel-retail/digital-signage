@@ -111,6 +111,21 @@ cd ../
 
 Models are downloaded to `./aig/models/`.
 
+### Download LTX-Video Model (optional, for `trigger_video_ad`)
+
+> Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
+
+```bash
+cd aig && \
+source ./.modelenv/bin/activate && \
+export HF_HUB_ENABLE_HF_TRANSFER=1 && \
+optimum-cli export openvino --model Lightricks/LTX-Video --weight-format int8 --task text-to-video --trust-remote-code ./models/ltx_video_ov/int8 && \
+deactivate && \
+cd ../
+```
+
+Set `AIG_VIDEO_MODEL_PATH` in `.env` to match (defaults to `/opt/models/ltx_video_ov/int8`, matching this path). `AIG_VIDEO_INFERENCE_DEVICE` selects the device for this model independently of `AIG_INFERENCE_DEVICE` (see [Change Inference Device](how-to-guides/change-inference-device.md)).
+
 ## Step 4: Configure Environment
 
 Edit the `.env` file in the repository root and set the following required variables:
@@ -125,6 +140,7 @@ Edit the `.env` file in the repository root and set the following required varia
 
 - `RTSP_CAMERA_IP` and related RTSP settings for live camera input.
 - `AIG_INFERENCE_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
+- `AIG_VIDEO_MODEL_PATH` and `AIG_VIDEO_INFERENCE_DEVICE` to enable and configure dynamic video ad generation (`trigger_video_ad`).
 - `AIG_*` and `ASE_*` variables for advanced AIG and ASe tuning.
 - `OBJECT_CONFIDENCE_THRESHOLD` and `OBJECT_RECENCY_FRAME_COUNT` for detection filtering.
 - `TIME_TO_DISPLAY_AD_SECONDS` for controlling ad rotation frequency.

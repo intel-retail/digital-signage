@@ -67,11 +67,13 @@ make build
 
 ## Step 3: Download AI Models
 
-Digital Signage uses the reusable `open-edge-platform/edge-ai-libraries` model-download microservice instead of local Python virtual environments. Download models before deployment with `make download_models`; then start the app with `make up`.
+Digital Signage uses the reusable Model Download microservice to download models and optimize it to run well with OpenVINO. Download models before deployment with `make download_models`; then start the app with `make up`.
 
 > Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
-The download target:
+```bash
+make download_models
+```
 
 - Uses the pinned `intel/model-download` image and downloads the model helper files from pinned jsDelivr mirrors.
 - Downloads and quantizes YOLO11s for PID

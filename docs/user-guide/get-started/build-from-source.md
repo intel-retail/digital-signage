@@ -17,4 +17,4 @@ cd digital-signage
 make build
 ```
 
-Run `make download_models` to fetch the required model artifacts, then follow the remaining setup and deployment steps in the [Get Started guide](../get-started.md#step-4-configure-environment).
+Run `make download_models` to fetch the required model artifacts, then follow the remaining setup and deployment steps in the [Get Started guide](https://github.com/intel-retail/digital-signage/blob/main/docs/user-guide/get-started.md#step-3-download-ai-models).

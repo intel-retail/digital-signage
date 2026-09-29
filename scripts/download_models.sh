@@ -6,11 +6,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_DOWNLOAD_IMAGE="${MODEL_DOWNLOAD_IMAGE:-intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849}"
 MODEL_DOWNLOAD_PLUGINS="${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralytics}"
 MODEL_DOWNLOAD_TIMEOUT_SECONDS="${MODEL_DOWNLOAD_TIMEOUT_SECONDS:-7200}"
 MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS="${MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS:-10}"
-MODEL_DOWNLOAD_PORT="${MODEL_DOWNLOAD_PORT:-8200}"
+MODEL_DOWNLOAD_PORT="${MODEL_DOWNLOAD_PORT:-8000}"
 MODEL_DOWNLOAD_COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
 MODEL_DOWNLOAD_URL="http://127.0.0.1:${MODEL_DOWNLOAD_PORT}/api/v1"
 
@@ -97,6 +96,11 @@ fi
 
 export MODEL_DOWNLOAD_PORT
 compose=(docker compose --project-directory "$REPO_ROOT" --profile model-download -f "$MODEL_DOWNLOAD_COMPOSE_FILE")
+log "Pulling model-download image"
+if ! "${compose[@]}" pull model-download; then
+    echo "Failed to pull model-download image" >&2
+    exit 1
+fi
 if ! "${compose[@]}" up -d model-download; then
     "${compose[@]}" logs --no-color model-download >&2 || true
     exit 1

@@ -317,7 +317,7 @@ services:
 
   model-download:
     profiles: ["model-download"]
-    image: ${MODEL_DOWNLOAD_IMAGE:-intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849}
+    image: ${MODEL_DOWNLOAD_IMAGE:-intel/model-download}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     container_name: model-download
     entrypoint: ["/bin/bash", "-c"]
     command:
@@ -331,7 +331,7 @@ services:
       - --plugins
       - ${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralytics}
     ports:
-      - "127.0.0.1:${MODEL_DOWNLOAD_PORT:-8200}:8000"
+      - "127.0.0.1:${MODEL_DOWNLOAD_PORT:-8000}:8000"
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
       HUGGINGFACEHUB_API_TOKEN: ${HUGGINGFACEHUB_API_TOKEN:-}

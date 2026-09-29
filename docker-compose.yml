@@ -317,7 +317,7 @@ services:
 
   model-download:
     profiles: ["model-download"]
-    image: ${MODEL_DOWNLOAD_IMAGE:-intel/model-download}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
+    image: ${MODEL_DOWNLOAD_IMAGE:-intel/model-download}:${MODEL_DOWNLOAD_IMAGE_SUFFIX:-${IMAGE_SUFFIX:-latest}}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
     container_name: model-download
     entrypoint: ["/bin/bash", "-c"]
     command:

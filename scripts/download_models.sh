@@ -7,25 +7,24 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_DOWNLOAD_IMAGE="${MODEL_DOWNLOAD_IMAGE:-intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849}"
-MODEL_DOWNLOAD_CONFIG="${MODEL_DOWNLOAD_CONFIG:-$REPO_ROOT/configs/model-download/startup-models.yaml}"
-MODEL_DOWNLOAD_CONTAINER_NAME="${MODEL_DOWNLOAD_CONTAINER_NAME:-digital-signage-model-download}"
 MODEL_DOWNLOAD_PLUGINS="${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralytics}"
 MODEL_DOWNLOAD_TIMEOUT_SECONDS="${MODEL_DOWNLOAD_TIMEOUT_SECONDS:-7200}"
 MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS="${MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS:-10}"
-MODEL_DOWNLOAD_SERVICE_PORT=8000
+MODEL_DOWNLOAD_PORT="${MODEL_DOWNLOAD_PORT:-8200}"
+MODEL_DOWNLOAD_COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
+MODEL_DOWNLOAD_URL="http://127.0.0.1:${MODEL_DOWNLOAD_PORT}/api/v1"
 
 HF_TOKEN_VALUE="${HUGGINGFACEHUB_API_TOKEN:-${HF_TOKEN:-}}"
-MODEL_DOWNLOAD_PORT=""
-
-cleanup() {
-    if [[ -n "${MODEL_DOWNLOAD_CONTAINER_NAME}" ]]; then
-        docker rm -f "${MODEL_DOWNLOAD_CONTAINER_NAME}" >/dev/null 2>&1 || true
-    fi
-}
-trap cleanup EXIT
 
 log() {
     echo "[model-download] $*"
+}
+
+models_ready() {
+    [[ -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.xml" && \
+       -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.bin" && \
+       -s "$REPO_ROOT/aig/models/sdxl_turbo_ov/int8/graph.pbtxt" && \
+       -s "$REPO_ROOT/aig/models/all-MiniLM-L12-v2/config.json" ]]
 }
 
 require_path() {
@@ -76,145 +75,117 @@ mkdir -p \
     "$REPO_ROOT/configs/pid/models/object_detection/.model-download" \
     "$REPO_ROOT/aig/models/.model-download" \
     "$REPO_ROOT/aig/models/sdxl_turbo_ov"
-require_path "$MODEL_DOWNLOAD_CONFIG"
+require_path "$MODEL_DOWNLOAD_COMPOSE_FILE"
 
-log "Starting model-download microservice container"
-MODEL_DOWNLOAD_PORT_KEY="${MODEL_DOWNLOAD_SERVICE_PORT}/tcp"
-DOCKER_ARGS=(
-    docker run -d --rm
-    --name "$MODEL_DOWNLOAD_CONTAINER_NAME"
-    --publish "0:${MODEL_DOWNLOAD_SERVICE_PORT}"
-    --env "STARTUP_MODELS_CONFIG=/opt/model-download/config/startup-models.yaml"
-    --env "HF_HUB_ENABLE_HF_TRANSFER=1"
-    --env "http_proxy=${http_proxy:-}"
-    --env "https_proxy=${https_proxy:-}"
-    --env "no_proxy=${no_proxy:-}"
-    --env "HTTP_PROXY=${HTTP_PROXY:-${http_proxy:-}}"
-    --env "HTTPS_PROXY=${HTTPS_PROXY:-${https_proxy:-}}"
-    --env "NO_PROXY=${NO_PROXY:-${no_proxy:-}}"
-    --volume "$REPO_ROOT/configs/pid/models/object_detection:/opt/models/pid/object_detection"
-    --volume "$REPO_ROOT/aig/models:/opt/models/aig/models"
-    --volume "$MODEL_DOWNLOAD_CONFIG:/opt/model-download/config/startup-models.yaml:ro"
-)
-
-if [[ -n "$HF_TOKEN_VALUE" ]]; then
-    DOCKER_ARGS+=(--env "HF_TOKEN=$HF_TOKEN_VALUE" --env "HUGGINGFACEHUB_API_TOKEN=$HF_TOKEN_VALUE")
+if models_ready; then
+    log "All required model artifacts already exist; skipping downloads"
+    exit 0
 fi
 
-DOCKER_ARGS+=(
-    "$MODEL_DOWNLOAD_IMAGE"
-    --plugins "$MODEL_DOWNLOAD_PLUGINS"
-)
+log "Starting model-download microservice container"
+if [[ -z "${MODEL_DOWNLOAD_CA_BUNDLE+x}" ]]; then
+    for ca_bundle in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt; do
+        if [[ -f "$ca_bundle" ]]; then
+            export MODEL_DOWNLOAD_CA_BUNDLE="$ca_bundle"
+            break
+        fi
+    done
+fi
+if [[ -n "${HF_TOKEN_VALUE}" ]]; then
+    export HUGGINGFACEHUB_API_TOKEN="${HUGGINGFACEHUB_API_TOKEN:-$HF_TOKEN_VALUE}"
+fi
 
-if ! docker_run_output="$("${DOCKER_ARGS[@]}" 2>&1)"; then
-    echo "Failed to start model-download microservice container" >&2
-    echo "$docker_run_output" >&2
+export MODEL_DOWNLOAD_PORT
+compose=(docker compose --project-directory "$REPO_ROOT" --profile model-download -f "$MODEL_DOWNLOAD_COMPOSE_FILE")
+if ! "${compose[@]}" up -d model-download; then
+    "${compose[@]}" logs --no-color model-download >&2 || true
     exit 1
 fi
 
-port_deadline=$((SECONDS + 30))
-while true; do
-    MODEL_DOWNLOAD_PORT="$(docker inspect --format='{{with index .NetworkSettings.Ports "'"$MODEL_DOWNLOAD_PORT_KEY"'"}}{{(index . 0).HostPort}}{{end}}' "$MODEL_DOWNLOAD_CONTAINER_NAME" 2>/dev/null || true)"
-    if [[ -n "$MODEL_DOWNLOAD_PORT" ]]; then
-        break
-    fi
-    if (( SECONDS >= port_deadline )); then
-        echo "Failed to determine model-download microservice port" >&2
-        docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-        exit 1
-    fi
-    sleep 1
-done
-
-MODEL_DOWNLOAD_URL="http://localhost:${MODEL_DOWNLOAD_PORT}"
 log "Waiting for service health at ${MODEL_DOWNLOAD_URL}/health"
 
 health_deadline=$((SECONDS + 180))
 until curl -fsS "${MODEL_DOWNLOAD_URL}/health" >/dev/null 2>&1; do
+    if [[ -z "$("${compose[@]}" ps --status running --quiet model-download)" ]]; then
+        echo "model-download service exited before becoming healthy" >&2
+        "${compose[@]}" logs --no-color model-download >&2 || true
+        exit 1
+    fi
     if (( SECONDS >= health_deadline )); then
         echo "Timed out waiting for model-download microservice health check" >&2
-        docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
+        "${compose[@]}" logs --no-color model-download >&2 || true
         exit 1
     fi
     sleep 3
 done
 
-log "Polling startup model jobs"
+log "Submitting model download jobs"
 poll_deadline=$((SECONDS + MODEL_DOWNLOAD_TIMEOUT_SECONDS))
-job_creation_deadline=$((SECONDS + 30))
-while true; do
-    jobs_json="$(curl -fsS "${MODEL_DOWNLOAD_URL}/jobs" || true)"
-    if [[ -z "$jobs_json" ]]; then
-        if (( SECONDS >= poll_deadline )); then
-            echo "Timed out while waiting for startup jobs" >&2
-            docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-            exit 1
-        fi
-        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
-        continue
-    fi
-
-    job_summary="$(
-python3 - "$jobs_json" 2>/dev/null <<'PY' || true
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-jobs = payload.get("jobs", [])
-statuses = [job.get("status", "unknown") for job in jobs]
-failed = [job for job in jobs if job.get("status") in {"failed", "canceled"}]
-completed = sum(status == "completed" for status in statuses)
-all_done = bool(jobs) and completed == len(jobs)
-print(len(jobs))
-print(1 if all_done else 0)
-print(json.dumps(failed))
-print(", ".join(statuses))
-PY
-)"
-    if [[ -z "$job_summary" ]]; then
-        if (( SECONDS >= poll_deadline )); then
-            echo "Timed out while waiting for valid startup job status responses" >&2
-            docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-            exit 1
-        fi
-        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
-        continue
-    fi
-    mapfile -t job_summary_lines <<<"$job_summary"
-    job_count="${job_summary_lines[0]:-0}"
-    all_done="${job_summary_lines[1]:-0}"
-    failed_jobs="${job_summary_lines[2]:-[]}"
-    job_statuses="${job_summary_lines[3]:-}"
-
-    if [[ "$job_count" == "0" ]]; then
-        if (( SECONDS >= job_creation_deadline )); then
-            echo "No startup model jobs were created from $MODEL_DOWNLOAD_CONFIG" >&2
-            docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-            exit 1
-        fi
-        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
-        continue
-    fi
-    if [[ "$failed_jobs" != "[]" ]]; then
-        echo "Model download job failed" >&2
-        python3 -m json.tool <<<"$failed_jobs" >&2 || true
-        docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
+download_paths=(
+    "pid/object_detection/.model-download/yolo11s"
+    "aig/models/.model-download/sdxl_turbo_ov"
+    "aig/models/.model-download/all-MiniLM-L12-v2"
+)
+request_bodies=(
+    '{"models":[{"name":"yolo11s","hub":"ultralytics","type":"vision","config":{"quantize":"coco128"}}]}'
+    '{"models":[{"name":"stabilityai/sdxl-turbo","hub":"openvino","type":"image_generation","is_ovms":true,"config":{"precision":"int8","device":"CPU"}}]}'
+    '{"models":[{"name":"sentence-transformers/all-MiniLM-L12-v2","hub":"huggingface","type":"embeddings"}]}'
+)
+job_ids=()
+for index in "${!download_paths[@]}"; do
+    download_path="${download_paths[$index]}"
+    request_body="${request_bodies[$index]}"
+    if ! response="$(curl --connect-timeout 5 --max-time 30 -fsS -X POST \
+        -H "Content-Type: application/json" \
+        -d "$request_body" "${MODEL_DOWNLOAD_URL}/models/download?download_path=${download_path}")"; then
+        echo "Failed to submit model download for $download_path" >&2
+        "${compose[@]}" logs --no-color model-download >&2 || true
         exit 1
     fi
+    job_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["job_ids"][0])' <<<"$response")"
+    job_ids+=("$job_id")
+    log "Submitted $download_path (job $job_id)"
+done
 
-    if [[ "$all_done" == "1" ]]; then
-        break
+while (( ${#job_ids[@]} > 0 )); do
+    remaining=()
+    statuses=()
+    for job_id in "${job_ids[@]}"; do
+        if ! job="$(curl --connect-timeout 5 --max-time 15 -fsS "${MODEL_DOWNLOAD_URL}/jobs/${job_id}" 2>/dev/null)"; then
+            if [[ -z "$("${compose[@]}" ps --status running --quiet model-download)" ]]; then
+                echo "model-download service exited while jobs were running" >&2
+                "${compose[@]}" logs --no-color model-download >&2 || true
+                exit 1
+            fi
+            remaining+=("$job_id")
+            statuses+=("unavailable")
+            continue
+        fi
+        status="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", "unknown"))' <<<"$job")"
+        case "$status" in
+            completed) ;;
+            failed|canceled)
+                echo "Model download job $job_id ended with status: $status" >&2
+                python3 -m json.tool <<<"$job" >&2 || true
+                "${compose[@]}" logs --no-color model-download >&2 || true
+                exit 1
+                ;;
+            *)
+                remaining+=("$job_id")
+                statuses+=("$status")
+                ;;
+        esac
+    done
+    job_ids=("${remaining[@]}")
+    if (( ${#job_ids[@]} > 0 )); then
+        if (( SECONDS >= poll_deadline )); then
+            echo "Timed out waiting for model download jobs" >&2
+            "${compose[@]}" logs --no-color model-download >&2 || true
+            exit 1
+        fi
+        log "Jobs still running: ${statuses[*]}"
+        sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
     fi
-
-    if (( SECONDS >= poll_deadline )); then
-        echo "Timed out while waiting for startup jobs to finish" >&2
-        python3 -m json.tool <<<"$jobs_json" >&2 || true
-        docker logs "$MODEL_DOWNLOAD_CONTAINER_NAME" >&2 || true
-        exit 1
-    fi
-
-    log "Current job summary: ${job_count} job(s): ${job_statuses}"
-    sleep "$MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS"
 done
 
 log "Normalizing model paths for Digital Signage"
@@ -254,5 +225,7 @@ link_directory \
 link_directory \
     "$minilm_source_dir" \
     "$REPO_ROOT/aig/models/all-MiniLM-L12-v2"
+
+"${compose[@]}" rm --stop --force model-download >/dev/null
 
 log "Models are ready for make up"

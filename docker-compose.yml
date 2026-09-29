@@ -315,6 +315,43 @@ services:
       - mediamtx
       - coturn
 
+  model-download:
+    profiles: ["model-download"]
+    image: ${MODEL_DOWNLOAD_IMAGE:-intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849}
+    container_name: model-download
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        sed -i \
+          -e 's#https://raw.githubusercontent.com/open-edge-platform/dlstreamer/4d22f42ffe1df79800dc2ef1749f7e37f3d47bf1/samples#https://cdn.jsdelivr.net/gh/open-edge-platform/dlstreamer@4d22f42ffe1df79800dc2ef1749f7e37f3d47bf1/samples#g' \
+          -e 's#https://raw.githubusercontent.com/openvinotoolkit/model_server/#https://cdn.jsdelivr.net/gh/openvinotoolkit/model_server@#g' \
+          /opt/entrypoint.sh
+        exec /opt/entrypoint.sh "$$@"
+      - model-download-entrypoint
+      - --plugins
+      - ${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralytics}
+    ports:
+      - "127.0.0.1:${MODEL_DOWNLOAD_PORT:-8200}:8000"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGINGFACEHUB_API_TOKEN: ${HUGGINGFACEHUB_API_TOKEN:-}
+      HF_HUB_ENABLE_HF_TRANSFER: "1"
+      http_proxy: ${http_proxy:-}
+      https_proxy: ${https_proxy:-}
+      no_proxy: ${no_proxy:-}
+      HTTP_PROXY: ${HTTP_PROXY:-${http_proxy:-}}
+      HTTPS_PROXY: ${HTTPS_PROXY:-${https_proxy:-}}
+      NO_PROXY: ${NO_PROXY:-${no_proxy:-}}
+      SSL_CERT_FILE: /opt/host-ca/ca-certificates.crt
+      CURL_CA_BUNDLE: /opt/host-ca/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /opt/host-ca/ca-certificates.crt
+    volumes:
+      - ./configs/pid/models/object_detection:/opt/models/pid/object_detection
+      - ./aig/models:/opt/models/aig/models
+      - ${MODEL_DOWNLOAD_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}:/opt/host-ca/ca-certificates.crt:ro
+    networks:
+      - app_network
+
 networks:
   app_network:
     driver: bridge

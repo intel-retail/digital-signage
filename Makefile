@@ -10,7 +10,8 @@ DOCKER_COMPOSE_FILE = ./docker-compose.yml
 DOCKER_COMPOSE = docker compose
 SECURE_MODE='false'
 MODEL_DOWNLOAD_IMAGE = intel/model-download:latest@sha256:5d7607a8d8c184602eae5bfc5a9bd1783e204da65a6adee8e467677e7f668849
-MODEL_DOWNLOAD_CONFIG = $(CURDIR)/configs/model-download/startup-models.yaml
+MODEL_DOWNLOAD_PORT ?= 8200
+export MODEL_DOWNLOAD_PORT
 
 DRI_MOUNT_PATH := $(shell [ -d /dev/dri ] && [ -n "$$(ls -A /dev/dri 2>/dev/null)" ] && echo "/dev/dri" || echo "/dev/null")
 export DRI_MOUNT_PATH
@@ -38,14 +39,13 @@ build:
 
 .PHONY: build_model_download_image
 build_model_download_image:
-	@echo "Pulling pinned model-download microservice image..."
+	@echo "Pulling the pinned model-download image..."
 	docker pull $(MODEL_DOWNLOAD_IMAGE)
 
 .PHONY: download_models
 download_models: build_model_download_image
 	@echo "Downloading Digital Signage models with the model-download microservice..."
 	@MODEL_DOWNLOAD_IMAGE="$(MODEL_DOWNLOAD_IMAGE)" \
-	MODEL_DOWNLOAD_CONFIG="$(MODEL_DOWNLOAD_CONFIG)" \
 	./scripts/download_models.sh
 
 .PHONY: build_copyleft_sources
@@ -55,18 +55,19 @@ build_copyleft_sources:
 
 .PHONY: check_models
 check_models:
-	@echo "Checking if object detection and text to image models are available..."
-	@for dir in configs/pid/models aig/models; do \
-		if [ ! -d "$$dir" ]; then \
-			echo "Error: $$dir directory does not exist."; \
+	@echo "Checking required model artifacts..."
+	@for file in \
+		configs/pid/models/object_detection/yolo11s/INT8/yolo11s.xml \
+		configs/pid/models/object_detection/yolo11s/INT8/yolo11s.bin \
+		aig/models/sdxl_turbo_ov/int8/graph.pbtxt \
+		aig/models/all-MiniLM-L12-v2/config.json; do \
+		if [ ! -s "$$file" ]; then \
+			echo "Missing required model artifact: $$file"; \
+			echo "Run 'make download_models' before 'make up'."; \
 			exit 1; \
 		fi; \
-		if [ -z "$$(ls -A $$dir 2>/dev/null)" ]; then \
-			echo "Error: $$dir directory is empty."; \
-			exit 1; \
-		fi; \
-		echo "Models found in $$dir directory."; \
 	done
+	@echo "All required model artifacts are present."
 
 
 .PHONY: validate_host_ip
@@ -121,9 +122,11 @@ check_env_variables:
 	done
 
 .PHONY: up
-up: check_models check_env_variables validate_host_ip down
-	@echo "Starting Docker containers..."; \
-	$(DOCKER_COMPOSE) up -d;
+up: check_env_variables validate_host_ip check_models
+	@$(MAKE) down
+	@$(MAKE) download_models
+	@echo "Starting Docker containers..."
+	$(DOCKER_COMPOSE) up -d
 	
 
 # Status of the deployed containers

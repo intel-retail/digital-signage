@@ -67,25 +67,19 @@ make build
 
 ## Step 3: Download AI Models
 
-Digital Signage now uses the reusable `open-edge-platform/edge-ai-libraries` model-download microservice instead of local Python virtual environments.
+Digital Signage uses the reusable `open-edge-platform/edge-ai-libraries` model-download microservice instead of local Python virtual environments. Download models before deployment with `make download_models`; then start the app with `make up`.
 
 > Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
-```bash
-make download_models
-```
+The download target:
 
-This target:
-
-- Pulls the pinned published `intel/model-download` microservice image digest configured by this repository
+- Uses the pinned `intel/model-download` image and downloads the model helper files from pinned jsDelivr mirrors.
 - Downloads and quantizes YOLO11s for PID
 - Downloads SDXL-Turbo (OpenVINO™ INT8) and all-MiniLM-L12-v2 for AIG
 - Maps the downloaded artifacts to the paths already used by Digital Signage:
   - `./configs/pid/models/object_detection/yolo11s`
   - `./aig/models/sdxl_turbo_ov/int8`
   - `./aig/models/all-MiniLM-L12-v2`
-
-The startup model list is defined in `./configs/model-download/startup-models.yaml`.
 
 > **Note:** If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
 
@@ -118,7 +112,7 @@ Edit the `.env` file in the repository root and set the following required varia
 make up
 ```
 
-This command validates your environment configuration, verifies that required models are available, removes any previously running containers, and starts all services.
+This command validates your environment configuration, stops any previous stack, downloads and prepares the required models, then starts all services.
 
 ## Step 6: Access the Web UI
 

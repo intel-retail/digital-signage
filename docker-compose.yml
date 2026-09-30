@@ -318,7 +318,7 @@ services:
     profiles: ["model-download"]
     image: ${DOCKER_REGISTRY}${MODEL_DOWNLOAD_IMAGE}
     container_name: model-download
-     group_add:
+    group_add:
       - "${MODEL_DOWNLOAD_HOST_GID:-1000}"
     entrypoint: ["/bin/bash", "-c"]
     command:

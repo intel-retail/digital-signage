@@ -80,6 +80,14 @@ if models_ready; then
     log "All required model artifacts already exist; skipping downloads"
     exit 0
 fi
+# New model directories must inherit the host group for non-root container writes.
+MODEL_DOWNLOAD_HOST_GID="$(id -g)"
+export MODEL_DOWNLOAD_HOST_GID
+chmod g+rwx,g+s \
+    "$REPO_ROOT/configs/pid/models/object_detection" \
+    "$REPO_ROOT/configs/pid/models/object_detection/.model-download" \
+    "$REPO_ROOT/aig/models" \
+    "$REPO_ROOT/aig/models/.model-download"
 
 log "Starting model-download microservice container"
 if [[ -z "${MODEL_DOWNLOAD_CA_BUNDLE+x}" ]]; then

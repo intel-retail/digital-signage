@@ -183,3 +183,4 @@ configs/pid/models/*
 configs/pid/models/object_detection/*
 !configs/pid/models/object_detection/.gitkeep
 aig/sharedata/imgs/
+aig/test/__pycache__/

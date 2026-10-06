@@ -35,6 +35,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   trivy-scan:
     if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}

@@ -19,10 +19,7 @@ on:
   
 permissions:
   contents: read
-  packages: read
   pull-requests: read
-  security-events: write
-  actions: read
 
 jobs:
   digital-signage-pre-merge-build:
@@ -87,6 +84,9 @@ jobs:
         make down
   
   digital-signage-scans:
-    uses: ./.github/workflows/scans.yaml
+    permissions:
+      security-events: write
+      contents: read
+    uses: $/.github/workflows/scans.yaml
     with:
       target: all-scans

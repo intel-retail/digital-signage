@@ -1078,8 +1078,10 @@ def trigger_video_ad_core(item=None, description=None):
             elif video_bytes:
                 ad_generator_Obj.video_override_until = time.time() + VIDEO_AD_DISPLAY_SECONDS
                 ad_generator_Obj.video_list_of_clients = []  # reset so every polling client gets it once
-                ad_generator_Obj.video_override_media = (video_bytes, mimetype, gen_label)  # set last: single atomic swap
-                logger.info(f"Video ad ready for '{status_label}' ({VIDEO_AD_DISPLAY_SECONDS}s, {mimetype})")
+                # Banner mirrors the image-ad convention ("Agent-commanded: <item>") instead of the raw
+                # generation-time string, since trigger_video_ad is always agent-commanded (never camera-driven).
+                ad_generator_Obj.video_override_media = (video_bytes, mimetype, f"Agent-commanded: {status_label}")  # set last: single atomic swap
+                logger.info(f"Video ad ready for '{status_label}' ({VIDEO_AD_DISPLAY_SECONDS}s, {mimetype}, {gen_label})")
             else:
                 logger.error(f"Video ad generation produced no clip for '{status_label}'")
                 ad_generator_Obj.video_override_item = None

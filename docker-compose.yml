@@ -228,7 +228,7 @@ services:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - vol_pipeline_root:/home/ubuntu/.cache
       - "/run/udev:/run/udev:ro"
-      - "/dev/dri:/dev/dri"
+      - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
       - "/tmp:/tmp"
       - ./aig/sharedata:/opt/sharedata
       - ./aig/src:/home/aigserver/src
@@ -252,7 +252,7 @@ services:
       # dri - GPU
        # accel - NPU
       # Selective mount can be done for deployment as mounting whole /dev is not recommended
-      - "/dev/dri:/dev/dri"
+      - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
 
   web-ui:
     image: ${DOCKER_REGISTRY}${WEB_UI_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}
@@ -274,6 +274,8 @@ services:
         USER: ${USER} 
     networks:
       - app_network
+    ports:
+      - "5100:5100"  # MCP server (streamable-http), for external agents e.g. qsr-agent
     environment:
       - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker
       - http_proxy=${http_proxy}

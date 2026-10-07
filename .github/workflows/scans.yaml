@@ -35,6 +35,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   trivy-scan:
     if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
@@ -373,7 +376,7 @@ jobs:
           output: results-digital-signage
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
 
@@ -436,7 +439,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
 

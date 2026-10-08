@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import io
 import gc
 import threading
@@ -122,7 +127,7 @@ class ModelInference_Video(Resource):
                     video_result = None
                     counter += 1
 
-            if video_result is None:
+            if video_result is None or video_result.video is None:
                 errorMessage = "Video Generation. Service is busy."
                 logger.error(errorMessage)
                 return errorMessage, 503

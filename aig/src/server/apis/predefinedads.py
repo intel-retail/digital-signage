@@ -495,7 +495,7 @@ class Predefined_Adhocad_Img(Resource):
                 # Price details                
                 price_details = data.get('price_details')            
                 img_postprice = None
-                if price_details is not None:
+                if price_details is not None and str(price_details.get('price', "")).strip():
                     price:str=price_details.get('price', "")
                     align:str=price_details.get('align',"center")
                     valign:str=price_details.get('valign',"bottom")
@@ -522,7 +522,7 @@ class Predefined_Adhocad_Img(Resource):
                                 margin_percentage=marperc_from_border, 
                                 font_size=font_size, line_width=line_width)
                     else:
-                        img_postprice = ImgDecorator.draw_price_circle(image, 
+                        img_postprice = ImgDecorator.draw_price_raw(image, 
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    
@@ -728,7 +728,7 @@ class Predefined_Adhocad_Img(Resource):
                 price_details = data.get('price_details')            
                 img_postprice = None
 
-                if price_details is not None:
+                if price_details is not None and str(price_details.get('price', "")).strip():
                     price:str=price_details.get('price', "")
                     align:str=price_details.get('align',"center")
                     valign:str=price_details.get('valign',"bottom")
@@ -755,7 +755,7 @@ class Predefined_Adhocad_Img(Resource):
                                 margin_percentage=marperc_from_border, 
                                 font_size=font_size, line_width=line_width)                        
                     else:
-                        img_postprice = ImgDecorator.draw_price_circle(image, 
+                        img_postprice = ImgDecorator.draw_price_raw(image, 
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    

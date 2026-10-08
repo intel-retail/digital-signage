@@ -169,26 +169,27 @@ def load_product_associations(csv_path):
                                 pre_defined_ad_data = base64.b64encode(img_file.read()).decode('utf-8')
                         else:
                             logger.warning(f"Pre-defined ad file not found: {pre_defined_ad_path}")
-                            continue
-                        
-                        aig_payload = {
-                            "description": f"{primary_product} and {row['associated_cross_sell']}",
-                            "imgb64": pre_defined_ad_data,
-                            "source": "Provisioning Script"
-                            }
-                        aig_response = requests.post(
-                                AIG_PREDEFINED_AD_STORE_ENDPOINT,
-                                headers={
-                                    'accept': 'application/json',
-                                    'Content-Type': 'application/json'
-                                },
-                                json=aig_payload,
-                                timeout=15
-                            )
-                        if aig_response.status_code == 200:
-                            logger.info(f"Successfully stored pre-defined ad for {primary_product}")
-                        else:
-                            logger.warning(f"Failed to store pre-defined ad for {primary_product}: {aig_response.status_code}")
+                            pre_defined_ad_data = None
+
+                        if pre_defined_ad_data:
+                            aig_payload = {
+                                "description": f"{primary_product} and {row['associated_cross_sell']}",
+                                "imgb64": pre_defined_ad_data,
+                                "source": "Provisioning Script"
+                                }
+                            aig_response = requests.post(
+                                    AIG_PREDEFINED_AD_STORE_ENDPOINT,
+                                    headers={
+                                        'accept': 'application/json',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    json=aig_payload,
+                                    timeout=15
+                                )
+                            if aig_response.status_code == 200:
+                                logger.info(f"Successfully stored pre-defined ad for {primary_product}")
+                            else:
+                                logger.warning(f"Failed to store pre-defined ad for {primary_product}: {aig_response.status_code}")
                     except Exception as e:
                         logger.error(f"Error storing pre-defined ad for {primary_product}: {str(e)}")
 

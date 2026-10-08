@@ -22,6 +22,9 @@ updates:
         applies-to: version-updates
         patterns:
           - "*"
+    ignore:
+    - dependency-name: "ubuntu"
+      versions: ["26.x"]
 
   - package-ecosystem: "docker-compose"
     directories:

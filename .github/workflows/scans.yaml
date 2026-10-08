@@ -35,6 +35,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   trivy-scan:
     if: ${{ (inputs.target == 'trivy-image-scan') || (inputs.target == 'trivy-fs-scan') || (inputs.target == 'all-scans') }}
@@ -313,35 +316,9 @@ jobs:
           make down
           make build
 
-      - name: Download PID (YOLO11s) model
+      - name: Download models
         run: |
-          cd configs/pid && \
-          wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
-          sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
-          sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
-          rm -rf .modelenv && \
-          python3 -m venv .modelenv && \
-          source .modelenv/bin/activate && \
-          pip3 install -r model_download_requirements.txt && \
-          rm -rf models && \
-          chmod +x downloadAndQuantizeModel.sh && \
-          ./downloadAndQuantizeModel.sh && \
-          rm ./downloadAndQuantizeModel.sh && \
-          deactivate && \
-          cd ../..
-
-      - name: Download AIG (SDXL-Turbo & MiniLM) models
-        run: |
-          cd aig && \
-          rm -rf .modelenv && \
-          python3 -m venv .modelenv && \
-          source ./.modelenv/bin/activate && \
-          pip3 install -r export-requirements.txt && \
-          export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-          optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-          hf download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
-          deactivate && \
-          cd ../
+          make download_models
 
       - name: Deploy Digital Signage
         run: |
@@ -387,19 +364,19 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           languages: 'python'
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: "/language:python"
           upload: "never"
           output: results-digital-signage
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
 
@@ -462,7 +439,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
 

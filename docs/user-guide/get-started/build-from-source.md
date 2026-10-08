@@ -1,6 +1,6 @@
 # Build from Source
 
-This guide provides step-by-step instructions for cloning the Digital Signage repository, downloading required AI models, and building container images from source.
+This guide provides step-by-step instructions for cloning the Digital Signage repository, building container images from source, and downloading the required AI models with the shared model-download microservice.
 
 > **Note:** Run all commands as a regular (non-root) user, without using `sudo`. Ensure [Docker is configured](../get-started.md#configure-docker) and you have internet access before proceeding.
 
@@ -17,4 +17,4 @@ cd digital-signage
 make build
 ```
 
-Once the build completes, return to the Get Started guide and follow the remaining steps from [Step 3: Download AI Models](../get-started.md#step-3-download-ai-models) onwards.
+Follow the remaining setup and deployment steps in the [Get Started guide](https://github.com/intel-retail/digital-signage/blob/main/docs/user-guide/get-started.md#step-3-download-ai-models).

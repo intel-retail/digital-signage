@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     # Initialize singleton instances (but models load lazily on first use)
     # This only initializes the metadata, not the actual heavy models
-    aseserver = AseServerMetadata()  # ChromaDB loads on first API call
+    aseserver = AseServerMetadata()  # Qdrant loads on first API call
     aigserver = AigServer()
 
     # Registering the clean up function    

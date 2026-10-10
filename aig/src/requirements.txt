@@ -1,5 +1,10 @@
 setuptools==84.0.0
 # OpenVINO and Intel optimizations
+# Pin openvino/openvino_tokenizers to the exact versions openvino_genai is
+# compiled against (ABI-sensitive); see openvino_genai's PyPI "Dependencies"
+# note for why a loose/unpinned openvino version breaks at import time.
+openvino==2026.4.0
+openvino_tokenizers==2026.4.0.0
 openvino_genai==2026.4.0.0
 numpy==2.5.3
 pillow==12.3.0

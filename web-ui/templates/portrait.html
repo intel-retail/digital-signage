@@ -341,6 +341,7 @@
                         <span class="loading-text">Waiting for initialization to complete...</span>
                     </div>
                     <img id="productImage" class="ad-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                    <video id="productVideo" class="ad-image" style="display: none;" muted playsinline autoplay loop></video>
                     <div id="generationTime" class="generation-time">Advertisement generated in 0s</div>
                 </div>
             </div>
@@ -500,21 +501,31 @@
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
-                        res.blob().then(imageBlob => {
+                        const isVideo = (res.headers.get('Content-Type') || '').startsWith('video');
+                        res.blob().then(mediaBlob => {
                             const xgenerationTime = res.headers.get('X-Generation-Time');
-                            const imageUrl = URL.createObjectURL(imageBlob);
+                            const mediaUrl = URL.createObjectURL(mediaBlob);
 
                             if (xgenerationTime) {
                                 const generationTimeElement = document.getElementById('generationTime');
                                 generationTimeElement.textContent = `${xgenerationTime}`;
                                 generationTimeElement.style.display = 'block';
                             }
-                            
+
                             const productImage = document.getElementById('productImage');
+                            const productVideo = document.getElementById('productVideo');
                             const aigServerLoading = document.getElementById('aigServerLoading');
-                        
-                            productImage.src = imageUrl;
-                            productImage.style.display = 'block';
+
+                            if (isVideo) {
+                                productImage.style.display = 'none';
+                                productVideo.src = mediaUrl;
+                                productVideo.style.display = 'block';
+                                productVideo.play().catch(() => {});
+                            } else {
+                                productVideo.style.display = 'none';
+                                productImage.src = mediaUrl;
+                                productImage.style.display = 'block';
+                            }
                             aigServerLoading.style.display = 'none';
                         });
                     }

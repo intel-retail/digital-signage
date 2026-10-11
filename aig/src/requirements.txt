@@ -1,6 +1,6 @@
 setuptools==84.0.0
 # OpenVINO and Intel optimizations
-openvino_genai==2026.4.0.0
+openvino_genai==2026.4.1.0
 numpy==2.5.3
 pillow==12.3.0
 diffusers==0.40.0

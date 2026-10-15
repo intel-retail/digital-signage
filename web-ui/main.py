@@ -164,6 +164,7 @@ class Ad_Generator(threading.Thread):
         self.agent_override_generating = False  # True while background generation is in progress
         self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
         self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
+        self._state_lock = threading.Lock()  # guards published ad bytes and their trace metadata as one unit
         self.ad_sequence = 0
         self.ad_ready_ns = None
         self.last_ad_trace = None
@@ -454,6 +455,7 @@ class Ad_Generator(threading.Thread):
             total_start_time = time.time()
             data_available_predefined = False
             recvd_img = False
+            new_ad = None
             predefined_http_elapsed = 0.0
             dynamic_http_elapsed = 0.0
             response_copy_elapsed = 0.0
@@ -486,7 +488,7 @@ class Ad_Generator(threading.Thread):
                             data_available_predefined = True
                             recvd_img = True
                             decoded_bytes = base64.b64decode(content_b64)
-                            self.last_generated_ad  = decoded_bytes
+                            new_ad = decoded_bytes
                             logger.info(f"Pre-defined advertisement found for product: {label}")
                 else:
                     logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (roundtrip {predefined_http_elapsed:.2f} seconds)")
@@ -508,7 +510,7 @@ class Ad_Generator(threading.Thread):
                 dynamic_http_elapsed = time.time() - dynamic_http_start
                 if aig_response.status_code == 200:
                     copy_start = time.time()
-                    self.last_generated_ad = aig_response.content
+                    new_ad = aig_response.content
                     response_copy_elapsed = time.time() - copy_start
                     response_size_kb = len(aig_response.content) / 1024.0
                     recvd_img = True
@@ -516,28 +518,32 @@ class Ad_Generator(threading.Thread):
             elapsed_time = time.time() - total_start_time
             
             if recvd_img and not dummy_ad:
-                self.ad_sequence += 1
-                self.ad_ready_ns = time.time_ns()
-                self.last_ad_trace = {
-                    'ad_id': self.ad_sequence,
-                    'ready_ns': self.ad_ready_ns,
-                    'path': 'predefined' if data_available_predefined else 'dynamic',
-                    'ase_query_ms': predefined_http_elapsed * 1000 if check_predefined else None,
-                    'aig_generation_ms': None if data_available_predefined else dynamic_http_elapsed * 1000,
-                    'ad_generation_total_ms': elapsed_time * 1000,
-                    'response_size_kb': len(self.last_generated_ad) / 1024,
-                }
                 if data_available_predefined:
-                    self.time_taken_last_generated_ad = (
-                        f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds")
+                    time_taken = f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds"
                 else:
-                    self.time_taken_last_generated_ad = (
-                        f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds ")
-                self.list_of_clients = []  # Reset client list to force refresh
+                    time_taken = f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds "
+                # Image and trace must become visible together, or a client can pair the new JPEG
+                # with the previous ad's id and ready time.
+                with self._state_lock:
+                    self.last_generated_ad = new_ad
+                    self.ad_sequence += 1
+                    self.ad_ready_ns = time.time_ns()
+                    self.time_taken_last_generated_ad = time_taken
+                    self.list_of_clients = []  # Reset client list to force refresh
+                    self.last_ad_trace = {
+                        'ad_id': self.ad_sequence,
+                        'ready_ns': self.ad_ready_ns,
+                        'path': 'predefined' if data_available_predefined else 'dynamic',
+                        'ase_query_ms': predefined_http_elapsed * 1000 if check_predefined else None,
+                        'aig_generation_ms': None if data_available_predefined else dynamic_http_elapsed * 1000,
+                        'ad_generation_total_ms': elapsed_time * 1000,
+                        'response_size_kb': len(new_ad) / 1024,
+                    }
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
-                logger.info(self.time_taken_last_generated_ad)
+                logger.info(time_taken)
             else:
-                self.last_generated_ad = None
+                with self._state_lock:
+                    self.last_generated_ad = None
                 if not dummy_ad: 
                     logger.error(f"AIG server error: {aig_response.status_code} (took {elapsed_time:.2f} seconds)")
 
@@ -557,20 +563,23 @@ class Ad_Generator(threading.Thread):
             return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None
 
         # Return None if no ad has been generated yet
-        if self.last_generated_ad is None or client_id is None:
+        if client_id is None:
             return None, 0, None
-        if client_id and client_id not in self.list_of_clients:
+        with self._state_lock:
+            # Client already received this ad
+            if self.last_generated_ad is None or client_id in self.list_of_clients:
+                return None, 0, None
             self.list_of_clients.append(client_id)
-            ad_id = self.ad_sequence if self.ad_ready_ns is not None else None
-            if ad_id is not None:
-                logger.info("WEB_UI_AD_SERVED %s", json.dumps({
-                    'ad_id': ad_id,
-                    'ready_to_served_ms': (time.time_ns() - self.ad_ready_ns) / 1_000_000,
-                }))
-            return self.last_generated_ad, self.time_taken_last_generated_ad, ad_id
-        
-        # Client already received this ad
-        return None, 0, None
+            ad_data = self.last_generated_ad
+            time_taken = self.time_taken_last_generated_ad
+            ready_ns = self.ad_ready_ns
+            ad_id = self.ad_sequence if ready_ns is not None else None
+        if ad_id is not None:
+            logger.info("WEB_UI_AD_SERVED %s", json.dumps({
+                'ad_id': ad_id,
+                'ready_to_served_ms': (time.time_ns() - ready_ns) / 1_000_000,
+            }))
+        return ad_data, time_taken, ad_id
     
     def stop(self):
         """Stop the processor thread"""

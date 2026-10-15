@@ -487,7 +487,8 @@
 
         function reportAdRendered(image, adId, fetchStart, renderStart) {
             if (!adId) return;
-            image.decode().then(() => requestAnimationFrame(() => {
+            // Second frame: the first callback still runs before its own paint, so sample after it.
+            image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
                 fetch('/ad_rendered', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -497,7 +498,7 @@
                         browser_render_ms: performance.now() - renderStart
                     })
                 }).catch(() => {});
-            })).catch(() => {});
+            }))).catch(() => {});
         }
 
         function generateProductAdvertisement(product) {

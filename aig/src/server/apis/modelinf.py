@@ -419,6 +419,7 @@ class ModelInference_Img(Resource):
                 logger.info(f"Image Generation. Processed in {end_time - start_time}s, model kept in memory")
             
             # Clean up intermediate objects
+            stage_start = time.perf_counter()
             del image_tensor
             del image
             del img_postprice

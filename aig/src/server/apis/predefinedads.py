@@ -453,46 +453,47 @@ class Predefined_Adhocad_Img(Resource):
                         
             results=server.qdrant_querytxt(predef_query, n_results=predef_n_results, timings=stage_timings)
             stage_start = time.perf_counter()
-            stage_timings['ranking_retrieval'] = 0.0
-            if results is None or len(results) == 0:
-                if predef_use_default_ad_onempty and server.default_ad_image is not None and \
-                    isinstance(server.default_ad_image, Image.Image):
-                    pipeline_imgs.append(server.default_ad_image)
-                else:
-                    return [], 200
-            else:
-                if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:                    
+            # finally, so the early returns on a search miss still record their scoring and lookup time
+            try:
+                if results is None or len(results) == 0:
                     if predef_use_default_ad_onempty and server.default_ad_image is not None and \
                         isinstance(server.default_ad_image, Image.Image):
                         pipeline_imgs.append(server.default_ad_image)
                     else:
                         return [], 200
                 else:
-                    ids = results.get('ids',[])
-                    metadatas = results.get('metadatas',[])
-                    distances = results.get('distances',[])
+                    if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:
+                        if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                            isinstance(server.default_ad_image, Image.Image):
+                            pipeline_imgs.append(server.default_ad_image)
+                        else:
+                            return [], 200
+                    else:
+                        ids = results.get('ids',[])
+                        metadatas = results.get('metadatas',[])
+                        distances = results.get('distances',[])
 
-                    for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
-                        for doc_index, doc_id in enumerate(id_list):
-                            doc_score = distance_list[doc_index]
+                        for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
+                            for doc_index, doc_id in enumerate(id_list):
+                                doc_score = distance_list[doc_index]
 
-                            if AseServerMetadata.is_qdrant_match(doc_score):
-                                # Get the metadata for the document    
-                                doc_metadata = metadata_list[doc_index]                                                
-                                img_path = doc_metadata.get('img_path',None)
-                                # Get the image from the server
-                                img = server.get_image_file_from_path(img_path)
-                                if img is not None and isinstance(img, Image.Image):
-                                    # Ensure the image is a valid PIL Image
-                                    pipeline_imgs.append(img)
+                                if AseServerMetadata.is_qdrant_match(doc_score):
+                                    # Get the metadata for the document
+                                    doc_metadata = metadata_list[doc_index]
+                                    img_path = doc_metadata.get('img_path',None)
+                                    # Get the image from the server
+                                    img = server.get_image_file_from_path(img_path)
+                                    if img is not None and isinstance(img, Image.Image):
+                                        # Ensure the image is a valid PIL Image
+                                        pipeline_imgs.append(img)
 
-            if len(pipeline_imgs) == 0:
-                if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
-                    pipeline_imgs.append(server.default_ad_image)
-                else:
-                    return [], 200
-
-            stage_timings['ranking_retrieval'] = (time.perf_counter() - stage_start) * 1000
+                if len(pipeline_imgs) == 0:
+                    if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
+                        pipeline_imgs.append(server.default_ad_image)
+                    else:
+                        return [], 200
+            finally:
+                stage_timings['ranking_retrieval'] = (time.perf_counter() - stage_start) * 1000
             for image in pipeline_imgs:
                 if image is None or not isinstance(image, Image.Image):
                     continue  # Skip if the image is None or not a valid PIL Image

@@ -42,14 +42,23 @@ download_models:
 	./scripts/download_models.sh
 
 COLLECT_METRICS ?= true
+UP_SKIP_DOWN ?= false
+BENCHMARK_WARMUP_SECONDS ?= 300
+SKIP_BENCHMARK_STACK_RESET ?= false
 RESULTS_ROOT := $(or $(RESULTS_PATH),results)
 # One folder per make invocation; benchmark-all passes RUN_ID to sub-makes so they share it.
 ifndef RUN_ID
 RUN_ID := $(shell date +%Y%m%d_%H%M%S)
 endif
 RUN_DIR := $(abspath $(RESULTS_ROOT)/$(RUN_ID))
-METRICS_DURATION ?= $(or $(BENCHMARK_DURATION),180)
+METRICS_DURATION ?= $(or $(BENCHMARK_DURATION),300)
 METRICS_QMASSA_CYCLE ?= $(or $(QMASSA_CYCLE_SECONDS),$(shell expr $(METRICS_DURATION) + 60))
+AIG_DEVICE ?= $(or $(BENCHMARK_DEVICE),GPU)
+PID_DEVICE ?= CPU
+PID_CONFIG ?= configs/pid/config.json
+AIG_ENV_FILE ?= $(ENV_FILE)
+SKIP_BENCHMARK_DEVICE_CONFIG ?= false
+SKIP_PERFORMANCE_TOOLS_BUILD ?= false
 METRICS_COMPOSE = QMASSA_CYCLE_SECONDS=$(METRICS_QMASSA_CYCLE) docker compose -p signage-metrics -f performance-tools/docker/docker-compose.yaml
 # The live /metrics API keeps only the last 60 samples, so export the full run from raw logs.
 METRICS_EXPORT = METRICS_GPU_MAX_POINTS=1000000 RESULTS_DIR="$$log_dir" python3 -c 'import json,sys; sys.path.insert(0,"performance-tools/live-metrics"); from metrics_parser import build_metrics_payload; json.dump(build_metrics_payload(window=10**9), open(sys.argv[1],"w"), indent=2)'
@@ -58,7 +67,19 @@ METRICS_EXPORT = METRICS_GPU_MAX_POINTS=1000000 RESULTS_DIR="$$log_dir" python3 
 define run_with_metrics
 	@set -eu; \
 	mkdir -p "$(RUN_DIR)"; \
-	if [ "$(COLLECT_METRICS)" != true ]; then $(2); exit; fi; \
+	stats_prefix="$(RUN_DIR)/$(1)_docker_stats"; \
+	stats_ready="$$stats_prefix.$$$$.ready"; \
+	stats_pid=; \
+	start_docker_stats() { python3 performance-tools/benchmark-scripts/docker_service_stats.py --output-prefix "$$stats_prefix" --host-metrics "$(RUN_DIR)/$(1)_metrics.json" --ready-file "$$stats_ready" & stats_pid=$$!; while [ ! -f "$$stats_ready" ]; do if ! kill -0 "$$stats_pid" 2>/dev/null; then wait "$$stats_pid"; return $$?; fi; done; }; \
+	stop_docker_stats() { if [ -n "$$stats_pid" ]; then kill -TERM "$$stats_pid" 2>/dev/null || true; stats_status=0; wait "$$stats_pid" || stats_status=$$?; stats_pid=; return "$$stats_status"; fi; }; \
+	trap 'stop_docker_stats || true' EXIT; \
+	if [ "$(COLLECT_METRICS)" != true ]; then \
+		start_docker_stats; \
+		status=0; $(2) || status=$$?; \
+		stats_status=0; stop_docker_stats || stats_status=$$?; \
+		if [ $$status -eq 0 ]; then status=$$stats_status; fi; \
+		exit $$status; \
+	fi; \
 	if docker inspect metrics-collector >/dev/null 2>&1; then \
 		project=$$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' metrics-collector); \
 		if [ "$$project" != signage-metrics ]; then \
@@ -68,62 +89,90 @@ define run_with_metrics
 	export log_dir="$(RUN_DIR)/$(1)_raw_metrics"; \
 	mkdir -p "$$log_dir"; \
 	$(METRICS_COMPOSE) down --remove-orphans 2>/dev/null; \
-	trap '$(METRICS_COMPOSE) down --remove-orphans' EXIT; \
+	trap 'stop_docker_stats || true; $(METRICS_COMPOSE) down --remove-orphans' EXIT; \
 	$(METRICS_COMPOSE) up -d --no-build; \
 	if ! curl -fsS --retry 30 --retry-connrefused --retry-delay 1 http://localhost:9000/health > /dev/null 2>&1; then \
 		echo "Performance-tools metrics API did not become healthy at http://localhost:9000/health" >&2; exit 1; \
 	fi; \
+	start_docker_stats; \
 	echo "Collecting host metrics into $$log_dir"; \
 	status=0; $(2) || status=$$?; \
 	$(METRICS_EXPORT) "$(RUN_DIR)/$(1)_metrics.json"; \
 	curl -fsS http://localhost:9000/platform-info -o "$(RUN_DIR)/$(1)_platform_info.json"; \
+	stats_status=0; stop_docker_stats || stats_status=$$?; \
+	if [ $$status -eq 0 ]; then status=$$stats_status; fi; \
 	echo "Results saved in $(RUN_DIR)"; \
 	exit $$status
 endef
 
-BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),180) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_NO_RESTART)),--no-restart,) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
-BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),180) --device $(or $(BENCHMARK_DEVICE),GPU) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
-BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_web_ui.py --duration $(or $(BENCHMARK_DURATION),180) --output $(RUN_DIR)
+BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),300) --device $(PID_DEVICE) --no-restart --output $(RUN_DIR) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
+BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
+BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_web_ui.py --duration $(or $(BENCHMARK_DURATION),300) --output $(RUN_DIR)
 BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
 # PID (passive) and Web UI trace capture run concurrently over the same live-pipeline window.
-BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),180) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; wait $$pid_job; exit $$web_status )
+BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),300) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; pid_status=0; wait $$pid_job || pid_status=$$?; if [ $$pid_status -ne 0 ]; then exit $$pid_status; fi; exit $$web_status )
 CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/consolidate_e2e.py --results $(RUN_DIR)
 
 .PHONY: build-performance-tools
 build-performance-tools:
 	@if [ "$(COLLECT_METRICS)" = true ]; then log_dir=/tmp $(METRICS_COMPOSE) build benchmark; fi
 
+.PHONY: benchmark-configure-devices
+benchmark-configure-devices:
+	@python3 -c 'import json,sys; from pathlib import Path; pid_device,aig_device,pid_file,env_file=sys.argv[1:]; assert pid_device in ("CPU","GPU","NPU"), "PID_DEVICE must be CPU, GPU, or NPU"; assert aig_device in ("CPU","GPU"), "AIG_DEVICE must be CPU or GPU"; pid_path=Path(pid_file); config=json.loads(pid_path.read_text()); detection=config["config"]["pipelines"][0]["payload"]["parameters"]["detection-properties"]; pid_changed=detection["device"] != pid_device; detection["device"]=pid_device; pid_path.write_text(json.dumps(config,indent=4)+"\n") if pid_changed else None; env_path=Path(env_file); lines=env_path.read_text().splitlines(); key="AIG_INFERENCE_DEVICE="; found=any(line.startswith(key) for line in lines); updated=[key+aig_device if line.startswith(key) else line for line in lines]; updated=updated if found else updated+[key+aig_device]; env_path.write_text("\n".join(updated)+"\n") if updated != lines else None; print(f"PID_DEVICE={pid_device} in {pid_path}; AIG_DEVICE={aig_device} in {env_path}")' "$(PID_DEVICE)" "$(AIG_DEVICE)" "$(PID_CONFIG)" "$(AIG_ENV_FILE)"
+
+.PHONY: benchmark-stack-reset
+benchmark-stack-reset:
+	@if [ "$(SKIP_BENCHMARK_STACK_RESET)" = true ]; then \
+		echo "Using the already prepared benchmark stack"; \
+	else \
+		case "$(BENCHMARK_WARMUP_SECONDS)" in ''|*[!0-9]*) echo "BENCHMARK_WARMUP_SECONDS must be a non-negative integer" >&2; exit 2;; esac; \
+		$(MAKE) down && \
+		$(MAKE) UP_SKIP_DOWN=true up && \
+		if [ "$(BENCHMARK_WARMUP_SECONDS)" -gt 0 ]; then \
+			echo "Warming up the application stack for $(BENCHMARK_WARMUP_SECONDS) seconds"; \
+			sleep "$(BENCHMARK_WARMUP_SECONDS)"; \
+		fi; \
+	fi
+
 .PHONY: benchmark-pid
-benchmark-pid: build-performance-tools
+benchmark-pid: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,pid,$(BENCHMARK_PID_CMD))
 
 .PHONY: benchmark-aig
-benchmark-aig: build-performance-tools
+benchmark-aig: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,aig,$(BENCHMARK_AIG_CMD))
 
 .PHONY: benchmark-web-ui
-benchmark-web-ui: build-performance-tools
+benchmark-web-ui: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,web_ui,$(BENCHMARK_WEB_UI_CMD))
 
 .PHONY: benchmark-qdrant
-benchmark-qdrant: build-performance-tools
+benchmark-qdrant: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,qdrant,$(BENCHMARK_QDRANT_CMD))
 
 .PHONY: benchmark-metrics
-benchmark-metrics: build-performance-tools
+benchmark-metrics: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,host,sleep $(METRICS_DURATION))
 
 .PHONY: benchmark-e2e
-benchmark-e2e: build-performance-tools
+benchmark-e2e: $(if $(filter true,$(SKIP_PERFORMANCE_TOOLS_BUILD)),,build-performance-tools) $(if $(filter true,$(SKIP_BENCHMARK_DEVICE_CONFIG)),,benchmark-configure-devices)
+	$(MAKE) benchmark-stack-reset
 	$(call run_with_metrics,e2e,$(BENCHMARK_E2E_CMD))
 	$(CONSOLIDATE_CMD)
 
 # Sequential so synthetic AIG/Qdrant load does not distort the live E2E capture.
 .PHONY: benchmark-all
-benchmark-all:
-	$(MAKE) benchmark-aig RUN_ID=$(RUN_ID)
-	$(MAKE) benchmark-qdrant RUN_ID=$(RUN_ID)
-	$(MAKE) benchmark-e2e RUN_ID=$(RUN_ID)
+benchmark-all: build-performance-tools benchmark-configure-devices
+	$(MAKE) benchmark-stack-reset RUN_ID=$(RUN_ID)
+	$(MAKE) SKIP_BENCHMARK_STACK_RESET=true SKIP_BENCHMARK_DEVICE_CONFIG=true SKIP_PERFORMANCE_TOOLS_BUILD=true benchmark-aig RUN_ID=$(RUN_ID)
+	$(MAKE) SKIP_BENCHMARK_STACK_RESET=true SKIP_BENCHMARK_DEVICE_CONFIG=true SKIP_PERFORMANCE_TOOLS_BUILD=true benchmark-qdrant RUN_ID=$(RUN_ID)
+	$(MAKE) SKIP_BENCHMARK_STACK_RESET=true SKIP_BENCHMARK_DEVICE_CONFIG=true SKIP_PERFORMANCE_TOOLS_BUILD=true benchmark-e2e RUN_ID=$(RUN_ID)
 	@echo "All benchmark results saved in $(RUN_DIR)"
 
 # Consolidates RUN_ID=<timestamp> if given, otherwise the newest results/<timestamp> folder.
@@ -208,7 +257,7 @@ check_env_variables:
 
 .PHONY: up
 up: check_env_variables validate_host_ip check_models
-	@$(MAKE) down
+	@if [ "$(UP_SKIP_DOWN)" != true ]; then $(MAKE) down; fi
 	@echo "Starting Docker containers..."
 	$(DOCKER_COMPOSE) up -d
 	
@@ -268,11 +317,12 @@ help:
 	@echo "Makefile commands:"
 	@echo "  make build    - Build Docker containers"
 	@echo "  make download_models - Download required PID and AIG models"
-	@echo "  make benchmark-pid - Benchmark PID inference (BENCHMARK_DURATION=180, RESULTS_PATH=results)"
-	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (BENCHMARK_ITERATIONS=10)"
-	@echo "  make benchmark-web-ui - Collect Web UI selection metrics for 180 seconds"
+	@echo "  make benchmark-pid - Benchmark PID inference (PID_DEVICE=CPU|GPU|NPU, BENCHMARK_WARMUP_SECONDS=300)"
+	@echo "  Benchmark targets reset the stack and wait 300 seconds; set BENCHMARK_WARMUP_SECONDS to override"
+	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=GPU, BENCHMARK_ITERATIONS=10)"
+	@echo "  make benchmark-web-ui - Collect Web UI selection metrics for 300 seconds"
 	@echo "  make benchmark-qdrant - Benchmark vector search, memory and ad indexing"
-	@echo "  make benchmark-metrics - Collect host metrics only (METRICS_DURATION=180)"
+	@echo "  make benchmark-metrics - Collect host metrics only (METRICS_DURATION=300)"
 	@echo "  make benchmark-e2e - Capture live PID -> Web UI -> ASe/AIG -> browser timings and consolidate"
 	@echo "  make benchmark-all - Run AIG, Qdrant, then E2E benchmarks and consolidate"
 	@echo "  make consolidate-benchmarks - Merge the latest benchmark results into an E2E stage table"

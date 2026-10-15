@@ -1,5 +1,5 @@
 # Flask
-from flask import Flask
+from flask import Flask, g
 # API
 from server.apis import api
 from database.version import Version_sch
@@ -18,6 +18,14 @@ class AigServer:
         logger.info(f"Flask App initialized")
         api.init_app(self.app) # Initializing APIs in App
         logger.info(f"API initialized")
+        @self.app.after_request
+        def add_search_timings(response):
+            timings = getattr(g, 'benchmark_timings', None)
+            if timings:
+                response.headers['Server-Timing'] = ', '.join(
+                    f'{name};dur={duration:.3f}' for name, duration in timings.items()
+                )
+            return response
 
     def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port()): # nosec B104
         # threaded=True so ASe (Qdrant) requests aren't blocked behind slow AIG image generation

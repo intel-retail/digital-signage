@@ -41,6 +41,98 @@ download_models:
 	@echo "Downloading Digital Signage models with the model-download microservice..."
 	./scripts/download_models.sh
 
+COLLECT_METRICS ?= true
+RESULTS_ROOT := $(or $(RESULTS_PATH),results)
+# One folder per make invocation; benchmark-all passes RUN_ID to sub-makes so they share it.
+ifndef RUN_ID
+RUN_ID := $(shell date +%Y%m%d_%H%M%S)
+endif
+RUN_DIR := $(abspath $(RESULTS_ROOT)/$(RUN_ID))
+METRICS_DURATION ?= $(or $(BENCHMARK_DURATION),180)
+METRICS_QMASSA_CYCLE ?= $(or $(QMASSA_CYCLE_SECONDS),$(shell expr $(METRICS_DURATION) + 60))
+METRICS_COMPOSE = QMASSA_CYCLE_SECONDS=$(METRICS_QMASSA_CYCLE) docker compose -p signage-metrics -f performance-tools/docker/docker-compose.yaml
+# The live /metrics API keeps only the last 60 samples, so export the full run from raw logs.
+METRICS_EXPORT = METRICS_GPU_MAX_POINTS=1000000 RESULTS_DIR="$$log_dir" python3 -c 'import json,sys; sys.path.insert(0,"performance-tools/live-metrics"); from metrics_parser import build_metrics_payload; json.dump(build_metrics_payload(window=10**9), open(sys.argv[1],"w"), indent=2)'
+
+# $(1): metrics file prefix, $(2): command to run while metrics are collected.
+define run_with_metrics
+	@set -eu; \
+	mkdir -p "$(RUN_DIR)"; \
+	if [ "$(COLLECT_METRICS)" != true ]; then $(2); exit; fi; \
+	if docker inspect metrics-collector >/dev/null 2>&1; then \
+		project=$$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' metrics-collector); \
+		if [ "$$project" != signage-metrics ]; then \
+			echo "metrics-collector belongs to Compose project '$$project'; refusing to remove it" >&2; exit 1; \
+		fi; \
+	fi; \
+	export log_dir="$(RUN_DIR)/$(1)_raw_metrics"; \
+	mkdir -p "$$log_dir"; \
+	$(METRICS_COMPOSE) down --remove-orphans 2>/dev/null; \
+	trap '$(METRICS_COMPOSE) down --remove-orphans' EXIT; \
+	$(METRICS_COMPOSE) up -d --no-build; \
+	if ! curl -fsS --retry 30 --retry-connrefused --retry-delay 1 http://localhost:9000/health > /dev/null 2>&1; then \
+		echo "Performance-tools metrics API did not become healthy at http://localhost:9000/health" >&2; exit 1; \
+	fi; \
+	echo "Collecting host metrics into $$log_dir"; \
+	status=0; $(2) || status=$$?; \
+	$(METRICS_EXPORT) "$(RUN_DIR)/$(1)_metrics.json"; \
+	curl -fsS http://localhost:9000/platform-info -o "$(RUN_DIR)/$(1)_platform_info.json"; \
+	echo "Results saved in $(RUN_DIR)"; \
+	exit $$status
+endef
+
+BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),180) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_NO_RESTART)),--no-restart,) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
+BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),180) --device $(or $(BENCHMARK_DEVICE),GPU) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
+BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_web_ui.py --duration $(or $(BENCHMARK_DURATION),180) --output $(RUN_DIR)
+BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
+# PID (passive) and Web UI trace capture run concurrently over the same live-pipeline window.
+BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),180) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; wait $$pid_job; exit $$web_status )
+CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/consolidate_e2e.py --results $(RUN_DIR)
+
+.PHONY: build-performance-tools
+build-performance-tools:
+	@if [ "$(COLLECT_METRICS)" = true ]; then log_dir=/tmp $(METRICS_COMPOSE) build benchmark; fi
+
+.PHONY: benchmark-pid
+benchmark-pid: build-performance-tools
+	$(call run_with_metrics,pid,$(BENCHMARK_PID_CMD))
+
+.PHONY: benchmark-aig
+benchmark-aig: build-performance-tools
+	$(call run_with_metrics,aig,$(BENCHMARK_AIG_CMD))
+
+.PHONY: benchmark-web-ui
+benchmark-web-ui: build-performance-tools
+	$(call run_with_metrics,web_ui,$(BENCHMARK_WEB_UI_CMD))
+
+.PHONY: benchmark-qdrant
+benchmark-qdrant: build-performance-tools
+	$(call run_with_metrics,qdrant,$(BENCHMARK_QDRANT_CMD))
+
+.PHONY: benchmark-metrics
+benchmark-metrics: build-performance-tools
+	$(call run_with_metrics,host,sleep $(METRICS_DURATION))
+
+.PHONY: benchmark-e2e
+benchmark-e2e: build-performance-tools
+	$(call run_with_metrics,e2e,$(BENCHMARK_E2E_CMD))
+	$(CONSOLIDATE_CMD)
+
+# Sequential so synthetic AIG/Qdrant load does not distort the live E2E capture.
+.PHONY: benchmark-all
+benchmark-all:
+	$(MAKE) benchmark-aig RUN_ID=$(RUN_ID)
+	$(MAKE) benchmark-qdrant RUN_ID=$(RUN_ID)
+	$(MAKE) benchmark-e2e RUN_ID=$(RUN_ID)
+	@echo "All benchmark results saved in $(RUN_DIR)"
+
+# Consolidates RUN_ID=<timestamp> if given, otherwise the newest results/<timestamp> folder.
+.PHONY: consolidate-benchmarks
+consolidate-benchmarks:
+	@dir="$(if $(filter command line environment,$(origin RUN_ID)),$(RUN_DIR),$$(ls -1d $(abspath $(RESULTS_ROOT))/[0-9]*_[0-9]*/ 2>/dev/null | sort | tail -n1))"; \
+	if [ -z "$$dir" ]; then echo "No results/<timestamp> folder found" >&2; exit 1; fi; \
+	python3 performance-tools/benchmark-scripts/consolidate_e2e.py --results "$$dir"
+
 .PHONY: build_copyleft_sources
 build_copyleft_sources:
 	@echo "Building Docker containers including copyleft licensed sources..."
@@ -176,6 +268,15 @@ help:
 	@echo "Makefile commands:"
 	@echo "  make build    - Build Docker containers"
 	@echo "  make download_models - Download required PID and AIG models"
+	@echo "  make benchmark-pid - Benchmark PID inference (BENCHMARK_DURATION=180, RESULTS_PATH=results)"
+	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (BENCHMARK_ITERATIONS=10)"
+	@echo "  make benchmark-web-ui - Collect Web UI selection metrics for 180 seconds"
+	@echo "  make benchmark-qdrant - Benchmark vector search, memory and ad indexing"
+	@echo "  make benchmark-metrics - Collect host metrics only (METRICS_DURATION=180)"
+	@echo "  make benchmark-e2e - Capture live PID -> Web UI -> ASe/AIG -> browser timings and consolidate"
+	@echo "  make benchmark-all - Run AIG, Qdrant, then E2E benchmarks and consolidate"
+	@echo "  make consolidate-benchmarks - Merge the latest benchmark results into an E2E stage table"
+	@echo "  Benchmark targets collect CPU/GPU/NPU/memory/power metrics during the run; set COLLECT_METRICS=false to skip"
 	@echo "  make build_copyleft_sources - Build Docker containers including copyleft licensed sources"
 	@echo "  make up    - Start Docker containers"
 	@echo "  make down     - Stop Docker containers"

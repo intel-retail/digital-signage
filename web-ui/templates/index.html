@@ -449,12 +449,15 @@
 
             const timestamp = new Date().getTime();
             const clientId = getBrowserFingerprint();
+            const fetchStart = performance.now();
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
                         res.blob().then(imageBlob => {
                             // Get generation time from response header
                             const xgenerationTime = res.headers.get('X-Generation-Time');
+                            const adId = res.headers.get('X-Ad-Id');
+                            const renderStart = performance.now();
 
                             // Create object URL for the image
                             const imageUrl = URL.createObjectURL(imageBlob);
@@ -474,11 +477,27 @@
                             productImage.style.display = 'block';
                             
                             aigServerLoading.style.display = 'none';
+                            reportAdRendered(productImage, adId, fetchStart, renderStart);
                             
                         });
                     }
                     return;
                 })
+        }
+
+        function reportAdRendered(image, adId, fetchStart, renderStart) {
+            if (!adId) return;
+            image.decode().then(() => requestAnimationFrame(() => {
+                fetch('/ad_rendered', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ad_id: Number(adId),
+                        browser_fetch_ms: renderStart - fetchStart,
+                        browser_render_ms: performance.now() - renderStart
+                    })
+                }).catch(() => {});
+            })).catch(() => {});
         }
 
         function generateProductAdvertisement(product) {

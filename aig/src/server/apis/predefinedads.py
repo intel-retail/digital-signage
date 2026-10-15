@@ -1,12 +1,13 @@
 import io
 import os
 #Flask API
-from flask import send_file, request
+from flask import send_file, request, g
 from flask_restx import Namespace, Resource, fields
 from PIL import Image
 #Logging
 import math
 import logging
+import time
 logger = logging.getLogger(__name__)
 #AseServer Environment
 from database.version import AseServerMetadata
@@ -422,6 +423,8 @@ class Predefined_Adhocad_Img(Resource):
     def post(self):
         data = api.payload # 
         errorMessage=None
+        stage_timings = {}
+        g.benchmark_timings = stage_timings
         
         predef_query= data.get('query', None)            
         if predef_query is None or len(predef_query) == 0:
@@ -448,7 +451,9 @@ class Predefined_Adhocad_Img(Resource):
         try:
             server = AseServerMetadata()
                         
-            results=server.qdrant_querytxt(predef_query, n_results=predef_n_results)
+            results=server.qdrant_querytxt(predef_query, n_results=predef_n_results, timings=stage_timings)
+            stage_start = time.perf_counter()
+            stage_timings['ranking_retrieval'] = 0.0
             if results is None or len(results) == 0:
                 if predef_use_default_ad_onempty and server.default_ad_image is not None and \
                     isinstance(server.default_ad_image, Image.Image):
@@ -487,6 +492,7 @@ class Predefined_Adhocad_Img(Resource):
                 else:
                     return [], 200
 
+            stage_timings['ranking_retrieval'] = (time.perf_counter() - stage_start) * 1000
             for image in pipeline_imgs:
                 if image is None or not isinstance(image, Image.Image):
                     continue  # Skip if the image is None or not a valid PIL Image

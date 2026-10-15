@@ -244,8 +244,18 @@ link_directory \
 # LTX-Video (used only by trigger_video_ad) isn't offered by the model-download
 # microservice's plugins yet, so export it directly via optimum-cli, matching
 # the flow documented in PR #114 before the microservice migration.
+#
+# Skipped in CI by default: the export (full PyTorch trace + NNCF int8
+# compression of a video diffusion model) regularly exceeds this repo's CI job
+# time budget on CPU-only runners, and the PR workflow's smoke test never
+# exercises trigger_video_ad, so skipping it here doesn't weaken that check.
+# Set SKIP_LTX_VIDEO_EXPORT=0 to force it (e.g. for a dedicated, longer-running
+# workflow) or run scripts/download_models.sh locally where time isn't capped.
+SKIP_LTX_VIDEO_EXPORT="${SKIP_LTX_VIDEO_EXPORT:-${CI:-false}}"
 ltx_video_dir="$REPO_ROOT/aig/models/ltx_video_ov/int8"
-if [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
+if [[ "$SKIP_LTX_VIDEO_EXPORT" == "true" || "$SKIP_LTX_VIDEO_EXPORT" == "1" ]]; then
+    log "Skipping LTX-Video export (SKIP_LTX_VIDEO_EXPORT=$SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable"
+elif [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
     log "Exporting LTX-Video (Lightricks/LTX-Video) via optimum-cli"
     ltx_venv="$REPO_ROOT/scripts/.ltx-export-venv"
     rm -rf "$ltx_venv"

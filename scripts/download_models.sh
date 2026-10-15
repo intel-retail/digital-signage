@@ -23,7 +23,8 @@ models_ready() {
     [[ -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.xml" && \
        -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.bin" && \
        -s "$REPO_ROOT/aig/models/sdxl_turbo_ov/int8/graph.pbtxt" && \
-       -s "$REPO_ROOT/aig/models/all-MiniLM-L12-v2/config.json" ]]
+       -s "$REPO_ROOT/aig/models/all-MiniLM-L12-v2/config.json" && \
+       -s "$REPO_ROOT/aig/models/ltx_video_ov/int8/scheduler/scheduler_config.json" ]]
 }
 
 require_path() {
@@ -239,5 +240,32 @@ link_directory \
     "$REPO_ROOT/aig/models/all-MiniLM-L12-v2"
 
 "${compose[@]}" rm --stop --force model-download >/dev/null
+
+# LTX-Video (used only by trigger_video_ad) isn't offered by the model-download
+# microservice's plugins yet, so export it directly via optimum-cli, matching
+# the flow documented in PR #114 before the microservice migration.
+ltx_video_dir="$REPO_ROOT/aig/models/ltx_video_ov/int8"
+if [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
+    log "Exporting LTX-Video (Lightricks/LTX-Video) via optimum-cli"
+    ltx_venv="$REPO_ROOT/scripts/.ltx-export-venv"
+    rm -rf "$ltx_venv"
+    python3 -m venv "$ltx_venv"
+    "$ltx_venv/bin/pip" install --no-cache-dir --upgrade pip
+    "$ltx_venv/bin/pip" install --no-cache-dir "optimum-intel[nncf]" "diffusers>=0.33" huggingface_hub \
+        sentencepiece protobuf tiktoken accelerate
+    mkdir -p "$(dirname "$ltx_video_dir")"
+    "$ltx_venv/bin/optimum-cli" export openvino \
+        --model Lightricks/LTX-Video \
+        --task text-to-video \
+        --weight-format int8 \
+        "$ltx_video_dir"
+    rm -rf "$ltx_venv"
+    if [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
+        echo "LTX-Video export did not produce $ltx_video_dir/scheduler/scheduler_config.json" >&2
+        exit 1
+    fi
+else
+    log "LTX-Video model already present; skipping export"
+fi
 
 log "Models are ready for make up"

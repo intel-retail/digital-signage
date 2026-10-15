@@ -87,6 +87,7 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     uses: $/.github/workflows/scans.yaml
     with:
       target: all-scans

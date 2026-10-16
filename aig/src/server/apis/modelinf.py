@@ -3,7 +3,7 @@ import os
 import gc
 import threading
 #Flask API
-from flask import send_file
+from flask import request, send_file
 from flask_restx import Namespace, Resource, fields
 # GenAI
 import openvino_genai
@@ -32,6 +32,13 @@ from imgproc.img_frame import ImgDecorator
 
 # Text2ImagePipeline.generate() is not thread-safe; serialize access across concurrent requests
 model_lock = threading.Lock()
+
+# Keeps stage timing out of the normal serving path
+BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
+
+
+def benchmark_timing_requested():
+    return BENCHMARK_MODE and request.headers.get('X-Benchmark-Timing', '').lower() == 'true'
 
 
 api = Namespace('AIG - Inference with Added-Value Services', description='Advertise Image Generation')
@@ -432,9 +439,10 @@ class ModelInference_Img(Resource):
             
             #Do not incorporate ,200 at the end because it is understod as a JSON by default (and not an image stream)
             response = send_file(img_io, mimetype='image/jpeg')
-            response.headers['Server-Timing'] = ', '.join(
-                f'{name};dur={duration:.3f}' for name, duration in stage_timings.items()
-            )
+            if benchmark_timing_requested():
+                response.headers['Server-Timing'] = ', '.join(
+                    f'{name};dur={duration:.3f}' for name, duration in stage_timings.items()
+                )
             return response
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"

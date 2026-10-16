@@ -26,6 +26,8 @@ AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
 AIG_PREDEFINED_AD_STORE_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/"
 AIG_PREDEFINED_AD_QUERY_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/query/ad"
 AIG_INFERENCE_DEVICE = (os.getenv('AIG_INFERENCE_DEVICE', 'GPU')).upper()  # Default to GPU if not specified
+# Keeps stage timing, trace logs and browser reporting out of the normal serving path
+BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
 # Context rules for select_dynamic_ad (MCP action); empty dict means the feature is unavailable
 context_rules = {}
 # Configure logging
@@ -198,7 +200,7 @@ class Ad_Generator(threading.Thread):
                             self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
                             trace = self.last_ad_trace
                         self.last_generated_timestamp = time.time()
-                        if trace:
+                        if BENCHMARK_MODE and trace:
                             frame_time_ns = getattr(label_set, 'frame_time_ns', None)
                             logger.info("WEB_UI_AD_TRACE %s", json.dumps({
                                 'frame_id': getattr(label_set, 'frame_id', None),
@@ -208,6 +210,16 @@ class Ad_Generator(threading.Thread):
                                 'frame_to_ad_ready_ms': ((trace['ready_ns'] - frame_time_ns) / 1_000_000
                                                          if isinstance(frame_time_ns, int) else None),
                             }))
+                    elif BENCHMARK_MODE and isinstance(label_set, SelectionCandidates):
+                        cooldown_remaining_ms = max(
+                            0.0,
+                            (self.last_generated_timestamp + self.time_to_display_ad - time.time()) * 1000,
+                        )
+                        logger.info("WEB_UI_AD_COOLDOWN %s", json.dumps({
+                            'frame_id': label_set.frame_id,
+                            'queue_wait_ms': queue_wait_ms,
+                            'cooldown_remaining_ms': cooldown_remaining_ms,
+                        }))
                     message_queue.task_done()
                 else:
                     time.sleep(0.1)
@@ -306,6 +318,8 @@ class Ad_Generator(threading.Thread):
             dedup_ns += time.perf_counter_ns() - stage_start
 
         def record_selection():
+            if not BENCHMARK_MODE:
+                return
             logger.info("WEB_UI_PRODUCT_SELECTION %s", json.dumps({
                 'frame_id': getattr(processed_item, 'frame_id', None),
                 'product_key_normalization_ms': normalization_ns / 1_000_000,
@@ -574,7 +588,7 @@ class Ad_Generator(threading.Thread):
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
             ad_id = self.ad_sequence if ready_ns is not None else None
-        if ad_id is not None:
+        if BENCHMARK_MODE and ad_id is not None:
             logger.info("WEB_UI_AD_SERVED %s", json.dumps({
                 'ad_id': ad_id,
                 'ready_to_served_ms': (time.time_ns() - ready_ns) / 1_000_000,
@@ -725,7 +739,7 @@ class MQTTSubscriber:
         except Exception as e:
             logger.error(f"Error processing MQTT message: {str(e)}")
         finally:
-            if frame_id is not None:
+            if BENCHMARK_MODE and frame_id is not None:
                 stages['callback_total_ms'] = (time.perf_counter_ns() - selection_start) / 1_000_000
                 logger.info("WEB_UI_SELECTION %s", json.dumps({
                     'frame_id': frame_id,
@@ -760,12 +774,12 @@ mqtt_subscriber = None
 @app.route('/')
 def index():
     """Main page with video stream displayed on the left"""
-    return render_template('index.html')
+    return render_template('index.html', benchmark_mode=BENCHMARK_MODE)
 
 @app.route('/portrait')
 def portrait():
     """Portrait mode page"""
-    return render_template('portrait.html')
+    return render_template('portrait.html', benchmark_mode=BENCHMARK_MODE)
 
 @app.route('/get_current_advertisement', methods=['GET'])
 def get_current_advertisement():
@@ -792,6 +806,8 @@ def get_current_advertisement():
 @app.route('/ad_rendered', methods=['POST'])
 def ad_rendered():
     """Record browser-reported ad fetch and render timing for benchmarking."""
+    if not BENCHMARK_MODE:
+        return jsonify({'error': 'benchmark mode disabled'}), 404
     data = request.get_json(silent=True) or {}
     try:
         record = {'ad_id': int(data['ad_id'])}

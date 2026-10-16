@@ -391,6 +391,7 @@
     <script>
         let pollingInterval = null;
         let currentProduct = null;
+        const benchmarkMode = {{ 'true' if benchmark_mode else 'false' }};
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -486,7 +487,7 @@
         }
 
         function reportAdRendered(image, adId, fetchStart, renderStart) {
-            if (!adId) return;
+            if (!benchmarkMode || !adId) return;
             // Second frame: the first callback still runs before its own paint, so sample after it.
             image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
                 fetch('/ad_rendered', {

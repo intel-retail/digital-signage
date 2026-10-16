@@ -59,6 +59,8 @@ PID_CONFIG ?= configs/pid/config.json
 AIG_ENV_FILE ?= $(ENV_FILE)
 SKIP_BENCHMARK_DEVICE_CONFIG ?= false
 SKIP_PERFORMANCE_TOOLS_BUILD ?= false
+# Benchmark targets start every service with instrumentation on; normal runs leave it off.
+BENCHMARK_MODE ?= false
 METRICS_COMPOSE = QMASSA_CYCLE_SECONDS=$(METRICS_QMASSA_CYCLE) docker compose -p signage-metrics -f performance-tools/docker/docker-compose.yaml
 # The live /metrics API keeps only the last 60 samples, so export the full run from raw logs.
 METRICS_EXPORT = METRICS_GPU_MAX_POINTS=1000000 RESULTS_DIR="$$log_dir" python3 -c 'import json,sys; sys.path.insert(0,"performance-tools/live-metrics"); from metrics_parser import build_metrics_payload; json.dump(build_metrics_payload(window=10**9), open(sys.argv[1],"w"), indent=2)'
@@ -70,7 +72,7 @@ define run_with_metrics
 	stats_prefix="$(RUN_DIR)/$(1)_docker_stats"; \
 	stats_ready="$$stats_prefix.$$$$.ready"; \
 	stats_pid=; \
-	start_docker_stats() { python3 performance-tools/benchmark-scripts/docker_service_stats.py --output-prefix "$$stats_prefix" --host-metrics "$(RUN_DIR)/$(1)_metrics.json" --ready-file "$$stats_ready" & stats_pid=$$!; while [ ! -f "$$stats_ready" ]; do if ! kill -0 "$$stats_pid" 2>/dev/null; then wait "$$stats_pid"; return $$?; fi; done; }; \
+	start_docker_stats() { python3 performance-tools/benchmark-scripts/benchmark_signage_docker_stats.py --output-prefix "$$stats_prefix" --host-metrics "$(RUN_DIR)/$(1)_metrics.json" --ready-file "$$stats_ready" & stats_pid=$$!; while [ ! -f "$$stats_ready" ]; do if ! kill -0 "$$stats_pid" 2>/dev/null; then wait "$$stats_pid"; return $$?; fi; done; }; \
 	stop_docker_stats() { if [ -n "$$stats_pid" ]; then kill -TERM "$$stats_pid" 2>/dev/null || true; stats_status=0; wait "$$stats_pid" || stats_status=$$?; stats_pid=; return "$$stats_status"; fi; }; \
 	trap 'stop_docker_stats || true' EXIT; \
 	if [ "$(COLLECT_METRICS)" != true ]; then \
@@ -105,13 +107,20 @@ define run_with_metrics
 	exit $$status
 endef
 
-BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),300) --device $(PID_DEVICE) --no-restart --output $(RUN_DIR) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
-BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
-BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_web_ui.py --duration $(or $(BENCHMARK_DURATION),300) --output $(RUN_DIR)
-BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
+BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --device $(PID_DEVICE) --no-restart --output $(RUN_DIR) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
+BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
+BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_web_ui.py --duration $(or $(BENCHMARK_DURATION),300) --output $(RUN_DIR)
+BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
 # PID (passive) and Web UI trace capture run concurrently over the same live-pipeline window.
-BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_pid.py --duration $(or $(BENCHMARK_DURATION),300) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; pid_status=0; wait $$pid_job || pid_status=$$?; if [ $$pid_status -ne 0 ]; then exit $$pid_status; fi; exit $$web_status )
-CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/consolidate_e2e.py --results $(RUN_DIR)
+BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; pid_status=0; wait $$pid_job || pid_status=$$?; if [ $$pid_status -ne 0 ]; then exit $$pid_status; fi; exit $$web_status )
+CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_consolidate_e2e.py --results $(RUN_DIR)
+
+.PHONY: update-submodules
+update-submodules:
+	@echo "Cloning/updating performance tool repositories..."
+	git submodule deinit -f .
+	git submodule update --init --recursive --remote
+	@echo "Submodules updated successfully."
 
 .PHONY: build-performance-tools
 build-performance-tools:
@@ -128,7 +137,7 @@ benchmark-stack-reset:
 	else \
 		case "$(BENCHMARK_WARMUP_SECONDS)" in ''|*[!0-9]*) echo "BENCHMARK_WARMUP_SECONDS must be a non-negative integer" >&2; exit 2;; esac; \
 		$(MAKE) down && \
-		$(MAKE) UP_SKIP_DOWN=true up && \
+		$(MAKE) UP_SKIP_DOWN=true BENCHMARK_MODE=true up && \
 		if [ "$(BENCHMARK_WARMUP_SECONDS)" -gt 0 ]; then \
 			echo "Warming up the application stack for $(BENCHMARK_WARMUP_SECONDS) seconds"; \
 			sleep "$(BENCHMARK_WARMUP_SECONDS)"; \
@@ -180,7 +189,7 @@ benchmark-all: build-performance-tools benchmark-configure-devices
 consolidate-benchmarks:
 	@dir="$(if $(filter command line environment,$(origin RUN_ID)),$(RUN_DIR),$$(ls -1d $(abspath $(RESULTS_ROOT))/[0-9]*_[0-9]*/ 2>/dev/null | sort | tail -n1))"; \
 	if [ -z "$$dir" ]; then echo "No results/<timestamp> folder found" >&2; exit 1; fi; \
-	python3 performance-tools/benchmark-scripts/consolidate_e2e.py --results "$$dir"
+	python3 performance-tools/benchmark-scripts/benchmark_signage_consolidate_e2e.py --results "$$dir"
 
 .PHONY: build_copyleft_sources
 build_copyleft_sources:
@@ -259,7 +268,7 @@ check_env_variables:
 up: check_env_variables validate_host_ip check_models
 	@if [ "$(UP_SKIP_DOWN)" != true ]; then $(MAKE) down; fi
 	@echo "Starting Docker containers..."
-	$(DOCKER_COMPOSE) up -d
+	BENCHMARK_MODE=$(BENCHMARK_MODE) $(DOCKER_COMPOSE) up -d
 	
 
 # Status of the deployed containers
@@ -317,6 +326,7 @@ help:
 	@echo "Makefile commands:"
 	@echo "  make build    - Build Docker containers"
 	@echo "  make download_models - Download required PID and AIG models"
+	@echo "  make update-submodules - Clone/update git submodules"
 	@echo "  make benchmark-pid - Benchmark PID inference (PID_DEVICE=CPU|GPU|NPU, BENCHMARK_WARMUP_SECONDS=300)"
 	@echo "  Benchmark targets reset the stack and wait 300 seconds; set BENCHMARK_WARMUP_SECONDS to override"
 	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=GPU, BENCHMARK_ITERATIONS=10)"

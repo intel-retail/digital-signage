@@ -376,6 +376,7 @@
                         <span class="placeholder-text">Waiting for initialization to complete...</span>
                     </div>
                     <img id="productImage" class="product-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                    <video id="productVideo" class="product-image" style="display: none;" muted playsinline autoplay loop></video>
                     <div id="generationTime" style="display: none; position: absolute; top: 0; left: 0; right: 0; padding: 10px; background: rgba(0, 0, 0, 0.7); color: white; text-align: center; font-size: 12px; z-index: 10;">Advertisement generated in 0s</div>
                     <div id="imagePlaceholder" class="image-placeholder" />
                     
@@ -452,12 +453,13 @@
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
-                        res.blob().then(imageBlob => {
+                        const isVideo = (res.headers.get('Content-Type') || '').startsWith('video');
+                        res.blob().then(mediaBlob => {
                             // Get generation time from response header
                             const xgenerationTime = res.headers.get('X-Generation-Time');
 
-                            // Create object URL for the image
-                            const imageUrl = URL.createObjectURL(imageBlob);
+                            // Create object URL for the media
+                            const mediaUrl = URL.createObjectURL(mediaBlob);
 
                             // Update generation time display if header exists
                             if (xgenerationTime) {
@@ -465,16 +467,23 @@
                                 generationTimeElement.textContent = `${xgenerationTime}`;
                                 generationTimeElement.style.display = 'block';
                             }
-                            // Display the generated image
+
                             const productImage = document.getElementById('productImage');
-                            
+                            const productVideo = document.getElementById('productVideo');
                             const aigServerLoading = document.getElementById('aigServerLoading');
-                        
-                            productImage.src = imageUrl;
-                            productImage.style.display = 'block';
-                            
+
+                            if (isVideo) {
+                                productImage.style.display = 'none';
+                                productVideo.src = mediaUrl;
+                                productVideo.style.display = 'block';
+                                productVideo.play().catch(() => {});
+                            } else {
+                                productVideo.style.display = 'none';
+                                productImage.src = mediaUrl;
+                                productImage.style.display = 'block';
+                            }
+
                             aigServerLoading.style.display = 'none';
-                            
                         });
                     }
                     return;

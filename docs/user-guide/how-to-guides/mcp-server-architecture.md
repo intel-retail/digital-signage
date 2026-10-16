@@ -48,6 +48,7 @@ natural-language capability summary instead of parsing the schema.
 | `get_catalog()` | → str | Lists products and their cross-sell promos |
 | `select_dynamic_ad()` | `(weather, demand, age_mix, daypart, display_seconds, benchmark)` → str | Resolves a shopping context to a product and displays its ad |
 | `trigger_ad()` | `(item, display_seconds, promo_text, slogan)` → str | Directly displays a named catalog item's ad |
+| `trigger_video_ad()` | `(item, description)` → str | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s); exactly one of `item` (a catalog product; predefined video if provisioned, else AI-generated with catalog overlays) or `description` (free text describing the video directly) is required — not both, since their overlays/content would be unrelated; MCP-triggered only |
 | `clear_ad()` | → str | Clears the agent override, returns to camera-driven flow |
 
 ## New implementation vs. reuse of existing code
@@ -55,10 +56,11 @@ natural-language capability summary instead of parsing the schema.
 | Tool | Underlying code | New vs. reused |
 | --- | --- | --- |
 | `describe` | Inline string, no backing function | Fully new, MCP-only |
-| `get_current_ad` | `get_active_ad_info()` | New function, but reads the existing `agent_override_*` / `last_selected_item` state — the same state `Ad_Generator.get_current_advertisement()` (used by the existing `/get_current_advertisement` REST route) already checks |
+| `get_current_ad` | `get_active_ad_info()` | New function, but reads the existing `agent_override_*` / `last_selected_item` state — the same state `Ad_Generator.get_current_advertisement()` (used by the existing `/get_current_advertisement` REST route) already checks. Also reports the new `video_override_*` state (see `trigger_video_ad`) |
 | `get_catalog` | `get_catalog_summary()` | New function built entirely on the existing `product_associations` dict, already populated from `ProductAssociations.csv` for the camera-driven flow |
 | `trigger_ad` | `trigger_ad_core()` | New orchestration function; calls the pre-existing `resolve_product_label()` and the pre-existing core engine `Ad_Generator.generate_advertisement()` (same method the MQTT/camera pipeline uses). Introduces new state: `agent_override_ad/_until/_item/_generating`, `override_epoch` |
 | `select_dynamic_ad` | `select_dynamic_ad_core()` + `resolve_context_to_product()` + `load_context_rules()` | New feature end-to-end (new `context_rules.json` config, new matching logic), but delegates final ad rendering to the same existing `generate_advertisement()` engine |
+| `trigger_video_ad` | `trigger_video_ad_core()` + `Ad_Generator.generate_video_ad()` | Fully new, MCP-only video path with its own isolated state (`video_override_media/_until/_item/_generating`, `_video_generation_lock`). Predefined videos are looked up directly by product name (new `product_video_paths` dict from a new `pre_defined_ad_video` CSV column, mimetype detected from file extension) with no ChromaDB/AIG involvement. When no predefined video exists it calls a new AIG endpoint, `/aig/mvid/` (`Text2VideoPipeline`/LTX-Video model, separate from the existing image model), which generates genuinely temporally-related frames in a single call and returns an already-encoded looping animated WEBP (`image/webp`). AIG-side: new `videoinf.py` resource, new `AigServerMetadata` video-model config/singleton, and the promo/frame/logo overlay logic was extracted into a shared `apply_ad_overlays()` helper reused by both the image and video endpoints |
 | `clear_ad` | `clear_agent_override()` | Fully new; manipulates the new override state fields |
 
 **Notes:**
@@ -75,35 +77,11 @@ natural-language capability summary instead of parsing the schema.
   the existing `/aig/minf/` inference API: a `model_lock` was added for thread-safety
   and the Flask app was switched to `threaded=True`, since MCP tools can now trigger
   concurrent generation requests that didn't previously occur.
-
-## Known issue: `context_rules.json` references products not in the catalog
-
-`select_dynamic_ad` resolves context to a product name via `context_rules.json`, then
-checks that name against `product_associations` (built from `ProductAssociations.csv`'s
-`primary_product` column). Two rules currently reference products that don't exist
-there:
-
-```json
-{ "weather": "rain",  "product": "coffee" },
-{ "weather": "cold",  "product": "coffee" },
-{ "weather": "snow",  "product": "coffee" },
-{ "weather": "hot",   "product": "iced_coffee" },
-{ "weather": "sunny", "product": "iced_coffee" },
-{ "daypart": "morning", "product": "coffee" }
-```
-
-Neither `coffee` nor `iced_coffee` is a `primary_product` in `ProductAssociations.csv`
-— `coffee` only appears as an `associated_cross_sell` value on the `cup` product's
-rows. As a result, calling `select_dynamic_ad(weather="rain")` (or `cold`, `snow`,
-`hot`, `sunny`, or `daypart="morning"`) currently fails with
-`resolved product 'coffee' is not in the catalog"` (or `'iced_coffee'`), because
-`select_dynamic_ad_core()` never falls back past the exact `primary_product` match.
-
-The closest working substitute today is `trigger_ad(item="cup")` — both `cup` rows'
-`dynamic_ad_prompt` values are coffee-themed, so either variant renders a
-coffee-style ad. **Fix:** either add real `coffee`/`iced_coffee` rows to
-`ProductAssociations.csv`, or change the `"product"` values above to `"cup"` in
-`context_rules.json` so the weather/daypart-driven path resolves successfully.
+- `trigger_video_ad` reads its own `AIG_VIDEO_INFERENCE_DEVICE` env var (web-ui) to
+  pick the `device` sent to `/aig/mvid/`, kept deliberately separate from the image
+  path's `AIG_INFERENCE_DEVICE`. It must match the AIG server's `AIG_VIDEO_MODEL_DEVICE`
+  (same `.env` source variable) or the server can't reuse its preloaded video
+  pipeline and rebuilds it from disk on every call.
 
 ## Control flow — client connecting and calling a tool
 

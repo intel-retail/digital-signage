@@ -106,7 +106,7 @@ Models are downloaded to `./aig/models/`.
 
 ### Download LTX-Video Model (optional, for `trigger_video_ad`)
 
-> Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
+> Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
 
 ```bash
 cd aig && \

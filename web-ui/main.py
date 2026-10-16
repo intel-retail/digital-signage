@@ -26,6 +26,8 @@ AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
 AIG_PREDEFINED_AD_STORE_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/"
 AIG_PREDEFINED_AD_QUERY_ENDPOINT = f"{AIG_SERVER_URL}/ase/predef/query/ad"
 AIG_INFERENCE_DEVICE = (os.getenv('AIG_INFERENCE_DEVICE', 'GPU')).upper()  # Default to GPU if not specified
+# Keeps stage timing, trace logs and browser reporting out of the normal serving path
+BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
 # Context rules for select_dynamic_ad (MCP action); empty dict means the feature is unavailable
 context_rules = {}
 # Configure logging
@@ -132,6 +134,13 @@ mqtt_messages_lock = threading.Lock()
 # Queue for processing MQTT messages
 message_queue = Queue()
 
+class SelectionCandidates(list):
+    def __init__(self, labels, frame_id, frame_time_ns=None):
+        super().__init__(labels)
+        self.frame_id = frame_id
+        self.frame_time_ns = frame_time_ns
+        self.enqueued_ns = time.perf_counter_ns()
+
 class Ad_Generator(threading.Thread):
     """Process messages from queue in a separate thread"""
     
@@ -157,6 +166,10 @@ class Ad_Generator(threading.Thread):
         self.agent_override_generating = False  # True while background generation is in progress
         self.override_epoch = 0  # bumped by clear_agent_override to invalidate in-flight generations
         self._generation_lock = threading.Lock()  # prevents camera and agent from generating simultaneously
+        self._state_lock = threading.Lock()  # guards published ad bytes and their trace metadata as one unit
+        self.ad_sequence = 0
+        self.ad_ready_ns = None
+        self.last_ad_trace = None
     def run(self):
         """Main thread loop to process messages from queue"""
         self.running = True
@@ -167,6 +180,8 @@ class Ad_Generator(threading.Thread):
                 global message_queue
                 if not message_queue.empty():
                     label_set = message_queue.get(timeout=1)
+                    queue_wait_ms = ((time.perf_counter_ns() - label_set.enqueued_ns) / 1_000_000
+                                     if isinstance(label_set, SelectionCandidates) else None)
                     # Skip camera generation while agent is generating to prevent race condition
                     if self.agent_override_generating:
                         message_queue.task_done()
@@ -183,7 +198,28 @@ class Ad_Generator(threading.Thread):
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         with self._generation_lock:
                             self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                            trace = self.last_ad_trace
                         self.last_generated_timestamp = time.time()
+                        if BENCHMARK_MODE and trace:
+                            frame_time_ns = getattr(label_set, 'frame_time_ns', None)
+                            logger.info("WEB_UI_AD_TRACE %s", json.dumps({
+                                'frame_id': getattr(label_set, 'frame_id', None),
+                                'item': item,
+                                'queue_wait_ms': queue_wait_ms,
+                                **trace,
+                                'frame_to_ad_ready_ms': ((trace['ready_ns'] - frame_time_ns) / 1_000_000
+                                                         if isinstance(frame_time_ns, int) else None),
+                            }))
+                    elif BENCHMARK_MODE and isinstance(label_set, SelectionCandidates):
+                        cooldown_remaining_ms = max(
+                            0.0,
+                            (self.last_generated_timestamp + self.time_to_display_ad - time.time()) * 1000,
+                        )
+                        logger.info("WEB_UI_AD_COOLDOWN %s", json.dumps({
+                            'frame_id': label_set.frame_id,
+                            'queue_wait_ms': queue_wait_ms,
+                            'cooldown_remaining_ms': cooldown_remaining_ms,
+                        }))
                     message_queue.task_done()
                 else:
                     time.sleep(0.1)
@@ -257,20 +293,46 @@ class Ad_Generator(threading.Thread):
         """Determine which product to generate ad for from label set"""
         global product_associations
 
+        selection_start = time.perf_counter_ns()
+        lookup_ns = 0
+        normalization_ns = 0
+        dedup_ns = 0
         resolved_items = []
         logger.info(f"Processing detected labels for ad selection: {processed_item}")
         for item in processed_item:
-            resolved = resolve_product_label(item)
+            stage_start = time.perf_counter_ns()
+            normalized = normalize_product_key(item)
+            normalization_ns += time.perf_counter_ns() - stage_start
+            stage_start = time.perf_counter_ns()
+            resolved = product_association_lookup.get(normalized)
             if not resolved:
+                lookup_ns += time.perf_counter_ns() - stage_start
                 continue
             if resolved not in product_associations:
+                lookup_ns += time.perf_counter_ns() - stage_start
                 continue
+            lookup_ns += time.perf_counter_ns() - stage_start
+            stage_start = time.perf_counter_ns()
             if resolved not in resolved_items:
                 resolved_items.append(resolved)
+            dedup_ns += time.perf_counter_ns() - stage_start
+
+        def record_selection():
+            if not BENCHMARK_MODE:
+                return
+            logger.info("WEB_UI_PRODUCT_SELECTION %s", json.dumps({
+                'frame_id': getattr(processed_item, 'frame_id', None),
+                'product_key_normalization_ms': normalization_ns / 1_000_000,
+                'csv_lookup_ms': lookup_ns / 1_000_000,
+                'product_deduplication_ms': dedup_ns / 1_000_000,
+                'selector_total_ms': (time.perf_counter_ns() - selection_start) / 1_000_000,
+                'candidate_count': len(resolved_items),
+            }))
 
         if not resolved_items:
             logger.debug(f"No known products found in labels: {processed_item}")
             self.last_processed_item = []
+            record_selection()
             return None
 
         new_identified_items = [item for item in resolved_items if item not in self.last_processed_item]
@@ -293,9 +355,11 @@ class Ad_Generator(threading.Thread):
             self.last_selected_item = selected_item
             self.product_generation_count[selected_item] = self.product_generation_count.get(selected_item, 0) + 1
             logger.info(f"Selected item for ad generation: {selected_item}")
+            record_selection()
             return selected_item
 
         logger.debug("No eligible item selected for ad generation")
+        record_selection()
         return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
@@ -400,10 +464,12 @@ class Ad_Generator(threading.Thread):
             logger.info(f"Generating advertisement for product: {label} ")
             
             # Make API call to AIG server
+            self.last_ad_trace = None
             aig_response = None
             total_start_time = time.time()
             data_available_predefined = False
             recvd_img = False
+            new_ad = None
             predefined_http_elapsed = 0.0
             dynamic_http_elapsed = 0.0
             response_copy_elapsed = 0.0
@@ -436,7 +502,7 @@ class Ad_Generator(threading.Thread):
                             data_available_predefined = True
                             recvd_img = True
                             decoded_bytes = base64.b64decode(content_b64)
-                            self.last_generated_ad  = decoded_bytes
+                            new_ad = decoded_bytes
                             logger.info(f"Pre-defined advertisement found for product: {label}")
                 else:
                     logger.error(f"AIG pre-defined ad query server error: {aig_response.status_code} (roundtrip {predefined_http_elapsed:.2f} seconds)")
@@ -458,7 +524,7 @@ class Ad_Generator(threading.Thread):
                 dynamic_http_elapsed = time.time() - dynamic_http_start
                 if aig_response.status_code == 200:
                     copy_start = time.time()
-                    self.last_generated_ad = aig_response.content
+                    new_ad = aig_response.content
                     response_copy_elapsed = time.time() - copy_start
                     response_size_kb = len(aig_response.content) / 1024.0
                     recvd_img = True
@@ -467,16 +533,31 @@ class Ad_Generator(threading.Thread):
             
             if recvd_img and not dummy_ad:
                 if data_available_predefined:
-                    self.time_taken_last_generated_ad = (
-                        f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds")
+                    time_taken = f"Pre-defined ad fetched in {predefined_http_elapsed:.2f} seconds"
                 else:
-                    self.time_taken_last_generated_ad = (
-                        f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds ")
-                self.list_of_clients = []  # Reset client list to force refresh
+                    time_taken = f"Dynamic ad generated in {dynamic_http_elapsed:.2f} seconds "
+                # Image and trace must become visible together, or a client can pair the new JPEG
+                # with the previous ad's id and ready time.
+                with self._state_lock:
+                    self.last_generated_ad = new_ad
+                    self.ad_sequence += 1
+                    self.ad_ready_ns = time.time_ns()
+                    self.time_taken_last_generated_ad = time_taken
+                    self.list_of_clients = []  # Reset client list to force refresh
+                    self.last_ad_trace = {
+                        'ad_id': self.ad_sequence,
+                        'ready_ns': self.ad_ready_ns,
+                        'path': 'predefined' if data_available_predefined else 'dynamic',
+                        'ase_query_ms': predefined_http_elapsed * 1000 if check_predefined else None,
+                        'aig_generation_ms': None if data_available_predefined else dynamic_http_elapsed * 1000,
+                        'ad_generation_total_ms': elapsed_time * 1000,
+                        'response_size_kb': len(new_ad) / 1024,
+                    }
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
-                logger.info(self.time_taken_last_generated_ad)
+                logger.info(time_taken)
             else:
-                self.last_generated_ad = None
+                with self._state_lock:
+                    self.last_generated_ad = None
                 if not dummy_ad: 
                     logger.error(f"AIG server error: {aig_response.status_code} (took {elapsed_time:.2f} seconds)")
 
@@ -493,17 +574,26 @@ class Ad_Generator(threading.Thread):
 
         # Agent-commanded override takes priority; served continuously until expiry
         if self.agent_override_ad and time.time() < self.agent_override_until:
-            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}"
+            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None
 
         # Return None if no ad has been generated yet
-        if self.last_generated_ad is None or client_id is None:
-            return None, 0
-        if client_id and client_id not in self.list_of_clients:
+        if client_id is None:
+            return None, 0, None
+        with self._state_lock:
+            # Client already received this ad
+            if self.last_generated_ad is None or client_id in self.list_of_clients:
+                return None, 0, None
             self.list_of_clients.append(client_id)
-            return self.last_generated_ad, self.time_taken_last_generated_ad
-        
-        # Client already received this ad
-        return None, 0
+            ad_data = self.last_generated_ad
+            time_taken = self.time_taken_last_generated_ad
+            ready_ns = self.ad_ready_ns
+            ad_id = self.ad_sequence if ready_ns is not None else None
+        if BENCHMARK_MODE and ad_id is not None:
+            logger.info("WEB_UI_AD_SERVED %s", json.dumps({
+                'ad_id': ad_id,
+                'ready_to_served_ms': (time.time_ns() - ready_ns) / 1_000_000,
+            }))
+        return ad_data, time_taken, ad_id
     
     def stop(self):
         """Stop the processor thread"""
@@ -561,6 +651,11 @@ class MQTTSubscriber:
     
     def on_message(self, client, userdata, msg):
         """Callback when a message is received"""
+        arrival_ns = time.time_ns()
+        selection_start = time.perf_counter_ns()
+        stages = {}
+        frame_id = None
+        frame_time_ns = None
         try:
             topic = msg.topic
             payload = msg.payload.decode('utf-8')
@@ -569,8 +664,16 @@ class MQTTSubscriber:
             try:
                 global message_queue
                 message_data = json.loads(payload)
+                frame_id = message_data.get('metadata', {}).get('frame_id')
+                frame_time_ns = message_data.get('metadata', {}).get('time')
+                if (isinstance(frame_time_ns, int) and not isinstance(frame_time_ns, bool)
+                        and 0 <= arrival_ns - frame_time_ns < 60_000_000_000):
+                    stages['mqtt_to_web_ui_ms'] = (arrival_ns - frame_time_ns) / 1_000_000
+                else:
+                    frame_time_ns = None
                 
                 # Extract unique labels with confidence from current message
+                stage_start = time.perf_counter_ns()
                 current_message_labels = {}  # {label: [confidence1, confidence2, ...]}
                 if 'metadata' in message_data and 'gva_meta' in message_data['metadata'] and len(message_data['metadata']['gva_meta']) > 0:
                     for i in range(len(message_data['metadata']['gva_meta'])):
@@ -588,10 +691,12 @@ class MQTTSubscriber:
                                     if label not in current_message_labels:
                                         current_message_labels[label] = []
                                     current_message_labels[label].append(confidence)
+                    stages['label_normalization_ms'] = (time.perf_counter_ns() - stage_start) / 1_000_000
                     
                     # logger.info(f"Unique labels detected in current message: {current_message_labels.keys()}")
                     
                     # Update message history first - add current labels and maintain size
+                    stage_start = time.perf_counter_ns()
                     self.last_n_messages_labels.append(current_message_labels)
                     if len(self.last_n_messages_labels) > self.max_message_history:
                         self.last_n_messages_labels.pop(0)
@@ -604,19 +709,23 @@ class MQTTSubscriber:
                                 label_data[label] = {'count': 0, 'confidences': []}
                             label_data[label]['count'] += 1
                             label_data[label]['confidences'].extend(confidences)
-                    
+                    recency_eligible = [(label, data) for label, data in label_data.items()
+                                        if data['count'] >= self.object_recency_count]
+                    stages['recency_filtering_ms'] = (time.perf_counter_ns() - stage_start) / 1_000_000
+
                     # Process labels that appear in at least N of the last X messages
                     # and haven't been processed recently
+                    stage_start = time.perf_counter_ns()
                     label_to_process = []
-                    for label, data in label_data.items():
-                        if data['count'] >= self.object_recency_count:
-                            avg_confidence = sum(data['confidences']) / len(data['confidences'])
-                            # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
-                            if avg_confidence >= self.object_threshold_confidence:  # Confidence threshold
-                                label_to_process.append(label)
+                    for label, data in recency_eligible:
+                        avg_confidence = sum(data['confidences']) / len(data['confidences'])
+                        # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
+                        if avg_confidence >= self.object_threshold_confidence:  # Confidence threshold
+                            label_to_process.append(label)
+                    stages['confidence_gating_ms'] = (time.perf_counter_ns() - stage_start) / 1_000_000
                     if len(label_to_process) > 0:
                         logger.debug(f"Labels to process after recency check: {label_to_process}")
-                        message_queue.put(label_to_process)
+                        message_queue.put(SelectionCandidates(label_to_process, frame_id, frame_time_ns))
                     
                 else:
                     logger.info("No tensor data found in gva_meta")
@@ -629,6 +738,15 @@ class MQTTSubscriber:
                 message_data = {'raw': payload}                    
         except Exception as e:
             logger.error(f"Error processing MQTT message: {str(e)}")
+        finally:
+            if BENCHMARK_MODE and frame_id is not None:
+                stages['callback_total_ms'] = (time.perf_counter_ns() - selection_start) / 1_000_000
+                logger.info("WEB_UI_SELECTION %s", json.dumps({
+                    'frame_id': frame_id,
+                    'recency_frames': self.object_recency_count,
+                    'confidence_threshold': self.object_threshold_confidence,
+                    **stages,
+                }))
     
     def connect(self):
         """Connect to MQTT broker"""
@@ -656,12 +774,12 @@ mqtt_subscriber = None
 @app.route('/')
 def index():
     """Main page with video stream displayed on the left"""
-    return render_template('index.html')
+    return render_template('index.html', benchmark_mode=BENCHMARK_MODE)
 
 @app.route('/portrait')
 def portrait():
     """Portrait mode page"""
-    return render_template('portrait.html')
+    return render_template('portrait.html', benchmark_mode=BENCHMARK_MODE)
 
 @app.route('/get_current_advertisement', methods=['GET'])
 def get_current_advertisement():
@@ -672,18 +790,36 @@ def get_current_advertisement():
     width = request.args.get('width', type=int)
     height = request.args.get('height', type=int)
     client_id = request.args.get('client_id', type=str)    
-    ad_data, time_taken = ad_generator_Obj.get_current_advertisement(height, width, client_id)
+    ad_data, time_taken, ad_id = ad_generator_Obj.get_current_advertisement(height, width, client_id)
     if ad_data:
-        return Response(
-            ad_data,
-            mimetype='image/jpeg',
-            headers={
+        headers = {
             'Content-Disposition': 'inline; filename="current_ad.jpg"',
             'X-Generation-Time': time_taken
-            }
-        )
+        }
+        if ad_id is not None:
+            headers['X-Ad-Id'] = str(ad_id)
+        return Response(ad_data, mimetype='image/jpeg', headers=headers)
     else:   
         return jsonify({'status': 'ok'}), 204
+
+
+@app.route('/ad_rendered', methods=['POST'])
+def ad_rendered():
+    """Record browser-reported ad fetch and render timing for benchmarking."""
+    if not BENCHMARK_MODE:
+        return jsonify({'error': 'benchmark mode disabled'}), 404
+    data = request.get_json(silent=True) or {}
+    try:
+        record = {'ad_id': int(data['ad_id'])}
+        for key in ('browser_fetch_ms', 'browser_render_ms'):
+            value = float(data[key])
+            if not 0 <= value < 600000:
+                raise ValueError(key)
+            record[key] = value
+    except (KeyError, TypeError, ValueError):
+        return jsonify({'error': 'invalid timing'}), 400
+    logger.info("WEB_UI_AD_RENDERED %s", json.dumps(record))
+    return '', 204
 
 
 def normalize_display_seconds(value, default=60):

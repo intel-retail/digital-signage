@@ -242,8 +242,7 @@ link_directory \
 "${compose[@]}" rm --stop --force model-download >/dev/null
 
 # LTX-Video (used only by trigger_video_ad) isn't offered by the model-download
-# microservice's plugins yet, so export it directly via optimum-cli, matching
-# the flow documented in PR #114 before the microservice migration.
+# microservice's plugins yet, so export it directly via optimum-cli instead.
 #
 # Skipped in CI by default: the export (full PyTorch trace + NNCF int8
 # compression of a video diffusion model) regularly exceeds this repo's CI job
@@ -251,10 +250,23 @@ link_directory \
 # exercises trigger_video_ad, so skipping it here doesn't weaken that check.
 # Set SKIP_LTX_VIDEO_EXPORT=0 to force it (e.g. for a dedicated, longer-running
 # workflow) or run scripts/download_models.sh locally where time isn't capped.
+#
+# Note: this also skips if $CI is set ambiently for unrelated reasons (some
+# shells/tools set it outside of actual CI runners) - set SKIP_LTX_VIDEO_EXPORT=0
+# explicitly if you hit this locally and still want the export to run.
+if [[ -n "${SKIP_LTX_VIDEO_EXPORT:-}" ]]; then
+    skip_ltx_video_export_explicit=true
+else
+    skip_ltx_video_export_explicit=false
+fi
 SKIP_LTX_VIDEO_EXPORT="${SKIP_LTX_VIDEO_EXPORT:-${CI:-false}}"
 ltx_video_dir="$REPO_ROOT/aig/models/ltx_video_ov/int8"
 if [[ "$SKIP_LTX_VIDEO_EXPORT" == "true" || "$SKIP_LTX_VIDEO_EXPORT" == "1" ]]; then
-    log "Skipping LTX-Video export (SKIP_LTX_VIDEO_EXPORT=$SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable"
+    if [[ "$skip_ltx_video_export_explicit" == false ]]; then
+        log "Skipping LTX-Video export because \$CI is set (not an explicit SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable. Set SKIP_LTX_VIDEO_EXPORT=0 to force the export."
+    else
+        log "Skipping LTX-Video export (SKIP_LTX_VIDEO_EXPORT=$SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable"
+    fi
 elif [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
     log "Exporting LTX-Video (Lightricks/LTX-Video) via optimum-cli"
     ltx_venv="$REPO_ROOT/scripts/.ltx-export-venv"

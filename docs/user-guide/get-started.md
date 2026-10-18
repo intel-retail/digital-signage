@@ -89,18 +89,7 @@ make download_models
 
 > Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
-```bash
-cd aig && \
-rm -rf .modelenv && \
-python3 -m venv .modelenv && \
-source ./.modelenv/bin/activate && \
-pip3 install -r export-requirements.txt && \
-export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-hf download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
-deactivate && \
-cd ../
-```
+`make download_models` (via `scripts/download_models.sh`) already exports both of these for you, via the Model Download microservice. See `scripts/download_models.sh` if you need to reproduce the equivalent `optimum-cli`/`hf download` commands standalone (e.g. outside Docker).
 
 Models are downloaded to `./aig/models/`.
 
@@ -108,14 +97,7 @@ Models are downloaded to `./aig/models/`.
 
 > Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
 
-```bash
-cd aig && \
-source ./.modelenv/bin/activate && \
-export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-optimum-cli export openvino --model Lightricks/LTX-Video --weight-format int8 --task text-to-video --trust-remote-code ./models/ltx_video_ov/int8 && \
-deactivate && \
-cd ../
-```
+`make download_models` also exports this automatically (see the `LTX-Video` section of `scripts/download_models.sh`). It's skipped by default in CI (`SKIP_LTX_VIDEO_EXPORT`) since the export is long-running; for local/manual use it runs by default. To run it standalone instead, see the script for the exact `optimum-cli` command.
 
 Set `AIG_VIDEO_MODEL_PATH` in `.env` to match (defaults to `/opt/models/ltx_video_ov/int8`, matching this path). `AIG_VIDEO_INFERENCE_DEVICE` selects the device for this model independently of `AIG_INFERENCE_DEVICE` (see [Change Inference Device](how-to-guides/change-inference-device.md)).
 

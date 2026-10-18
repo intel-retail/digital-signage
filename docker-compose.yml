@@ -273,8 +273,6 @@ services:
         USER: ${USER} 
     networks:
       - app_network
-    ports:
-      - "5100:5100"  # MCP server (streamable-http), for external agents e.g. qsr-agent
     environment:
       - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker
       - http_proxy=${http_proxy}
@@ -313,6 +311,7 @@ services:
       NO_PROXY: "web-ui,mqtt-broker,coturn,mediamtx,${no_proxy},${HOST_IP},dlstreamer-pipeline-server, aig-server"
       MEDIAMTX_SERVER: mediamtx
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
+      HOST_IP: ${HOST_IP}
     ports:
       - "5000:15443"   # HTTPS for Web-UI and AIG & DLSPS Rest API
     volumes:

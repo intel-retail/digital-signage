@@ -12,6 +12,15 @@ https://<HOST_IP>:5000/mcp
 
 Port `5100` is not published directly on the host; all access goes through the TLS-terminating nginx proxy.
 
+The nginx certificate is self-signed and regenerated on every `nginx` container
+restart (`configs/nginx/nginx-cert-gen.sh`). Its Subject Alternative Names cover
+`localhost`, `127.0.0.1`, `host.docker.internal`, and `HOST_IP` (if set to a
+real IP/hostname in `.env`) — connect using one of those, or add another SAN
+entry for your case. An agent connecting from a container on the same host
+(e.g. via `host.docker.internal`) can trust this certificate automatically at
+its own startup using a trust-on-first-use fetch; see the qsr-agent project's
+`docs/architecture.md` ("Remote MCP TLS trust") for an example of that pattern.
+
 ## Available Tools
 
 | Tool | Description |

@@ -5,7 +5,8 @@ numpy==2.5.3
 Pillow==12.3.0
 paho-mqtt==2.1.0
 # Pinned <2: web-ui/mcp_server.py uses the v1 FastMCP API (mcp.server.fastmcp.FastMCP),
-# renamed/replaced by MCPServer in mcp 2.x. main's mcp==2.3.0 bump doesn't match
-# its still-v1 mcp_server.py import -- see PR #114 comment.
+# renamed/replaced by MCPServer in mcp 2.x. Using the official mcp SDK's bundled
+# FastMCP (not the standalone fastmcp package) for now; can revisit if the extra
+# features of the standalone package become needed.
 mcp==1.29.1
 setuptools==84.0.0

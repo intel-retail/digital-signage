@@ -392,6 +392,7 @@
     <script>
         let pollingInterval = null;
         let currentProduct = null;
+        const benchmarkMode = {{ 'true' if benchmark_mode else 'false' }};
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -450,6 +451,7 @@
 
             const timestamp = new Date().getTime();
             const clientId = getBrowserFingerprint();
+            const fetchStart = performance.now();
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
@@ -457,6 +459,8 @@
                         res.blob().then(mediaBlob => {
                             // Get generation time from response header
                             const xgenerationTime = res.headers.get('X-Generation-Time');
+                            const adId = res.headers.get('X-Ad-Id');
+                            const renderStart = performance.now();
 
                             // Create object URL for the media
                             const mediaUrl = URL.createObjectURL(mediaBlob);
@@ -484,10 +488,27 @@
                             }
 
                             aigServerLoading.style.display = 'none';
+                            reportAdRendered(productImage, adId, fetchStart, renderStart);
                         });
                     }
                     return;
                 })
+        }
+
+        function reportAdRendered(image, adId, fetchStart, renderStart) {
+            if (!benchmarkMode || !adId) return;
+            // Second frame: the first callback still runs before its own paint, so sample after it.
+            image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+                fetch('/ad_rendered', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ad_id: Number(adId),
+                        browser_fetch_ms: renderStart - fetchStart,
+                        browser_render_ms: performance.now() - renderStart
+                    })
+                }).catch(() => {});
+            }))).catch(() => {});
         }
 
         function generateProductAdvertisement(product) {

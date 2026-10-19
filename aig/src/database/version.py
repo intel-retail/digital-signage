@@ -5,6 +5,7 @@ import os
 import gc
 import tempfile
 import threading
+import time
 # GenAI
 import openvino_genai
 import openvino as ov
@@ -752,10 +753,10 @@ class AseServerMetadata:
         
         return True
     
-    def qdrant_querytxt(self, simpletext: str, n_results: int = 3):
-        return self.qdrant_query([simpletext], n_results)
+    def qdrant_querytxt(self, simpletext: str, n_results: int = 3, timings=None):
+        return self.qdrant_query([simpletext], n_results, timings=timings)
     
-    def qdrant_query(self, query_texts: list, n_results: int = 3):
+    def qdrant_query(self, query_texts: list, n_results: int = 3, timings=None):
         """
         Query the Qdrant collection with the given query texts.
         For backward compatibility the returned dictionary still exposes the key
@@ -770,7 +771,11 @@ class AseServerMetadata:
             raise ValueError("query_texts must be a non-empty list.")
 
         try:
+            stage_start = time.perf_counter()
             query_vectors = self._embed_texts(query_texts)
+            if timings is not None:
+                timings['query_build'] = (time.perf_counter() - stage_start) * 1000
+            stage_start = time.perf_counter()
             result_ids = []
             result_metadatas = []
             result_distances = []
@@ -802,6 +807,8 @@ class AseServerMetadata:
                 result_distances.append(distances)
                 result_documents.append(documents)
 
+            if timings is not None:
+                timings['vector_search'] = (time.perf_counter() - stage_start) * 1000
             results = {
                 "ids": result_ids,
                 "metadatas": result_metadatas,

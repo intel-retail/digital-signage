@@ -2,14 +2,14 @@
 
 ## Version 2026.2.0
 
-**Sep 2026**
+**Release Date:** September 2026
 
 This release introduces **multi-object detection with priority-based ad selection**,
 **WCL integration for improved product matching**, and **CI/CD GitHub Actions workflows**,
 along with deployment hardening, expanded user-guide coverage, and various dependency
 upgrades and bug fixes.
 
-**New**
+**New**:
 
 - **Multi-Object Detection**: the web UI now tracks detected objects across a configurable
   number of recent frames and selects the highest-value item for ad generation, with
@@ -21,7 +21,7 @@ upgrades and bug fixes.
   models, and deploys and undeploys the stack, alongside a reusable scans workflow running
   Trivy, Bandit, ClamAV, Docker Bench Security, CodeQL, and Pylint.
 
-**Improved**
+**Improved**:
 
 - **Repository Structure**: PID configuration, models, and videos moved under `configs/pid/`;
   Makefile, Docker Compose mounts, and documentation updated to reflect the new layout.
@@ -41,7 +41,7 @@ upgrades and bug fixes.
 - **Security**: fixed a vulnerability in web UI request handling; upgraded urllib3,
   diffusers, pillow, requests, and flask to latest available versions.
 
-**Fixed**
+**Fixed**:
 
 - **ChromaDB Startup**: fixed a connectivity issue that prevented the ASe service from
   starting correctly.
@@ -56,13 +56,13 @@ upgrades and bug fixes.
 
 ## Version 1.0.0
 
-**Jan 2026**
+**Release Date:** June 2026
 
 This is the initial pre-production release of the **Context-Aware, Cross-Selling Digital
 Signage** application, introducing the **full end-to-end containerized stack**, **AIG memory
 optimizations**, **container security hardening**, and comprehensive documentation.
 
-**New**
+**New**:
 
 - **Product Identification (PID)**: DL Streamer Pipeline Server with YOLO11s object
   detection publishing results via MQTT, with support for file-based simulation video
@@ -87,7 +87,7 @@ optimizations**, **container security hardening**, and comprehensive documentati
 - **iGPU/NPU Device Detection**: Docker Compose device mounts for DRI and ACCEL are
   conditional, falling back gracefully on systems without GPU or NPU.
 
-**Improved**
+**Improved**:
 
 - **Security**: all services run as non-root users with dedicated accounts,
   no-new-privileges option enforced, read-only filesystems applied to ChromaDB and

@@ -2,12 +2,13 @@
 
 This guide provides step-by-step instructions for cloning the Digital Signage repository, building container images from source, and downloading the required AI models with the shared model-download microservice.
 
-> **Note:** Run all commands as a regular (non-root) user, without using `sudo`. Ensure [Docker is configured](../get-started.md#configure-docker) and you have internet access before proceeding.
+> [!NOTE]
+> Run all commands as a regular (non-root) user, without using `sudo`. Ensure [Docker is configured](../get-started.md#configure-docker) and you have internet access before proceeding.
 
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/intel-retail/digital-signage -b main
+git clone -b main https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 

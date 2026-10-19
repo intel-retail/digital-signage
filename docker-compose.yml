@@ -210,6 +210,7 @@ services:
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
       - ASE_QDRANT_SCORE_MIN_THRESHOLD=${ASE_QDRANT_SCORE_MIN_THRESHOLD} # Minimum cosine similarity score for Qdrant matches
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
+      - BENCHMARK_MODE=${BENCHMARK_MODE:-false} # Stage timing stays off the normal serving path unless benchmarking
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
       - ase-qdrant
@@ -273,6 +274,7 @@ services:
       - MQTT_BROKER=mqtt-broker
       - MQTT_PORT=1883
       - AIG_INFERENCE_DEVICE=${AIG_INFERENCE_DEVICE:-GPU} # Default Device to run the model on (e.g., CPU, GPU)
+      - BENCHMARK_MODE=${BENCHMARK_MODE:-false} # Trace logs and browser reporting stay off unless benchmarking
     depends_on:
       - mediamtx
       - aig-server

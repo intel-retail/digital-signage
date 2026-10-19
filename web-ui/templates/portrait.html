@@ -371,6 +371,7 @@
 
     <script>
         let pollingInterval = null;
+        const benchmarkMode = {{ 'true' if benchmark_mode else 'false' }};
         let isDragging = false;
         let currentX;
         let currentY;
@@ -496,12 +497,15 @@
 
             const timestamp = new Date().getTime();
             const clientId = getBrowserFingerprint();
+            const fetchStart = performance.now();
             
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
                         res.blob().then(imageBlob => {
                             const xgenerationTime = res.headers.get('X-Generation-Time');
+                            const adId = res.headers.get('X-Ad-Id');
+                            const renderStart = performance.now();
                             const imageUrl = URL.createObjectURL(imageBlob);
 
                             if (xgenerationTime) {
@@ -516,6 +520,7 @@
                             productImage.src = imageUrl;
                             productImage.style.display = 'block';
                             aigServerLoading.style.display = 'none';
+                            reportAdRendered(productImage, adId, fetchStart, renderStart);
                         });
                     }
                     return;
@@ -523,6 +528,22 @@
                 .catch(err => {
                     console.error('Error fetching advertisement:', err);
                 });
+        }
+
+        function reportAdRendered(image, adId, fetchStart, renderStart) {
+            if (!benchmarkMode || !adId) return;
+            // Second frame: the first callback still runs before its own paint, so sample after it.
+            image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+                fetch('/ad_rendered', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ad_id: Number(adId),
+                        browser_fetch_ms: renderStart - fetchStart,
+                        browser_render_ms: performance.now() - renderStart
+                    })
+                }).catch(() => {});
+            }))).catch(() => {});
         }
 
         function updateConnectionStatus(connected) {

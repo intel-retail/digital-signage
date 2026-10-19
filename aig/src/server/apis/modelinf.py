@@ -3,7 +3,7 @@ import os
 import gc
 import threading
 #Flask API
-from flask import send_file
+from flask import request, send_file
 from flask_restx import Namespace, Resource, fields
 # GenAI
 import openvino_genai
@@ -32,6 +32,13 @@ from imgproc.img_frame import ImgDecorator
 
 # Text2ImagePipeline.generate() is not thread-safe; serialize access across concurrent requests
 model_lock = threading.Lock()
+
+# Keeps stage timing out of the normal serving path
+BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
+
+
+def benchmark_timing_requested():
+    return BENCHMARK_MODE and request.headers.get('X-Benchmark-Timing', '').lower() == 'true'
 
 
 api = Namespace('AIG - Inference with Added-Value Services', description='Advertise Image Generation')
@@ -203,6 +210,7 @@ class ModelInference_Img(Resource):
         list=[]
         data = api.payload # 
         errorMessage=None
+        stage_timings = {}
 
         if data.get('device') not in ['CPU', 'GPU', 'NPU']:
             errorMessage="Device not supported. Only CPU, GPU and NPU are supported."
@@ -212,6 +220,7 @@ class ModelInference_Img(Resource):
         try:
             
             # Model
+            stage_start = time.perf_counter()
             model = AigServerMetadata.get_t2i_model_path() # Model Path only
             description = data.get('description')
             device = data.get('device', 'GPU')
@@ -227,10 +236,12 @@ class ModelInference_Img(Resource):
                 except Exception as e:
                     logger.error(f"Image Generation. Failed to create pipeline for device {device}: {e}")
                     return f"Device {device} unavailable: {str(e)[:200]}", 500
+            stage_timings['model_load'] = (time.perf_counter() - stage_start) * 1000
             start_time = time.time()          
             image_tensor = None
             max_retries = 3
             counter = 0
+            stage_start = time.perf_counter()
             while counter < max_retries:
                 try:
                     # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
@@ -243,6 +254,7 @@ class ModelInference_Img(Resource):
                     logger.error(f"Image Generation. Attempt {counter + 1} failed with error: {str(e)}")
                     image_tensor = None
                     counter += 1
+            stage_timings['inference'] = (time.perf_counter() - stage_start) * 1000
 
             if image_tensor is None:
                 errorMessage=f"Image Generation. Service is busy."
@@ -296,6 +308,7 @@ class ModelInference_Img(Resource):
             #     img_postprice = image
 
             img_postprice = image
+            stage_start = time.perf_counter()
 
             # Promo details (Rounded Rectangle)
             promo_details = data.get('promo_details')
@@ -385,15 +398,20 @@ class ModelInference_Img(Resource):
             #     img_postslogan = img_postlogo
 
             img_postslogan = img_postlogo # For now, slogan is not incorporated. It can be added in the future as another step after the logo incorporation (or in any other order depending on the requirements)
+            stage_timings['overlay'] = (time.perf_counter() - stage_start) * 1000
 
             # Save the updated image to a BytesIO object
+            stage_start = time.perf_counter()
             img_io = io.BytesIO()
             img_postslogan.save(img_io, format='JPEG')  # or 'PNG'
             img_io.seek(0)              
+            stage_timings['jpeg_encode'] = (time.perf_counter() - stage_start) * 1000
             
             
             # Clean up memory - unload model if configured to do so
+            stage_start = time.perf_counter()
             if not AigServerMetadata.should_keep_model_in_memory():
+                unload_start = time.perf_counter()
                 if pipe == AigServerMetadata().get_preloaded_model():
                     # Only unload if using the singleton model
                     AigServerMetadata().unload_model()
@@ -403,10 +421,12 @@ class ModelInference_Img(Resource):
                     del pipe
                     gc.collect()
                     logger.info(f"Image Generation. Processed in {end_time - start_time}s, temp model cleaned")
+                stage_timings['model_unload'] = (time.perf_counter() - unload_start) * 1000
             else:
                 logger.info(f"Image Generation. Processed in {end_time - start_time}s, model kept in memory")
             
             # Clean up intermediate objects
+            stage_start = time.perf_counter()
             del image_tensor
             del image
             del img_postprice
@@ -415,9 +435,15 @@ class ModelInference_Img(Resource):
             del img_postlogo
             del img_postslogan
             gc.collect()
+            stage_timings['model_cleanup'] = (time.perf_counter() - stage_start) * 1000
             
             #Do not incorporate ,200 at the end because it is understod as a JSON by default (and not an image stream)
-            return send_file(img_io, mimetype='image/jpeg')
+            response = send_file(img_io, mimetype='image/jpeg')
+            if benchmark_timing_requested():
+                response.headers['Server-Timing'] = ', '.join(
+                    f'{name};dur={duration:.3f}' for name, duration in stage_timings.items()
+                )
+            return response
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"
             logger.error(errorMessage)

@@ -1,6 +1,6 @@
-# Benchmarking Guide
+# Benchmarking
 
-This guide covers the full `make benchmark-all` workflow and explains the summary fields produced by the PID, AIG/ASe, Qdrant, Web UI, Docker-stats, host-metrics, and consolidated E2E outputs. For procedure-specific details, see [Benchmark PID](./benchmark-pid.md), [Benchmark AIG and ASe](./benchmark-aig.md), [Benchmark Qdrant](./benchmark-qdrant.md), [Benchmark Web UI Selection](./benchmark-web-ui.md), and [Capture Host Performance Metrics](./benchmark-metrics.md).
+This guide covers the full `make benchmark-all` workflow and explains the summary fields produced by the PID, AIG/ASe, Qdrant, Web UI, Docker-stats, host-metrics, and consolidated E2E outputs.
 
 ## Before You Run
 

@@ -12,7 +12,8 @@ to provision products with predefined ads.
 
 1. **Prepare image assets**: Create JPEG or JPG advertisement images and place them in `web-ui/pre-defined-ads/`.
 
-   > **Note:** Only JPEG/JPG image formats are supported.
+   > [!NOTE]
+   > Only JPEG/JPG image formats are supported.
 
 2. **Update the product associations**: Edit `web-ui/ProductAssociations.csv` and add or update rows for your products. Each row defines:
 

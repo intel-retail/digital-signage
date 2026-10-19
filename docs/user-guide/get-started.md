@@ -14,7 +14,8 @@ To configure Docker:
 
 1. **Run Docker as Non-Root**: Follow the steps in [Manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
 
-   > **NOTE:** Run all commands as a regular (non-root) user, without using `sudo`.
+   > [!NOTE]
+   > Run all commands as a regular (non-root) user, without using `sudo`.
 
 2. **Configure Proxy (if required)**:
    - Set up proxy settings for Docker client and containers as described in [Docker Proxy Configuration](https://docs.docker.com/network/proxy/).
@@ -55,7 +56,7 @@ To configure Docker:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/intel-retail/digital-signage -b main
+git clone -b main https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
@@ -69,6 +70,7 @@ make build
 
 Digital Signage uses the reusable Model Download microservice to download models and optimize it to run well with OpenVINO. Download models before deployment with `make download_models`; then start the app with `make up`.
 
+> [!NOTE]
 > Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
 ```bash
@@ -83,7 +85,8 @@ make download_models
   - `./aig/models/sdxl_turbo_ov/int8`
   - `./aig/models/all-MiniLM-L12-v2`
 
-> **Note:** If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
+> [!NOTE]
+> If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
 
 ## Step 4: Configure Environment
 
@@ -124,11 +127,13 @@ Open Google Chrome and navigate to:
 https://localhost:5000
 ```
 
-> **Note:** If you are accessing the UI remotely, replace `localhost` with the host system IP address.
+> [!NOTE]
+> If you are accessing the UI remotely, replace `localhost` with the host system IP address.
 
 You should see the live video stream and dynamic advertisements.
 
-> **Note:** For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
+> [!NOTE]
+> For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
 >
 > ```bash
 > google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000

@@ -122,6 +122,7 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
   docker version
    docker pull intel/model-download:latest
   ```
+
 - Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
 - Re-run `make download_models`; the command prints the model-download container logs when an API request or job fails.
 - Verify the model request paths in `scripts/download_models.sh` point to the repository model directories.
@@ -178,15 +179,15 @@ If needed, also verify inode availability (`df -i`) and open file limits (`ulimi
 
 ## 7. SDXL-Turbo and MiniLM Models (for AIG) Download Failed
 
-**Issue**
+**Issue**:
 
 The AIG startup job inside `make download_models` fails while preparing SDXL-Turbo or all-MiniLM-L12-v2.
 
-**Reason**
+**Reason**:
 
 The model-download container writes directly into `./aig/models`, so failures are usually caused by insufficient free disk space, interrupted network access, or a partial previous download left in the staging directory.
 
-**Solution**
+**Solution**:
 
 1. Ensure the filesystem that contains the repository has enough free space for `./aig/models`.
 2. Remove any incomplete staged AIG download and retry:

@@ -18,7 +18,8 @@ camera stream for real-time product detection.
 
    Replace `<USERNAME>`, `<PASSWORD>`, `<RTSP_CAMERA_IP>`, `<PORT>`, and `<FEED>` with your camera’s values.
 
-   > **Note:** To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
+   > [!NOTE]
+   > To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
 
 2. **Set the camera IP** in `.env`:
 

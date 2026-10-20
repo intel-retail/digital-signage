@@ -225,16 +225,23 @@ class AigServerMetadata:
         return os.getenv('AIG_VIDEO_MODEL_PATH')
 
     @staticmethod
+    def get_video_precision(device):
+        """Execution precision for the video model: f16 by default (about 5-6x faster than f32 on Intel
+        iGPU with comparable output quality); set AIG_VIDEO_PRECISION=f32 to force full precision."""
+        precision = os.getenv('AIG_VIDEO_PRECISION', 'f16').strip().lower()
+        return precision if precision in ('f16', 'f32') else 'f16'
+
+    @staticmethod
     def create_text2video_pipeline(model_path, device):
-        """Build a Text2VideoPipeline forcing f32 execution precision: on CPU, the plugin's bf16
-        default collapses this model's output to near-flat/washed-out (verified: min/max range
-        ~60-260 out of 255 in bf16 vs full 0-255 forcing f32). Falls back to the plugin's default
-        precision if the device rejects the hint (e.g. some GPU/NPU configurations may not support
-        it), so video generation still works there rather than failing outright."""
+        """Build a Text2VideoPipeline with an explicit execution precision (see get_video_precision).
+        An explicit hint is needed because the CPU plugin's bf16 default collapses this model's output to
+        near-flat/washed-out (min/max ~60-260 out of 255 in bf16 vs full 0-255 in f32). Falls back to the
+        plugin's default precision if the device rejects the hint, so video generation still works."""
+        precision = AigServerMetadata.get_video_precision(device)
         try:
-            return openvino_genai.Text2VideoPipeline(model_path, device, INFERENCE_PRECISION_HINT="f32")
+            return openvino_genai.Text2VideoPipeline(model_path, device, INFERENCE_PRECISION_HINT=precision)
         except Exception as e:
-            logger.warning(f"[AIG] Text2VideoPipeline rejected INFERENCE_PRECISION_HINT=f32 on {device} "
+            logger.warning(f"[AIG] Text2VideoPipeline rejected INFERENCE_PRECISION_HINT={precision} on {device} "
                            f"({e}); falling back to default precision")
             return openvino_genai.Text2VideoPipeline(model_path, device)
 
@@ -311,6 +318,11 @@ class AigServerMetadata:
         Returns True if model should stay loaded, False to unload after each use.
         """
         return os.getenv('AIG_KEEP_MODEL_IN_MEMORY', 'false').lower() == 'true'
+
+    @staticmethod
+    def should_preload_video_model():
+        """Load the video model at server start (true) instead of on the first video request (false)."""
+        return os.getenv('AIG_PRELOAD_VIDEO_MODEL', 'false').strip().lower() == 'true'
     
 class ServerEnvironment:
     @staticmethod

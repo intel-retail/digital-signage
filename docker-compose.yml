@@ -77,6 +77,8 @@ services:
       - "110"
       # render group ID for ubuntu 24.04 host OS
       - "992"
+      # render group ID for ubuntu 26.04 host OS
+      - "990"
     device_cgroup_rules:
       # Default run - device-cgroup-rule='c 189:* rmw'
       # Selective rules can be applied for deployment
@@ -207,6 +209,8 @@ services:
       - AIG_VIDEO_FRAME_RATE=${AIG_VIDEO_FRAME_RATE} # Frame rate used by the video model's own temporal generation
       - AIG_VIDEO_LOOP_SECONDS=${AIG_VIDEO_LOOP_SECONDS} # Duration of one loop pass through the generated frames in the encoded WEBP
       - AIG_VIDEO_NEGATIVE_PROMPT=${AIG_VIDEO_NEGATIVE_PROMPT} # Negative prompt discouraging blurry/jittery/distorted video output
+      - AIG_VIDEO_PRECISION=${AIG_VIDEO_PRECISION:-f16} # Video model execution precision: f16 (default, much faster) or f32
+      - AIG_PRELOAD_VIDEO_MODEL=${AIG_PRELOAD_VIDEO_MODEL:-false} # Load the video model at server start instead of on the first video request
       - LIBVA_DRIVER_NAME=iHD #OpenVINO & OneAPI
       - VIDEO_GROUP_ID=44 #OpenVINO & OneAPI
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
@@ -241,6 +245,8 @@ services:
       - "110"
       # render group ID for ubuntu 24.04 host OS
       - "992"
+      # render group ID for ubuntu 26.04 host OS
+      - "990"
     device_cgroup_rules:
       # Default run - device-cgroup-rule='c 189:* rmw'
       # Selective rules can be applied for deployment

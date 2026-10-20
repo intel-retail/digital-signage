@@ -116,6 +116,7 @@ Edit the `.env` file in the repository root and set the following required varia
 - `RTSP_CAMERA_IP` and related RTSP settings for live camera input.
 - `AIG_INFERENCE_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
 - `AIG_VIDEO_MODEL_PATH` and `AIG_VIDEO_INFERENCE_DEVICE` to enable and configure dynamic video ad generation (`trigger_video_ad`).
+- `AIG_VIDEO_PRECISION` and `AIG_PRELOAD_VIDEO_MODEL` to tune video generation speed and first-request latency (see [Change Inference Device](how-to-guides/change-inference-device.md)).
 - `AIG_*` and `ASE_*` variables for advanced AIG and ASe tuning.
 - `OBJECT_CONFIDENCE_THRESHOLD` and `OBJECT_RECENCY_FRAME_COUNT` for detection filtering.
 - `TIME_TO_DISPLAY_AD_SECONDS` for controlling ad rotation frequency.

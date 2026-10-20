@@ -275,8 +275,24 @@ elif [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
     "$ltx_venv/bin/pip" install --no-cache-dir --upgrade pip
     "$ltx_venv/bin/pip" install --no-cache-dir "optimum-intel[nncf]" "diffusers>=0.33" huggingface_hub \
         sentencepiece protobuf tiktoken accelerate
-    mkdir -p "$(dirname "$ltx_video_dir")"
-    "$ltx_venv/bin/optimum-cli" export openvino \
+    # Python 3.14 makes functools.partial bind as a method, which breaks optimum's
+    # NormalizedConfig.with_args() class attributes; wrap them in staticmethod (idempotent).
+    "$ltx_venv/bin/python" - <<'PY'
+import pathlib
+import sys
+
+if sys.version_info >= (3, 14):
+    import optimum.utils.normalized_config as nc
+
+    path = pathlib.Path(nc.__file__)
+    src = path.read_text()
+    old = "return functools.partial(cls, allow_new=allow_new, **kwargs)"
+    if old in src:
+        path.write_text(src.replace(old, f"return staticmethod({old[len('return '):]})"))
+PY
+    mkdir -p "$(dirname "$ltx_video_dir")" "$ltx_venv/tmp"
+    # optimum stages multi-GB sub-models in $TMPDIR; /tmp is often a small tmpfs and the save fails there.
+    TMPDIR="$ltx_venv/tmp" "$ltx_venv/bin/optimum-cli" export openvino \
         --model Lightricks/LTX-Video \
         --task text-to-video \
         --weight-format int8 \

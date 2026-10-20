@@ -48,7 +48,7 @@ natural-language capability summary instead of parsing the schema.
 | `get_catalog()` | → str | Lists products and their cross-sell promos |
 | `select_dynamic_ad()` | `(weather, demand, age_mix, daypart, display_seconds, benchmark)` → str | Resolves a shopping context to a product and displays its ad |
 | `trigger_ad()` | `(item, display_seconds, promo_text, slogan)` → str | Directly displays a named catalog item's ad |
-| `trigger_video_ad()` | `(item, description)` → str | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s); exactly one of `item` (a catalog product; predefined video if provisioned, else AI-generated with catalog overlays) or `description` (free text describing the video directly) is required — not both, since their overlays/content would be unrelated; MCP-triggered only |
+| `trigger_video_ad()` | `(item, description)` → str | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s); exactly one of `item` (a catalog product; predefined video if provisioned, else AI-generated with catalog overlays) or `description` (free text describing the video directly) is required — not both, since their overlays/content would be unrelated; MCP-triggered only; generation runs in the background (about 25-30 s on GPU with the default `f16` precision, see [Change Inference Device](change-inference-device.md#video-precision-and-preloading)) |
 | `clear_ad()` | → str | Clears the agent override, returns to camera-driven flow |
 
 ## New implementation vs. reuse of existing code

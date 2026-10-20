@@ -33,6 +33,8 @@ its own startup using a trust-on-first-use fetch; see the qsr-agent project's
 | `trigger_video_ad` | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s). Takes exactly one of `item` (a catalog product; uses its predefined video if provisioned, otherwise generates one with the catalog's price/promo/slogan/frame overlays) or `description` (free text describing the video's content directly, no overlays) — not both, since their overlays/content would be unrelated. MCP-triggered only — never produced by the camera-driven flow. |
 | `clear_ad` | Clears any active agent-commanded override and returns to the camera-driven flow. |
 
+> **Video ad generation time:** `trigger_video_ad` returns immediately and the video is generated in the background. On an Intel iGPU with the default `f16` precision this takes about 25-30 s per video; the first request also loads the video model (about 20 s) unless `AIG_PRELOAD_VIDEO_MODEL=true`. Running in `f32` takes about 3 minutes. See [Change Inference Device](change-inference-device.md#video-precision-and-preloading). A new `trigger_video_ad` call may be rejected until the current video finishes.
+
 ## Connect and Test
 
 ### MCP Inspector

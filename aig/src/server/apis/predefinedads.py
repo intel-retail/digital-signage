@@ -299,8 +299,9 @@ class PredefAdResourceDeleteGet(Resource):
                     id_int = None
                     try:
                         id_int = int(doc_id)
-                    except Exception as e:
-                        continue # when id is not int, discard from result and move to the next one
+                    # Ignore IDs that cannot be represented as integers.
+                    except (TypeError, ValueError, OverflowError):  # nosec B112
+                        continue
                     
                     # Get the metadata for the document.
                     if doc_metadata is None:
@@ -380,8 +381,9 @@ class PredefAdResourceQuery(Resource):
                         id_int = None
                         try:
                             id_int = int(doc_id)
-                        except Exception as e:
-                            continue # when id is not int, discard from result and move to the next one
+                        # Ignore IDs that cannot be represented as integers.
+                        except (TypeError, ValueError, OverflowError):  # nosec B112
+                            continue
 
                         # Get the metadata for the document    
                         doc_metadata = metadata_list[doc_index]                    

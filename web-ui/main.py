@@ -386,7 +386,8 @@ class Ad_Generator(threading.Thread):
                 best_items = [item]
             elif price == max_price:
                 best_items.append(item)
-        return random.choice(best_items) if best_items else None
+        # Tie-breaking is for ad selection, not security.
+        return random.choice(best_items) if best_items else None  # nosec B311
 
     def find_rotating_candidate(self, candidate_items):
         """Rotate among candidates by preferring less-shown products and avoiding immediate repeats."""
@@ -401,7 +402,8 @@ class Ad_Generator(threading.Thread):
 
         min_count = min(self.product_generation_count.get(item, 0) for item in pool)
         least_shown = [item for item in pool if self.product_generation_count.get(item, 0) == min_count]
-        return random.choice(least_shown)
+        # Product rotation is not security-sensitive.
+        return random.choice(least_shown)  # nosec B311
 
     def choose_association_index(self, label, associations):
         """Choose an association variant while avoiding repeating the previous variant for the same label."""
@@ -417,7 +419,8 @@ class Ad_Generator(threading.Thread):
         if last_index in candidate_indices:
             candidate_indices.remove(last_index)
 
-        selected_index = random.choice(candidate_indices if candidate_indices else list(range(len(associations))))
+        # Ad-variant rotation is not security-sensitive.
+        selected_index = random.choice(candidate_indices if candidate_indices else list(range(len(associations))))  # nosec B311
         self.last_association_index_by_label[label] = selected_index
         return selected_index
 
@@ -780,7 +783,8 @@ class Ad_Generator(threading.Thread):
                 logger.info(f"AIG_VIDEO_INFERENCE_DEVICE={AIG_VIDEO_INFERENCE_DEVICE} not supported for video generation; using GPU")
                 video_device = "GPU"
             aig_payload["device"] = video_device
-            aig_payload["seed"] = random.randint(0, 2**31 - 1)
+            # The seed controls generated video variation, not a security decision.
+            aig_payload["seed"] = random.randint(0, 2**31 - 1)  # nosec B311
 
             try:
                 aig_response = self.http_session.post(

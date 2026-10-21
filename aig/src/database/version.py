@@ -47,6 +47,11 @@ class AigServerMetadata:
             self._model_device = None
             self._model_lock = threading.Lock()
             logger.info("[AIG] Model will be loaded on-demand (lazy loading enabled)")
+
+            # Video (Text2VideoPipeline) model; also lazily loaded, kept fully separate from the image model
+            self.preloadedVideoModel = None
+            self._video_model_device = None
+            self._video_model_lock = threading.Lock()
             
 
     def get_logo(self):
@@ -97,6 +102,51 @@ class AigServerMetadata:
                 self._model_device = None
                 gc.collect()
                 logger.info("[AIG] Model unloaded successfully")
+
+    def get_preloaded_video_model(self):
+        """
+        Returns the preloaded Text2Video model with lazy loading.
+        If the model is not available, it loads it on-demand.
+        """
+        with self._video_model_lock:
+            requested_device = AigServerMetadata.get_t2v_model_device()
+
+            if self.preloadedVideoModel is None or self._video_model_device != requested_device:
+                model_path = AigServerMetadata.get_t2v_model_path()
+                if not model_path:
+                    logger.error("[AIG] AIG_VIDEO_MODEL_PATH is not configured; video generation is disabled")
+                    self.preloadedVideoModel = None
+                elif AigServerMetadata.is_device_available(requested_device):
+                    logger.info(f"[AIG] Loading Text2Video model on device: {requested_device}")
+                    try:
+                        self.preloadedVideoModel = AigServerMetadata.create_text2video_pipeline(
+                            model_path,
+                            requested_device
+                        )
+                        self._video_model_device = requested_device
+                        logger.info(f"[AIG] Video model loaded successfully on {requested_device}")
+                    except Exception as e:
+                        logger.error(f"[AIG] Failed to load video model on {requested_device}: {e}")
+                        self.preloadedVideoModel = None
+                        self._video_model_device = None
+                else:
+                    logger.error(f"[AIG] Device {requested_device} is not available")
+                    self.preloadedVideoModel = None
+
+            return self.preloadedVideoModel
+
+    def unload_video_model(self):
+        """
+        Unload the Text2Video model from memory to free up resources.
+        """
+        with self._video_model_lock:
+            if self.preloadedVideoModel is not None:
+                logger.info("[AIG] Unloading Text2Video model from memory")
+                del self.preloadedVideoModel
+                self.preloadedVideoModel = None
+                self._video_model_device = None
+                gc.collect()
+                logger.info("[AIG] Video model unloaded successfully")
             
     
     """
@@ -171,6 +221,81 @@ class AigServerMetadata:
         return device
 
     @staticmethod
+    def get_t2v_model_path():
+        return os.getenv('AIG_VIDEO_MODEL_PATH')
+
+    @staticmethod
+    def get_video_precision(device):
+        """Execution precision for the video model: f16 by default (about 5-6x faster than f32 on Intel
+        iGPU with comparable output quality); set AIG_VIDEO_PRECISION=f32 to force full precision."""
+        precision = os.getenv('AIG_VIDEO_PRECISION', 'f16').strip().lower()
+        return precision if precision in ('f16', 'f32') else 'f16'
+
+    @staticmethod
+    def create_text2video_pipeline(model_path, device):
+        """Build a Text2VideoPipeline with an explicit execution precision (see get_video_precision).
+        An explicit hint is needed because the CPU plugin's bf16 default collapses this model's output to
+        near-flat/washed-out (min/max ~60-260 out of 255 in bf16 vs full 0-255 in f32). Falls back to the
+        plugin's default precision if the device rejects the hint, so video generation still works."""
+        precision = AigServerMetadata.get_video_precision(device)
+        try:
+            return openvino_genai.Text2VideoPipeline(model_path, device, INFERENCE_PRECISION_HINT=precision)
+        except Exception as e:
+            logger.warning(f"[AIG] Text2VideoPipeline rejected INFERENCE_PRECISION_HINT={precision} on {device} "
+                           f"({e}); falling back to default precision")
+            return openvino_genai.Text2VideoPipeline(model_path, device)
+
+    @staticmethod
+    def get_t2v_model_device():
+        device = os.getenv('AIG_VIDEO_MODEL_DEVICE', 'GPU')  # Default to GPU if not specified
+
+        if device not in ['GPU', 'CPU', 'NPU']:
+             device = 'CPU'
+
+        return device
+
+    @staticmethod
+    def get_video_width():
+        # Independent from AIG_IMG_WIDTH_DEFAULT so bumping video resolution never affects image ads.
+        # LTX-Video works best with dimensions divisible by 32; 704x480 matches its own recommended default.
+        return int(os.getenv('AIG_VIDEO_WIDTH_DEFAULT', 704))
+
+    @staticmethod
+    def get_video_height():
+        return int(os.getenv('AIG_VIDEO_HEIGHT_DEFAULT', 480))
+
+    @staticmethod
+    def get_video_num_frames():
+        # LTX-Video requires num_frames % 8 == 1 (e.g. 17, 25, 33, 41); non-conforming values produce artifacts.
+        return int(os.getenv('AIG_VIDEO_NUM_FRAMES', 41))
+
+    @staticmethod
+    def get_video_inference_steps():
+        # LTX-Video/diffusers default is 50; more steps improve quality at the cost of generation time
+        return int(os.getenv('AIG_VIDEO_NUM_INFERENCE_STEPS', 50))
+
+    @staticmethod
+    def get_video_negative_prompt():
+        return os.getenv('AIG_VIDEO_NEGATIVE_PROMPT',
+                          'worst quality, inconsistent motion, blurry, jittery, distorted')
+
+    @staticmethod
+    def get_video_guidance_scale():
+        # Unlike the distilled SDXL-Turbo image model (which needs guidance disabled), LTX-Video is a
+        # regular diffusion model that requires real classifier-free guidance or output is incoherent noise.
+        # Lightricks recommends 5.0 for this (non-distilled) model; going much higher oversaturates/distorts
+        # output rather than improving it.
+        return float(os.getenv('AIG_VIDEO_GUIDANCE_SCALE', 5.0))
+
+    @staticmethod
+    def get_video_frame_rate():
+        return int(os.getenv('AIG_VIDEO_FRAME_RATE', 8))
+
+    @staticmethod
+    def get_video_loop_seconds():
+        return float(os.getenv('AIG_VIDEO_LOOP_SECONDS', 5))
+
+    @staticmethod
     def get_rest_server_port():
         return int(os.getenv('AIG_PORT',5003))
 
@@ -193,6 +318,11 @@ class AigServerMetadata:
         Returns True if model should stay loaded, False to unload after each use.
         """
         return os.getenv('AIG_KEEP_MODEL_IN_MEMORY', 'false').lower() == 'true'
+
+    @staticmethod
+    def should_preload_video_model():
+        """Load the video model at server start (true) instead of on the first video request (false)."""
+        return os.getenv('AIG_PRELOAD_VIDEO_MODEL', 'false').strip().lower() == 'true'
     
 class ServerEnvironment:
     @staticmethod

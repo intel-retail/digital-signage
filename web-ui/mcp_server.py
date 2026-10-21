@@ -46,6 +46,7 @@ def build_mcp_app():
     @mcp.tool()
     def describe() -> str:
         """Describe what this digital signage agent can read and do."""
+        main = _app()
         return (
             "Digital Signage sensor+actuator. "
             "Reads: get_current_ad() describes what's on screen now; "
@@ -54,6 +55,10 @@ def build_mcp_app():
             "resolves a shopping context to a product and displays its ad (a predefined image if one "
             "exists, otherwise an AI-generated image); trigger_ad(item, display_seconds, promo_text, "
             "slogan) directly displays a specific catalog item's ad by name, bypassing context resolution; "
+            "trigger_video_ad(item, description) displays a looping video ad, live on screen for "
+            f"{main.VIDEO_AD_DISPLAY_SECONDS} seconds - item for a catalog product (predefined video if "
+            "provisioned, else AI-generated with catalog overlays), or description for free text describing "
+            "the video's content directly; exactly one of the two is required, not both; "
             "clear_ad() clears any active override and returns to the camera-driven flow. "
             "Note: a detection/display event history is not available yet."
         )
@@ -63,6 +68,17 @@ def build_mcp_app():
         """Return a short description of the advertisement currently shown on the signage display."""
         main = _app()
         info = main.get_active_ad_info()
+        if info['mode'] == 'video_cancelling':
+            return (f"The video ad for '{info['item']}' was cancelled, but its request is still finishing "
+                     "in the background; a new trigger_video_ad call may be briefly rejected until then.")
+        if info['mode'] == 'video_generating':
+            return f"A video ad for '{info['item']}' is currently being generated and will appear shortly."
+        if info['mode'] == 'video':
+            return (f"Currently showing a video ad for '{info['item']}', "
+                    f"{info['seconds_remaining']}s remaining.")
+        if info['mode'] == 'agent_cancelling':
+            return (f"The ad for '{info['item']}' was cancelled, but its request is still finishing in the "
+                     "background; a new trigger_ad call may be briefly rejected until then.")
         if info['mode'] == 'generating':
             return f"An ad for '{info['item']}' is currently being generated and will appear shortly."
         if info['mode'] == 'agent':
@@ -120,12 +136,39 @@ def build_mcp_app():
                 f"few seconds, live for {result['display_seconds']}s.")
 
     @mcp.tool()
+    def trigger_video_ad(item: str = "", description: str = "") -> str:
+        """Display a looping video ad, live on screen for VIDEO_AD_DISPLAY_SECONDS. Provide exactly one
+        of `item` or `description` (not both, since their overlays/content would be unrelated):
+        - item only: a catalog product by name; uses its predefined video if provisioned, otherwise
+          generates one with the catalog's price/promo/slogan/frame overlays.
+        - description only: free text describing exactly what the video should show (e.g. "a cup of
+          coffee with steam rising, commercial product video, subtle natural motion"); generated fresh,
+          no overlays, no predefined-video lookup.
+        Rejected if a video ad is already generating or still actively displaying - retry once it
+        finishes rather than expecting this call to preempt it.
+        MCP-triggered only."""
+        main = _app()
+        item = item.strip()
+        description = description.strip()
+        if main._is_blank(item) and main._is_blank(description):
+            return "Provide either item or description."
+        if not main._is_blank(item) and not main._is_blank(description):
+            return "Provide only one of item or description, not both."
+        result = main.trigger_video_ad_core(item=item or None, description=description or None)
+        if result.get('error'):
+            return f"{result['error']}"
+        return (f"Video ad for '{result['item']}' is generating now (this can take a few minutes) and will "
+                f"appear on the display once ready, playing for {result['display_seconds']}s.")
+
+    @mcp.tool()
     def clear_ad() -> str:
-        """Clear any agent-commanded override ad and return the display to the camera-driven flow."""
+        """Clear any agent-commanded override ad (image or video, including one still generating) and
+        return the display to the camera-driven flow."""
         main = _app()
         result = main.clear_agent_override()
-        if result.get('cleared_item'):
-            return f"Cleared the agent-commanded ad for '{result['cleared_item']}'; display returned to camera-driven flow."
+        cleared = [item for item in (result.get('cleared_item'), result.get('cleared_video_item')) if item]
+        if cleared:
+            return f"Cleared the agent-commanded ad(s) for {', '.join(repr(item) for item in cleared)}; display returned to camera-driven flow."
         return "No agent-commanded ad was active; display is already camera-driven."
 
     return mcp

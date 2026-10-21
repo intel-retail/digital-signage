@@ -11,11 +11,13 @@ This page provides detailed hardware, software, and platform requirements to hel
 | **Storage**   | 500 GB free space                                             |
 | **GPU**       | Intel® integrated GPU (iGPU)                                  |
 
+> **Video ad generation (`trigger_video_ad`):** the LTX-Video model needs about 8 GB of GPU/shared memory with the default `f16` precision (about 11 GB with `f32`) in addition to the image model, so 32 GB RAM is recommended if you use it. See [Change Inference Device](../how-to-guides/change-inference-device.md#video-precision-and-preloading).
+
 ## Software Requirements
 
 | Component          | Version / Details                                       |
 | ------------------ | ------------------------------------------------------- |
-| **OS**             | Ubuntu 24.04 LTS                                        |
+| **OS**             | Ubuntu 24.04 LTS (Ubuntu 26.04 LTS also validated)      |
 | **Docker Engine**  | 24.x or higher                                          |
 | **Docker Compose** | v2                                                      |
 | **Browser**        | Google Chrome (recommended)                             |

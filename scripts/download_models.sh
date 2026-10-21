@@ -23,7 +23,8 @@ models_ready() {
     [[ -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.xml" && \
        -s "$REPO_ROOT/configs/pid/models/object_detection/yolo11s/INT8/yolo11s.bin" && \
        -s "$REPO_ROOT/aig/models/sdxl_turbo_ov/int8/graph.pbtxt" && \
-       -s "$REPO_ROOT/aig/models/all-MiniLM-L12-v2/config.json" ]]
+       -s "$REPO_ROOT/aig/models/all-MiniLM-L12-v2/config.json" && \
+       -s "$REPO_ROOT/aig/models/ltx_video_ov/int8/scheduler/scheduler_config.json" ]]
 }
 
 require_path() {
@@ -239,5 +240,70 @@ link_directory \
     "$REPO_ROOT/aig/models/all-MiniLM-L12-v2"
 
 "${compose[@]}" rm --stop --force model-download >/dev/null
+
+# LTX-Video (used only by trigger_video_ad) isn't offered by the model-download
+# microservice's plugins yet, so export it directly via optimum-cli instead.
+#
+# Skipped in CI by default: the export (full PyTorch trace + NNCF int8
+# compression of a video diffusion model) regularly exceeds this repo's CI job
+# time budget on CPU-only runners, and the PR workflow's smoke test never
+# exercises trigger_video_ad, so skipping it here doesn't weaken that check.
+# Set SKIP_LTX_VIDEO_EXPORT=0 to force it (e.g. for a dedicated, longer-running
+# workflow) or run scripts/download_models.sh locally where time isn't capped.
+#
+# Note: this also skips if $CI is set ambiently for unrelated reasons (some
+# shells/tools set it outside of actual CI runners) - set SKIP_LTX_VIDEO_EXPORT=0
+# explicitly if you hit this locally and still want the export to run.
+if [[ -n "${SKIP_LTX_VIDEO_EXPORT:-}" ]]; then
+    skip_ltx_video_export_explicit=true
+else
+    skip_ltx_video_export_explicit=false
+fi
+SKIP_LTX_VIDEO_EXPORT="${SKIP_LTX_VIDEO_EXPORT:-${CI:-false}}"
+ltx_video_dir="$REPO_ROOT/aig/models/ltx_video_ov/int8"
+if [[ "$SKIP_LTX_VIDEO_EXPORT" == "true" || "$SKIP_LTX_VIDEO_EXPORT" == "1" ]]; then
+    if [[ "$skip_ltx_video_export_explicit" == false ]]; then
+        log "Skipping LTX-Video export because \$CI is set (not an explicit SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable. Set SKIP_LTX_VIDEO_EXPORT=0 to force the export."
+    else
+        log "Skipping LTX-Video export (SKIP_LTX_VIDEO_EXPORT=$SKIP_LTX_VIDEO_EXPORT); trigger_video_ad will be unavailable"
+    fi
+elif [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
+    log "Exporting LTX-Video (Lightricks/LTX-Video) via optimum-cli"
+    ltx_venv="$REPO_ROOT/scripts/.ltx-export-venv"
+    rm -rf "$ltx_venv"
+    python3 -m venv "$ltx_venv"
+    "$ltx_venv/bin/pip" install --no-cache-dir --upgrade pip
+    "$ltx_venv/bin/pip" install --no-cache-dir "optimum-intel[nncf]" "diffusers>=0.33" huggingface_hub \
+        sentencepiece protobuf tiktoken accelerate
+    # Python 3.14 makes functools.partial bind as a method, which breaks optimum's
+    # NormalizedConfig.with_args() class attributes; wrap them in staticmethod (idempotent).
+    "$ltx_venv/bin/python" - <<'PY'
+import pathlib
+import sys
+
+if sys.version_info >= (3, 14):
+    import optimum.utils.normalized_config as nc
+
+    path = pathlib.Path(nc.__file__)
+    src = path.read_text()
+    old = "return functools.partial(cls, allow_new=allow_new, **kwargs)"
+    if old in src:
+        path.write_text(src.replace(old, f"return staticmethod({old[len('return '):]})"))
+PY
+    mkdir -p "$(dirname "$ltx_video_dir")" "$ltx_venv/tmp"
+    # optimum stages multi-GB sub-models in $TMPDIR; /tmp is often a small tmpfs and the save fails there.
+    TMPDIR="$ltx_venv/tmp" "$ltx_venv/bin/optimum-cli" export openvino \
+        --model Lightricks/LTX-Video \
+        --task text-to-video \
+        --weight-format int8 \
+        "$ltx_video_dir"
+    rm -rf "$ltx_venv"
+    if [[ ! -s "$ltx_video_dir/scheduler/scheduler_config.json" ]]; then
+        echo "LTX-Video export did not produce $ltx_video_dir/scheduler/scheduler_config.json" >&2
+        exit 1
+    fi
+else
+    log "LTX-Video model already present; skipping export"
+fi
 
 log "Models are ready for make up"

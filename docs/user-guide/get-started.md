@@ -88,6 +88,22 @@ make download_models
 > [!NOTE]
 > If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
 
+### Download SDXL-Turbo and MiniLM Models (for AIG)
+
+> Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
+
+`make download_models` (via `scripts/download_models.sh`) already exports both of these for you, via the Model Download microservice. See `scripts/download_models.sh` if you need to reproduce the equivalent `optimum-cli`/`hf download` commands standalone (e.g. outside Docker).
+
+Models are downloaded to `./aig/models/`.
+
+### Download LTX-Video Model (optional, for `trigger_video_ad`)
+
+> Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
+
+`make download_models` also exports this automatically (see the `LTX-Video` section of `scripts/download_models.sh`). It's skipped by default in CI (`SKIP_LTX_VIDEO_EXPORT`) since the export is long-running; for local/manual use it runs by default. To run it standalone instead, see the script for the exact `optimum-cli` command.
+
+Set `AIG_VIDEO_MODEL_PATH` in `.env` to match (defaults to `/opt/models/ltx_video_ov/int8`, matching this path). `AIG_VIDEO_INFERENCE_DEVICE` selects the device for this model independently of `AIG_INFERENCE_DEVICE` (see [Change Inference Device](how-to-guides/change-inference-device.md)).
+
 ## Step 4: Configure Environment
 
 Edit the `.env` file in the repository root and set the following required variables:
@@ -102,6 +118,8 @@ Edit the `.env` file in the repository root and set the following required varia
 
 - `RTSP_CAMERA_IP` and related RTSP settings for live camera input.
 - `AIG_INFERENCE_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
+- `AIG_VIDEO_MODEL_PATH` and `AIG_VIDEO_INFERENCE_DEVICE` to enable and configure dynamic video ad generation (`trigger_video_ad`).
+- `AIG_VIDEO_PRECISION` and `AIG_PRELOAD_VIDEO_MODEL` to tune video generation speed and first-request latency (see [Change Inference Device](how-to-guides/change-inference-device.md)).
 - `AIG_*` and `ASE_*` variables for advanced AIG and ASe tuning.
 - `OBJECT_CONFIDENCE_THRESHOLD` and `OBJECT_RECENCY_FRAME_COUNT` for detection filtering.
 - `TIME_TO_DISPLAY_AD_SECONDS` for controlling ad rotation frequency.

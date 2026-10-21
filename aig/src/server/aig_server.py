@@ -9,6 +9,7 @@ from database.version import AigServerMetadata
 from datetime import datetime
 import logging
 import os
+import threading
 logger = logging.getLogger(__name__)
 
 # Keeps stage timing out of the normal serving path
@@ -32,7 +33,21 @@ class AigServer:
                     )
             return response
 
+    @staticmethod
+    def _preload_video_model():
+        if not AigServerMetadata.should_keep_model_in_memory():
+            logger.warning("[AIG] AIG_PRELOAD_VIDEO_MODEL=true but AIG_KEEP_MODEL_IN_MEMORY is not true; "
+                           "the preloaded model will be unloaded after the first video request")
+        start = datetime.now()
+        if AigServerMetadata().get_preloaded_video_model() is not None:
+            logger.info(f"[AIG] Video model preloaded in {(datetime.now() - start).total_seconds():.1f}s")
+        else:
+            logger.warning("[AIG] Video model preload failed; it will be retried on the first video request")
+
     def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port()): # nosec B104
+        if AigServerMetadata.should_preload_video_model():
+            # Background thread so the REST server (images, ASe) is available while the model loads
+            threading.Thread(target=AigServer._preload_video_model, name="video-preload", daemon=True).start()
         # threaded=True so ASe (Qdrant) requests aren't blocked behind slow AIG image generation
         # Debug mode is never enabled from this runtime path.
         return self.app.run(host= hostname, port=pport, debug=False, threaded=True)

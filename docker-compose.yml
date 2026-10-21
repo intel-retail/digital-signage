@@ -94,7 +94,7 @@ services:
       - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   mediamtx:
-    image: bluenviron/mediamtx:1.21.1
+    image: bluenviron/mediamtx:1.21.2
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
@@ -140,7 +140,7 @@ services:
     - app_network
 
   ase-qdrant:
-    image: qdrant/qdrant:v1.19.1-unprivileged
+    image: qdrant/qdrant:v1.19.2-unprivileged
     hostname: ase-qdrant
     container_name: ase-qdrant
     user: "1000:1000"

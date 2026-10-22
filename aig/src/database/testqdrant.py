@@ -43,7 +43,8 @@ def test_add_qdrant():
                         "source": "test",
                         "id": 1,
                         "description": "This is a test defining citrus and their variety.",
-                        "img_path": "/tmp/test_doc_1.jpg",
+                        # Placeholder test metadata only; this path is never created.
+                        "img_path": "/tmp/test_doc_1.jpg",  # nosec B108
                     },
                 ),
                 models.PointStruct(
@@ -53,7 +54,8 @@ def test_add_qdrant():
                         "source": "test2",
                         "id": 2,
                         "description": "This is another test document describing apples and bananas.",
-                        "img_path": "/tmp/test_doc_2.jpg",
+                        # Placeholder test metadata only; this path is never created.
+                        "img_path": "/tmp/test_doc_2.jpg",  # nosec B108
                     },
                 ),
             ],

@@ -41,7 +41,8 @@ def build_mcp_app():
     if FastMCP is None:
         raise RuntimeError("mcp package is not installed")
 
-    mcp = FastMCP("digital-signage", host="0.0.0.0", port=MCP_PORT)
+    # This container is not host-published; nginx reaches it over the private Docker network.
+    mcp = FastMCP("digital-signage", host="0.0.0.0", port=MCP_PORT)  # nosec B104
 
     @mcp.tool()
     def describe() -> str:

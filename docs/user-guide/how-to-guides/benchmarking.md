@@ -83,7 +83,7 @@ Use Make variable assignments before or after the target, for example `make benc
 | `pid_benchmark_*_frames.json/.csv` | Per-frame PID/MQTT samples. |
 | `web_ui_benchmark_*.json/.csv` | Web UI frame and ad averages. |
 | `web_ui_benchmark_*_frames.json/.csv` | Per-MQTT-frame Web UI timing fields, including queue/cooldown metrics. |
-| `web_ui_benchmark_*_ads.json/.csv` | Per-generated-ad trace, served, and optional browser timings. |
+| `web_ui_benchmark_*_ads.json/.csv` | Per-generated-ad trace, served, delivery-correlated, and optional browser timings. |
 | `e2e_consolidated_*.json/.csv` | Combined stage table across PID, Web UI, AIG, Qdrant, and resource metrics. |
 | `<aig|qdrant|e2e>_docker_stats.json/.csv` | Per-container CPU/memory samples and averages. |
 | `<aig|qdrant|e2e>_metrics.json` | Full-run host CPU/GPU/NPU/memory/power time series. |
@@ -189,14 +189,16 @@ The search test uses synthetic random vectors in a temporary collection and retu
 | `avg_ad_<metric>` | Mean ad metric across all paths; mixes predefined and dynamic ads. |
 | `ads_predefined`, `ads_dynamic` | Ad counts for ASe hits and ASe misses respectively. |
 | `avg_predefined_<metric>`, `avg_dynamic_<metric>` | Per-path means for each ad metric. Prefer these over combined averages when comparing paths. |
+| `ad_served_deliveries`, `ad_delivery_matches` | Number of served browser deliveries and served/rendered pairs matched by `delivery_id`. |
+| `ad_unmatched_served_deliveries`, `ad_unmatched_rendered_deliveries` | Served or rendered reports that had no corresponding event with the same delivery ID. They are not combined into browser or end-to-end timings. |
 
-Ad metric suffixes include `queue_wait_ms`, `ase_query_ms`, `aig_generation_ms`, `ad_generation_total_ms`, `frame_to_ad_ready_ms`, `ready_to_served_ms`, `browser_fetch_ms`, `browser_render_ms`, and `frame_to_render_ms`. A predefined ad has no AIG generation, so its AIG field is null. `ready_to_served_ms` includes the browser polling interval. Browser fields require an open page during the capture; otherwise they are null. Browser render is a paint-opportunity estimate, not proof that pixels reached the display.
+Ad metric suffixes include `queue_wait_ms`, `ase_query_ms`, `aig_generation_ms`, `ad_generation_total_ms`, `frame_to_ad_ready_ms`, `ready_to_served_ms`, `browser_fetch_ms`, `browser_render_ms`, and `frame_to_render_ms`. A predefined ad has no AIG generation, so its AIG field is null. `ready_to_served_ms` includes the browser polling interval. Browser fields require an open page during the capture; otherwise they are null. Browser render is a paint-opportunity estimate, not proof that pixels reached the display. `frame_to_render_ms` is intentionally blank: `ready_to_served_ms` and `browser_fetch_ms` overlap, so adding them would overstate end-to-end time.
 
-`*_frames.json/.csv` contains per-MQTT-frame timings, including cooldown state. `*_ads.json/.csv` contains one row per generated ad and browser events joined by `ad_id`. Empty values mean no event/sample exists, not zero milliseconds.
+`*_frames.json/.csv` contains per-MQTT-frame timings, including cooldown state. `*_ads.json/.csv` contains one row per generated ad; served events are matched to browser reports by a unique `delivery_id` before per-ad timing averages are calculated. Empty values mean no event/sample exists, not zero milliseconds. Logs from older Web UI versions without delivery IDs can still provide generation metrics, but served/rendered events are counted as unmatched.
 
 ### Keep the Web UI Page Visible
 
-`browser_render_ms` is sampled from a `requestAnimationFrame` callback. Browsers suspend animation frames in hidden, minimized, or background tabs, so the callback does not run until the page becomes visible again. Every pending ad then reports the wait for visibility instead of its render time, which makes `browser_render_ms`, `frame_to_render_ms`, and the consolidated browser rows meaningless.
+`browser_render_ms` is sampled from a `requestAnimationFrame` callback. Browsers suspend animation frames in hidden, minimized, or background tabs, so the callback does not run until the page becomes visible again. Every pending ad then reports the wait for visibility instead of its render time, which makes `browser_render_ms` and the consolidated browser-render row meaningless.
 
 Keep the Web UI page open, visible, and in the foreground for the whole capture. Do not minimize the window, lock the screen, or switch tabs.
 
@@ -230,7 +232,7 @@ Browser fields are populated only for ads served while the page was open, so the
 | `note` | Caveat or interpretation for the stage. |
 | `file` | Source result file. |
 
-Stage rows cover PID inference/throughput/MQTT arrival, Web UI receipt/filtering/queue/cooldown/selection, live ASe and AIG, ad serving/browser fetch/render, synthetic AIG and Qdrant, and host resource averages. `Server-Timing` stage rows are blank if the server image lacks instrumentation. DLSPS often reports inference latency as null, so throughput is shown separately. The `9. Browser render` and `E2E frame -> ad rendered` rows require an open page and inherit the animation-frame caveat in [Keep the Web UI Page Visible](#keep-the-web-ui-page-visible); verify those before quoting end-to-end latency.
+Stage rows cover PID inference/throughput/MQTT arrival, Web UI receipt/filtering/queue/cooldown/selection, live ASe and AIG, ad serving/browser fetch/render, synthetic AIG and Qdrant, and host resource averages. `Server-Timing` stage rows are blank if the server image lacks instrumentation. DLSPS often reports inference latency as null, so throughput is shown separately. The `9. Browser render` row requires an open page and inherits the animation-frame caveat in [Keep the Web UI Page Visible](#keep-the-web-ui-page-visible); verify it before quoting render timings. The consolidated report omits a combined frame-to-render total because the available served and browser-fetch intervals overlap.
 
 ## Docker and Host Metrics Fields
 
@@ -247,3 +249,20 @@ Stage rows cover PID inference/throughput/MQTT arrival, Web UI receipt/filtering
 `host_metric_averages` contains `cpu_utilization_percent`, `gpu_utilization_percent`, and `memory_utilization_percent`. GPU is host-wide because Docker stats does not attribute it to a container. The companion Docker stats CSV has `timestamp`, `service`, `container`, `cpu_percent`, `memory_percent`, `memory_usage_mib`, and `memory_limit_mib` per sample.
 
 `<target>_metrics.json` keeps host time series: `cpu_utilization`, `gpu_utilization`, `npu_utilization`, `memory`, and `power`. CPU/GPU/NPU samples are `[timestamp, percent]`; memory samples are `[timestamp, total_gb, used_gb, free_gb, usage_percent]`; power samples are `[timestamp, package_0_watts, ...]`. `_platform_info.json` has `Processor`, `iGPU`, `NPU`, `Memory`, and `Storage` fields; `_raw_metrics/` retains the collector files.
+
+## Run Benchmark Unit Tests
+
+Create and activate a virtual environment in `performance-tools/benchmark-scripts`, then install pytest and its coverage plugin:
+
+```sh
+cd performance-tools/benchmark-scripts
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install pytest pytest-cov
+```
+
+Run the signage benchmark unit tests and show statement coverage, including uncovered lines:
+
+```sh
+python3 -m pytest -v --cov --cov-report=term-missing benchmark_signage_*.py
+```

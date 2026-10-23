@@ -460,6 +460,7 @@
                             // Get generation time from response header
                             const xgenerationTime = res.headers.get('X-Generation-Time');
                             const adId = res.headers.get('X-Ad-Id');
+                            const deliveryId = res.headers.get('X-Delivery-Id');
                             const renderStart = performance.now();
 
                             // Create object URL for the media
@@ -488,15 +489,16 @@
                             }
 
                             aigServerLoading.style.display = 'none';
-                            reportAdRendered(productImage, adId, fetchStart, renderStart);
+                            reportAdRendered(productImage, adId, deliveryId, fetchStart, renderStart);
+                            
                         });
                     }
                     return;
                 })
         }
 
-        function reportAdRendered(image, adId, fetchStart, renderStart) {
-            if (!benchmarkMode || !adId) return;
+        function reportAdRendered(image, adId, deliveryId, fetchStart, renderStart) {
+            if (!benchmarkMode || !adId || !deliveryId) return;
             // Second frame: the first callback still runs before its own paint, so sample after it.
             image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
                 fetch('/ad_rendered', {
@@ -504,6 +506,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         ad_id: Number(adId),
+                        delivery_id: deliveryId,
                         browser_fetch_ms: renderStart - fetchStart,
                         browser_render_ms: performance.now() - renderStart
                     })

@@ -22,6 +22,7 @@ import base64
 import random
 import unicodedata
 from PIL import Image
+import uuid
 
 AIG_SERVER_URL = os.getenv('AIG_SERVER_URL', 'http://aig-server:5003')
 AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
@@ -718,26 +719,28 @@ class Ad_Generator(threading.Thread):
 
         # Agent-commanded override takes priority; served continuously until expiry
         if self.agent_override_ad and time.time() < self.agent_override_until:
-            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None
+            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None, None
 
         # Return None if no ad has been generated yet
         if client_id is None:
-            return None, 0, None
+            return None, 0, None, None
         with self._state_lock:
             # Client already received this ad
             if self.last_generated_ad is None or client_id in self.list_of_clients:
-                return None, 0, None
+                return None, 0, None, None
             self.list_of_clients.append(client_id)
             ad_data = self.last_generated_ad
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
             ad_id = self.ad_sequence if ready_ns is not None else None
+        delivery_id = uuid.uuid4().hex if BENCHMARK_MODE and ad_id is not None else None
         if BENCHMARK_MODE and ad_id is not None:
             logger.info("WEB_UI_AD_SERVED %s", json.dumps({
                 'ad_id': ad_id,
+                'delivery_id': delivery_id,
                 'ready_to_served_ms': (time.time_ns() - ready_ns) / 1_000_000,
             }))
-        return ad_data, time_taken, ad_id
+        return ad_data, time_taken, ad_id, delivery_id
     
     def generate_video_ad(self, label, associations, description_override=None):
         """Return (bytes, mimetype, generation_label) for label: a provisioned predefined video if one
@@ -1040,7 +1043,8 @@ def get_current_advertisement():
     if ad_generator_Obj.is_video_ad_active():
         return jsonify({'status': 'ok'}), 204
 
-    ad_data, time_taken, ad_id = ad_generator_Obj.get_current_advertisement(height, width, client_id)
+    ad_data, time_taken, ad_id, delivery_id = ad_generator_Obj.get_current_advertisement(height, width, client_id)
+
     if ad_data:
         headers = {
             'Content-Disposition': 'inline; filename="current_ad.jpg"',
@@ -1048,6 +1052,8 @@ def get_current_advertisement():
         }
         if ad_id is not None:
             headers['X-Ad-Id'] = str(ad_id)
+        if delivery_id is not None:
+            headers['X-Delivery-Id'] = delivery_id
         return Response(ad_data, mimetype='image/jpeg', headers=headers)
     else:   
         return jsonify({'status': 'ok'}), 204
@@ -1061,6 +1067,7 @@ def ad_rendered():
     data = request.get_json(silent=True) or {}
     try:
         record = {'ad_id': int(data['ad_id'])}
+        record['delivery_id'] = uuid.UUID(str(data['delivery_id'])).hex
         for key in ('browser_fetch_ms', 'browser_render_ms'):
             value = float(data[key])
             if not 0 <= value < 600000:

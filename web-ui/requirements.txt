@@ -8,5 +8,5 @@ paho-mqtt==2.1.0
 # renamed/replaced by MCPServer in mcp 2.x. Using the official mcp SDK's bundled
 # FastMCP (not the standalone fastmcp package) for now; can revisit if the extra
 # features of the standalone package become needed.
-mcp==1.29.1
-setuptools==84.0.0
+mcp==1.30.0
+setuptools==84.1.0

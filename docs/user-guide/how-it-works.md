@@ -10,6 +10,10 @@ services (MediaMTX, Mosquitto, Qdrant, COTURN) that communicate via MQTT and RES
 
 ![Digital Signage Architecture](./_assets/Digital_Signage.png "digital signage architecture")
 
+> **Editable diagram:** An up-to-date architecture diagram in draw.io format is available at
+> `./_assets/Digital_Signage_Architecture.drawio`. Open it with [draw.io](https://app.diagrams.net)
+> or the VS Code draw.io extension.
+
 ```
 Video Stream → PID (Detection) → MQTT → Web UI (Selection) → AIG or ASe (Ad) → Browser
 ```

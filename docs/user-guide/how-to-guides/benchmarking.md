@@ -4,10 +4,11 @@ This guide covers the full `make benchmark-all` workflow and explains the summar
 
 ## Before You Run
 
-Check the worktree, then update registered submodules:
+Check the worktree, register the `performance-tools` submodule, then update it:
 
 ```sh
 git status --short
+git submodule add -f -b main https://github.com/intel-retail/performance-tools.git performance-tools
 make update-submodules
 ```
 
@@ -21,7 +22,7 @@ The benchmark targets check required model artifacts and start the application s
 
 ## Run Benchmarks
 
-Run the complete PID, Web-UIm AIG, Qdrant, and live E2E suite:
+Run the complete PID, Web UI, AIG, Qdrant, and live E2E suite:
 
 ```sh
 make benchmark-all

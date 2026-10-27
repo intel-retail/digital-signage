@@ -1,4 +1,4 @@
-setuptools==84.0.0
+setuptools==84.1.0
 # OpenVINO and Intel optimizations
 # Pin openvino/openvino_tokenizers to the exact versions openvino_genai is
 # compiled against (ABI-sensitive); see openvino_genai's PyPI "Dependencies"

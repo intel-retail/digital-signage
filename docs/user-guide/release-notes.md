@@ -1,5 +1,32 @@
 # Release Notes: Digital Signage
 
+## Version 2026.3
+
+**October 2026**
+
+This release introduces **AI-generated video ads**, **agent-driven MCP controls**, and **performance benchmarking**, along with Qdrant-backed ad search, centralized model downloads, and various fixes and documentation improvements.
+
+**New**
+
+- **AI-generated video ads**: added LTX-Video generation through an MCP tool, supporting catalog products and text descriptions.
+- **Agent-driven ad controls**: added MCP tools to trigger, clear, inspect, and dynamically select displayed ads.
+- **Performance benchmarking**: added timing instrumentation and reports for ad selection, generation, delivery, and browser rendering.
+
+**Improved**
+
+- **Ad search**: replaced the ASe ChromaDB backend with Qdrant.
+- **Model preparation**: moved PID and AIG model downloads to the model-download microservice and unified the download workflow.
+- **Deployment images**: updated AIG and web UI image tags to 2026.3.0.
+- **Dependencies**: updated Python, Docker Compose, and GitHub Actions dependencies across the project.
+- **Security**: updated vulnerable `mcp` and `setuptools` packages, resolved Bandit findings, and added Zizmor and OpenSSF Scorecard checks.
+- **Documentation**: expanded guidance for MCP, video ads, model downloads, and benchmarking.
+
+**Fixed**
+
+- **Documentation navigation**: fixed table-of-contents and link issues, and added instructions for cloning the benchmarking submodule.
+
+---
+
 ## Version 2026.2.0
 
 **Release Date:** September 2026

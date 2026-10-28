@@ -2,6 +2,91 @@
 
 All notable changes to this project are documented in this file.
 
+## [2026.3] - December 2026
+
+### Added
+- Added AI-generated video ads using LTX-Video, exposed through the `trigger_video_ad` MCP tool. ([#114])
+- Added MCP server tools for agent-driven ad selection and display control. ([#92])
+- Added benchmarking for ad selection, generation, delivery, and browser rendering. ([#137]) ([#148])
+
+### Changed
+- Replaced the ASE ChromaDB backend with Qdrant. ([#118])
+- Moved PID and AIG model downloads to the model-download microservice and consolidated model preparation into `make download_models`. ([#119])
+- Updated AIG and web UI image tags to `2026.3.0`. ([#104])
+- Updated Python dependencies across components, tests, and simulators. ([#151]) ([#143]) ([#136]) ([#133]) ([#107]) ([#106]) ([#94]) ([#65]) ([#53])
+- Updated Docker Compose and GitHub Actions dependencies and scan actions. ([#150]) ([#142]) ([#141]) ([#132]) ([#126]) ([#122]) ([#121]) ([#110]) ([#99]) ([#98]) ([#97]) ([#96]) ([#89]) ([#76]) ([#73]) ([#71]) ([#69]) ([#67]) ([#60]) ([#52]) ([#50]) ([#49]) ([#48]) ([#47]) ([#46])
+- Improved update and contributor workflows with grouped Dependabot updates, pip support, Ubuntu version filtering, CODEOWNERS, and a bug-report template. ([#108]) ([#51]) ([#45]) ([#123]) ([#124]) ([a527afc])
+
+### Security
+- Fixed vulnerable package versions in AIG and web UI and resolved Bandit findings. ([#152]) ([#147])
+- Added Zizmor scans, tightened CI workflow permissions, and added OpenSSF Scorecard checks. ([#134]) ([#130]) ([af27fb2]) ([3520213])
+
+### Documentation
+- Expanded documentation for MCP-based ad control, AI-generated video ads, model downloads, and performance benchmarking. ([#92]) ([#114]) ([#119]) ([#137]) ([#148])
+- Updated documentation navigation and references, fixed docs build links, and added submodule-clone instructions. ([#87]) ([#144]) ([#153]) ([9c5a9de]) ([7770edb]) ([861c5fb])
+
+---
+[#153]: https://github.com/intel-retail/digital-signage/pull/153
+[#152]: https://github.com/intel-retail/digital-signage/pull/152
+[#151]: https://github.com/intel-retail/digital-signage/pull/151
+[#150]: https://github.com/intel-retail/digital-signage/pull/150
+[#148]: https://github.com/intel-retail/digital-signage/pull/148
+[#147]: https://github.com/intel-retail/digital-signage/pull/147
+[#144]: https://github.com/intel-retail/digital-signage/pull/144
+[#143]: https://github.com/intel-retail/digital-signage/pull/143
+[#142]: https://github.com/intel-retail/digital-signage/pull/142
+[#141]: https://github.com/intel-retail/digital-signage/pull/141
+[#137]: https://github.com/intel-retail/digital-signage/pull/137
+[#136]: https://github.com/intel-retail/digital-signage/pull/136
+[#134]: https://github.com/intel-retail/digital-signage/pull/134
+[#133]: https://github.com/intel-retail/digital-signage/pull/133
+[#132]: https://github.com/intel-retail/digital-signage/pull/132
+[#130]: https://github.com/intel-retail/digital-signage/pull/130
+[#126]: https://github.com/intel-retail/digital-signage/pull/126
+[#124]: https://github.com/intel-retail/digital-signage/pull/124
+[#123]: https://github.com/intel-retail/digital-signage/pull/123
+[#122]: https://github.com/intel-retail/digital-signage/pull/122
+[#121]: https://github.com/intel-retail/digital-signage/pull/121
+[#119]: https://github.com/intel-retail/digital-signage/pull/119
+[#118]: https://github.com/intel-retail/digital-signage/pull/118
+[#114]: https://github.com/intel-retail/digital-signage/pull/114
+[#110]: https://github.com/intel-retail/digital-signage/pull/110
+[#108]: https://github.com/intel-retail/digital-signage/pull/108
+[#107]: https://github.com/intel-retail/digital-signage/pull/107
+[#106]: https://github.com/intel-retail/digital-signage/pull/106
+[#104]: https://github.com/intel-retail/digital-signage/pull/104
+[#99]: https://github.com/intel-retail/digital-signage/pull/99
+[#98]: https://github.com/intel-retail/digital-signage/pull/98
+[#97]: https://github.com/intel-retail/digital-signage/pull/97
+[#96]: https://github.com/intel-retail/digital-signage/pull/96
+[#94]: https://github.com/intel-retail/digital-signage/pull/94
+[#92]: https://github.com/intel-retail/digital-signage/pull/92
+[#89]: https://github.com/intel-retail/digital-signage/pull/89
+[#87]: https://github.com/intel-retail/digital-signage/pull/87
+[#76]: https://github.com/intel-retail/digital-signage/pull/76
+[#73]: https://github.com/intel-retail/digital-signage/pull/73
+[#71]: https://github.com/intel-retail/digital-signage/pull/71
+[#69]: https://github.com/intel-retail/digital-signage/pull/69
+[#67]: https://github.com/intel-retail/digital-signage/pull/67
+[#65]: https://github.com/intel-retail/digital-signage/pull/65
+[#60]: https://github.com/intel-retail/digital-signage/pull/60
+[#53]: https://github.com/intel-retail/digital-signage/pull/53
+[#52]: https://github.com/intel-retail/digital-signage/pull/52
+[#51]: https://github.com/intel-retail/digital-signage/pull/51
+[#50]: https://github.com/intel-retail/digital-signage/pull/50
+[#49]: https://github.com/intel-retail/digital-signage/pull/49
+[#48]: https://github.com/intel-retail/digital-signage/pull/48
+[#47]: https://github.com/intel-retail/digital-signage/pull/47
+[#46]: https://github.com/intel-retail/digital-signage/pull/46
+[a527afc]: https://github.com/intel-retail/digital-signage/commit/a527afc6df96ea6ff1fdf2042263b1de5f691c8c
+[af27fb2]: https://github.com/intel-retail/digital-signage/commit/af27fb269881b41f04c7ca5d9ba7cf642759a001
+[3520213]: https://github.com/intel-retail/digital-signage/commit/35202133ea7b8f86d33d2c922a06b01ffb8aa6a2
+[9c5a9de]: https://github.com/intel-retail/digital-signage/commit/9c5a9defe576a8c4f5b133526e1172cffe537b26
+[7770edb]: https://github.com/intel-retail/digital-signage/commit/7770edb0a42566fe705103175592f0f28c1dfb61
+[861c5fb]: https://github.com/intel-retail/digital-signage/commit/861c5fbc789d085bde8a15b4e58275004eedae8c
+
+---
+
 ## [2026.2] - September 2026
 
 ### Added

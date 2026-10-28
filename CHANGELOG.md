@@ -78,6 +78,7 @@ All notable changes to this project are documented in this file.
 [#48]: https://github.com/intel-retail/digital-signage/pull/48
 [#47]: https://github.com/intel-retail/digital-signage/pull/47
 [#46]: https://github.com/intel-retail/digital-signage/pull/46
+[#45]: https://github.com/intel-retail/digital-signage/pull/45
 [a527afc]: https://github.com/intel-retail/digital-signage/commit/a527afc6df96ea6ff1fdf2042263b1de5f691c8c
 [af27fb2]: https://github.com/intel-retail/digital-signage/commit/af27fb269881b41f04c7ca5d9ba7cf642759a001
 [3520213]: https://github.com/intel-retail/digital-signage/commit/35202133ea7b8f86d33d2c922a06b01ffb8aa6a2

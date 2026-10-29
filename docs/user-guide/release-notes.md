@@ -4,7 +4,7 @@
 
 **December 2026**
 
-This release introduces **AI-generated video ads**, **agent-driven MCP controls**, and **performance benchmarking**, along with Qdrant-backed ad search, centralized model downloads, and various fixes and documentation improvements.
+This release introduces **AI-generated video ads**, **agent-driven MCP controls**, and **performance benchmarking**, along with Qdrant-backed ad search(replace Chromadb with Qdrant vector db), centralized model downloads, and various fixes and documentation improvements.
 
 **New**
 

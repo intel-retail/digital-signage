@@ -39,6 +39,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl libnuma1 o
     # install all the debs and clean up
 	dpkg -i *.deb && rm -Rf /tmp/gpu_deps
 
+# Intel NPU user-mode driver (Level Zero loader + NPU driver/compiler/firmware)
+RUN apt-get update && apt-get install -y --no-install-recommends libtbb12 && rm -rf /var/lib/apt/lists/* && \
+    mkdir /tmp/npu_deps && cd /tmp/npu_deps && \
+    curl --fail -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.38.0/linux-npu-driver-v1.38.0.20260910-34487311128-ubuntu2404.tar.gz && \
+    tar -xf linux-npu-driver-*.tar.gz && \
+    curl --fail -L -O https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20260830T100000Z/pool/main/l/level-zero-loader/libze1_1.32.0-1~24.04~ppa1_amd64.deb && \
+    dpkg -i *.deb && rm -Rf /tmp/npu_deps
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN useradd -ms /bin/bash aiguser && \

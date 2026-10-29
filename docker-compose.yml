@@ -189,7 +189,7 @@ services:
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
       - REST_SERVER_PORT=${AIG_PORT}      
       - SERVICE_NAME=aig-server
-      - ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so
+      - ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so
       - AIG_VERSION=${IMAGE_SUFFIX}
       - AIG_PORT=${AIG_PORT}
       - AIG_LOGO_PATH=${AIG_LOGO_PATH}
@@ -224,6 +224,7 @@ services:
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
       - ASE_QDRANT_SCORE_MIN_THRESHOLD=${ASE_QDRANT_SCORE_MIN_THRESHOLD} # Minimum cosine similarity score for Qdrant matches
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
+      - AIG_NPU_CACHE_DIR=${AIG_NPU_CACHE_DIR:-/var/cache/pipeline_root/aig_npu_cache} # Compiled-blob cache used when running on the NPU
       - BENCHMARK_MODE=${BENCHMARK_MODE:-false} # Stage timing stays off the normal serving path unless benchmarking
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
@@ -233,6 +234,7 @@ services:
       - vol_pipeline_root:/home/ubuntu/.cache
       - "/run/udev:/run/udev:ro"
       - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
+      - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
       - "/tmp:/tmp"
       - ./aig/sharedata:/opt/sharedata
       - ./aig/src:/home/aigserver/src
@@ -256,9 +258,10 @@ services:
     devices:
       # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
-       # accel - NPU
+      # accel - NPU
       # Selective mount can be done for deployment as mounting whole /dev is not recommended
       - "${DRI_MOUNT_PATH:-/dev/null}:/dev/dri"
+      - "${ACCEL_MOUNT_PATH:-/dev/null}:/dev/accel"
 
   web-ui:
     image: ${DOCKER_REGISTRY}${WEB_UI_IMAGE}:${IMAGE_SUFFIX:-latest}${WEEKLY_BUILD_DATE:+-${WEEKLY_BUILD_DATE}}${WEEKLY_BUILD_DATE:+-weekly}

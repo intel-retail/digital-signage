@@ -74,11 +74,17 @@ Then redeploy (see [Apply Changes](#apply-changes)). `AIG_INFERENCE_DEVICE` is c
 - **Static shapes.** The NPU cannot run dynamic shapes, so the pipeline is reshaped to
   `AIG_IMG_WIDTH_DEFAULT` x `AIG_IMG_HEIGHT_DEFAULT` (448 x 448 by default) and compiled for that size.
 - **First start is slow.** The first compile takes about 3 minutes on Panther Lake. Compiled blobs are
-  cached in `/var/cache/pipeline_root/aig_npu_cache` (on the `vol_pipeline_root` volume, so they
-  survive container recreation). With a warm cache the model loads in under 20 seconds. Override the
-  location with `AIG_NPU_CACHE_DIR` in `.env`.
+  cached in `/opt/npu_cache`, a bind mount of the host directory `AIG_NPU_CACHE_HOST_DIR` (default
+  `./aig/npu_cache`). It is disk-backed, not the memory-backed `vol_pipeline_root` volume, and
+  `make down` does not delete it, so the cache survives restarts. With a warm cache the model loads in
+  under 20 seconds.
+- **Cache directory.** `make up` creates the host directory if it is missing. The container runs as
+  `UID` from `.env` (default 1000), so the directory must be writable by that user. If you run
+  `docker compose` directly, create it first (`mkdir -p aig/npu_cache`), otherwise Docker creates it as
+  root and the cache cannot be written. To keep the cache elsewhere, set `AIG_NPU_CACHE_HOST_DIR` in
+  `.env`.
 - **Cache size.** The cache is about 7 GB for one image size, and every new image size adds another
-  set of blobs. Make sure the volume has enough free space, and clear the directory if you change the
+  set of blobs. Make sure the host disk has enough free space, and clear the directory if you change the
   image size and no longer need the old blobs.
 - **Speed.** Once loaded, an image takes about 1 second on Panther Lake (compared with about
   2.6 seconds on the integrated GPU in the same system).
@@ -97,7 +103,7 @@ Then redeploy (see [Apply Changes](#apply-changes)). `AIG_INFERENCE_DEVICE` is c
 | `Device NPU is not available` in the `aig-server` log | `/dev/accel/accel0` is missing on the host or not mounted. Run `docker exec aig-server ls -l /dev/accel` and check `ACCEL_MOUNT_PATH`. |
 | The NPU is not listed by OpenVINO | `ZE_ENABLE_ALT_DRIVERS` must be `libze_intel_npu.so` (the v1.38 driver library name). `libze_intel_vpu.so` hides the NPU. |
 | Permission denied on `/dev/accel/accel0` | The container user is not in the device's group. Add the group ID to `group_add`. |
-| Very long first request after a restart | The compile cache is empty, or the image size changed. Wait for the compile to finish. |
+| Very long first request after a restart | The compile cache is empty, the image size changed, or `aig/npu_cache` is not writable by `UID` (check `ls -ld aig/npu_cache`). |
 | `503` on every image request | Check the `aig-server` log for `Failed to load model on NPU`, fix the cause and restart `aig-server`. |
 
 To confirm which device is in use, check the log for `EXECUTION_DEVICES: NPU` after

@@ -177,6 +177,8 @@ cython_debug/
 caxselling/pid/e2e_detections.json
 aig/models/*
 !aig/models/.gitkeep
+aig/npu_cache/*
+!aig/npu_cache/.gitkeep
 configs/pid/models/*
 !configs/pid/models/.gitkeep
 !configs/pid/models/object_detection/

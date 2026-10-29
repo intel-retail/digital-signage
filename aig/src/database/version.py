@@ -236,7 +236,7 @@ class AigServerMetadata:
         size (guidance_scale 0.0 must match generate()) and compiled blobs are cached to cut NPU compile time."""
         if str(device).upper() != 'NPU':
             return openvino_genai.Text2ImagePipeline(model_path, device)
-        cache_dir = os.getenv('AIG_NPU_CACHE_DIR', '/var/cache/pipeline_root/aig_npu_cache')
+        cache_dir = os.getenv('AIG_NPU_CACHE_DIR', '/opt/npu_cache')
         pipe = openvino_genai.Text2ImagePipeline(model_path)
         pipe.reshape(1, AigServerMetadata.get_img_height(), AigServerMetadata.get_img_width(), 0.0)
         pipe.compile(device, CACHE_DIR=cache_dir)

@@ -224,7 +224,7 @@ services:
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
       - ASE_QDRANT_SCORE_MIN_THRESHOLD=${ASE_QDRANT_SCORE_MIN_THRESHOLD} # Minimum cosine similarity score for Qdrant matches
       - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
-      - AIG_NPU_CACHE_DIR=${AIG_NPU_CACHE_DIR:-/var/cache/pipeline_root/aig_npu_cache} # Compiled-blob cache used when running on the NPU
+      - AIG_NPU_CACHE_DIR=${AIG_NPU_CACHE_DIR:-/opt/npu_cache} # Compiled-blob cache used when running on the NPU
       - BENCHMARK_MODE=${BENCHMARK_MODE:-false} # Stage timing stays off the normal serving path unless benchmarking
       - OPENVINO_LOG_LEVEL=3 # OpenVINO log level (0-4, where 0 is the most verbose)
     depends_on:
@@ -239,6 +239,7 @@ services:
       - ./aig/sharedata:/opt/sharedata
       - ./aig/src:/home/aigserver/src
       - ./aig/models:/opt/models
+      - ${AIG_NPU_CACHE_HOST_DIR:-./aig/npu_cache}:/opt/npu_cache # Disk-backed NPU blob cache, survives make down
       - "/usr/lib/wsl:/usr/lib/wsl" #WSL2 specific, Mandatory if you run in WSL2 th container initialzation
     group_add:
       # render group ID for ubuntu 20.04 host OS

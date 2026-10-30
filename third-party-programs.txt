@@ -14,11 +14,11 @@ terms are listed below.
 
 ---------------------------------------------------------------------------------------------------------------------------
 
-Docker images pulled from docker hub:
+Docker images pulled from Docker Hub:
 =====================================
 
 License-Identifier: MIT
-- bluenviron/mediamtx:1.20.1
+- bluenviron/mediamtx:1.21.2
 ----------------------------------------------------------------------
 
 License-Identifier: EPL-2.0/EPL-1.0
@@ -27,16 +27,17 @@ License-Identifier: EPL-2.0/EPL-1.0
 
 License-Identifier: Apache 2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
-- qdrant/qdrant:v1.19.1-unprivileged
+- intel/model-download:2026.2.0
+- qdrant/qdrant:v1.19.2-unprivileged
 ----------------------------------------------------------------------
 
 License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").
-- coturn/coturn:4.17.2-alpine
+- coturn/coturn:4.18.0-alpine
 
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-2-Clause
-- nginx:1.31.4
+- nginx:1.31.6
 
 ---------------------------------------------------------------------------------------------------------------------------
 
@@ -46,66 +47,72 @@ Docker images built:
 digital-signage-webui(License-Identifier: Apache 2.0):
 ======================================================
 
-1. Base docker image: python:3.13-slim
-License-Identifier: PSF License
+1. Base Docker image: python:3.13-slim
+License-Identifier: PSF-2.0
 
 2. requirements.txt
 
-License-Identifier: BSD-3-Clause License
+License-Identifier: BSD-3-Clause
 Flask==3.1.3
-numpy==2.5.1
-
 ----------------------------------------------------------------------
 
-License-Identifier: HPND (Historical Permission Notice and Disclaimer)
-Pillow==12.3.0
+License-Identifier: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+numpy==2.5.4
 ----------------------------------------------------------------------
 
-License-Identifier: Apache License 2.0
+License-Identifier: MIT-CMU
+Pillow==13.0.0
+----------------------------------------------------------------------
+
+License-Identifier: Apache-2.0
 requests==2.34.2
 opencv-python-headless==5.0.0.93
 ----------------------------------------------------------------------
 
-License-Identifier: EPL-2.0
+License-Identifier: EPL-2.0 OR BSD-3-Clause
 paho-mqtt==2.1.0
 ----------------------------------------------------------------------
 
-License-Identifier: MIT License
-setuptools==83.0.0
-pip==25.3
+License-Identifier: MIT
+mcp==1.30.0
+setuptools==84.1.0
 
 
-aig-server(License-Identifier: Apache 2.0):
+aig-server (License-Identifier: Apache-2.0):
 ===========================================
 
-1. Base docker image: ubuntu:24.04
+1. Base Docker image: ubuntu:24.04
 License-Identifier: GPL-2.0+ and other licenses (Ubuntu licensing varies by package)
 
 2. requirements.txt
 
-License-Identifier: BSD-3-Clause License
+License-Identifier: BSD-3-Clause
 flask==3.1.3
 flask-restx==1.3.2
-numpy==2.2.6
-
 ----------------------------------------------------------------------
 
-License-Identifier: HPND (Historical Permission Notice and Disclaimer)
-pillow==12.3.0
+License-Identifier: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+numpy==2.5.4
 ----------------------------------------------------------------------
 
-License-Identifier: Apache License 2.0
-openvino_genai==2026.2.1.0
-diffusers==0.38.0
+License-Identifier: MIT-CMU
+pillow==13.0.0
+----------------------------------------------------------------------
+
+License-Identifier: Apache-2.0
+openvino==2026.4.1
+openvino_tokenizers==2026.4.1.0
+openvino_genai==2026.4.1.0
+diffusers==0.41.0
 qdrant-client==1.19.1
-sentence-transformers==5.2.0
+sentence-transformers==6.1.0
 ----------------------------------------------------------------------
 
-License-Identifier: MIT License / Proprietary
-setuptools==83.0.0
-urllib3==2.7.0
-jaraco.context==6.1.0
-pip==25.3
+License-Identifier: MIT
+urllib3==2.8.0
+jaraco.context==6.1.2
+setuptools==84.1.0
+wheel (installed by Dockerfile; unpinned)
 
 ---------------------------------------------------------------------------------------------------------------------------
 

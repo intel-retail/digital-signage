@@ -50,9 +50,7 @@ digital-signage-webui(License-Identifier: Apache 2.0):
 1. Base Docker image: python:3.13-slim
 License-Identifier: PSF-2.0
 
-2. Built image (IMAGE_SUFFIX in .env): intel/digital-signage-webui:2026.3.0
-
-3. requirements.txt
+2. requirements.txt
 
 License-Identifier: BSD-3-Clause
 Flask==3.1.3
@@ -86,9 +84,7 @@ aig-server (License-Identifier: Apache-2.0):
 1. Base Docker image: ubuntu:24.04
 License-Identifier: GPL-2.0+ and other licenses (Ubuntu licensing varies by package)
 
-2. Built image (IMAGE_SUFFIX in .env): intel/aig-server:2026.3.0
-
-3. requirements.txt
+2. requirements.txt
 
 License-Identifier: BSD-3-Clause
 flask==3.1.3

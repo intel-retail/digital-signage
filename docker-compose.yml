@@ -140,7 +140,7 @@ services:
     - app_network
 
   ase-qdrant:
-    image: qdrant/qdrant:v1.19.2-unprivileged
+    image: qdrant/qdrant:v1.20.0-unprivileged
     hostname: ase-qdrant
     container_name: ase-qdrant
     user: "1000:1000"
@@ -305,7 +305,7 @@ services:
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
   nginx:
-    image: nginx:1.31.6
+    image: nginx:1.31.7
     container_name: nginx_proxy
     read_only: true
     user: "2999:2999" # Use a non-root user for security

@@ -9,4 +9,4 @@ paho-mqtt==2.1.0
 # FastMCP (not the standalone fastmcp package) for now; can revisit if the extra
 # features of the standalone package become needed.
 mcp==1.30.0
-setuptools==84.1.0
+setuptools==84.2.1

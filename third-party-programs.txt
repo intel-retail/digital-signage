@@ -21,17 +21,17 @@ License-Identifier: MIT
 - bluenviron/mediamtx:1.21.2
 ----------------------------------------------------------------------
 
-License-Identifier: EPL-2.0/EPL-1.0
+License-Identifier: EPL-2.0 OR EPL-1.0
 - eclipse-mosquitto:2.0.22
 ----------------------------------------------------------------------
 
-License-Identifier: Apache 2.0
+License-Identifier: Apache-2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
 - intel/model-download:2026.2.0
 - qdrant/qdrant:v1.19.2-unprivileged
 ----------------------------------------------------------------------
 
-License-Identifier: BSD 3-Clause License (also known as the "New BSD License" or "Modified BSD License").
+License-Identifier: BSD-3-Clause
 - coturn/coturn:4.18.0-alpine
 
 ----------------------------------------------------------------------
@@ -44,8 +44,8 @@ License-Identifier: BSD-2-Clause
 Docker images built:
 ====================
 
-digital-signage-webui(License-Identifier: Apache 2.0):
-======================================================
+digital-signage-webui (License-Identifier: Apache-2.0):
+=======================================================
 
 1. Base Docker image: python:3.13-slim
 License-Identifier: PSF-2.0
@@ -66,6 +66,9 @@ Pillow==13.0.0
 
 License-Identifier: Apache-2.0
 requests==2.34.2
+----------------------------------------------------------------------
+
+License-Identifier: MIT
 opencv-python-headless==5.0.0.93
 ----------------------------------------------------------------------
 
@@ -82,7 +85,8 @@ aig-server (License-Identifier: Apache-2.0):
 ===========================================
 
 1. Base Docker image: ubuntu:24.04
-License-Identifier: GPL-2.0+ and other licenses (Ubuntu licensing varies by package)
+License-Identifier: NOASSERTION
+Note: Ubuntu base image packages are covered by multiple license terms.
 
 2. requirements.txt
 
@@ -112,7 +116,7 @@ License-Identifier: MIT
 urllib3==2.8.0
 jaraco.context==6.1.2
 setuptools==84.1.0
-wheel (installed by Dockerfile; unpinned)
+wheel==0.48.0
 
 ---------------------------------------------------------------------------------------------------------------------------
 

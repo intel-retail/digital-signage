@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## [2026.3] - December 2026
 
 ### Added
+- Added experimental Intel NPU inference for AIG SDXL-Turbo image ads; video ads remain GPU-only. ([#155])
 - Added AI-generated video ads using LTX-Video, exposed through the `trigger_video_ad` MCP tool. ([#114])
 - Added MCP server tools for agent-driven ad selection and display control. ([#92])
 - Added benchmarking for ad selection, generation, delivery, and browser rendering. ([#137]) ([#148])
@@ -26,6 +27,7 @@ All notable changes to this project are documented in this file.
 - Updated documentation navigation and references, fixed docs build links, and added submodule-clone instructions. ([#87]) ([#144]) ([#153]) ([9c5a9de]) ([7770edb]) ([861c5fb])
 
 ---
+[#155]: https://github.com/intel-retail/digital-signage/pull/155
 [#153]: https://github.com/intel-retail/digital-signage/pull/153
 [#152]: https://github.com/intel-retail/digital-signage/pull/152
 [#151]: https://github.com/intel-retail/digital-signage/pull/151

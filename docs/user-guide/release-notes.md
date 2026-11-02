@@ -8,6 +8,7 @@ This release introduces **AI-generated video ads**, **agent-driven MCP controls*
 
 **New**
 
+- **Experimental AIG NPU support**: image ads using SDXL-Turbo can run on Intel NPU with `AIG_INFERENCE_DEVICE=NPU`; video ads remain GPU-only and fall back to GPU.
 - **AI-generated video ads**: added LTX-Video generation through an MCP tool, supporting catalog products and text descriptions.
 - **Agent-driven ad controls**: added MCP tools to trigger, clear, inspect, and dynamically select displayed ads.
 - **Performance benchmarking**: added timing instrumentation and reports for ad selection, generation, delivery, and browser rendering.

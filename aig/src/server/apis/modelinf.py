@@ -342,13 +342,19 @@ class ModelInference_Img(Resource):
             seed = data.get('seed', None)
 
             pipe = None
-            if str(device).upper() == AigServerMetadata.get_t2i_model_device():
+            use_preloaded = str(device).upper() == AigServerMetadata.get_t2i_model_device()
+            if use_preloaded:
                 # Use the preloaded model if the device matches
                 pipe = AigServerMetadata().get_preloaded_model()
+                if pipe is None:
+                    # Building another pipeline here would repeat a failed (possibly minutes-long) NPU compile
+                    errorMessage = f"Device {device} unavailable: model failed to load"
+                    logger.error(f"Image Generation. {errorMessage}")
+                    return errorMessage, 503
 
             if pipe is None:
                 try:
-                    pipe = openvino_genai.Text2ImagePipeline(model, device)
+                    pipe = AigServerMetadata.create_text2image_pipeline(model, device)
                 except Exception as e:
                     logger.error(f"Image Generation. Failed to create pipeline for device {device}: {e}")
                     return f"Device {device} unavailable: {str(e)[:200]}", 500

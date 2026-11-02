@@ -267,6 +267,7 @@ check_env_variables:
 .PHONY: up
 up: check_env_variables validate_host_ip check_models
 	@if [ "$(UP_SKIP_DOWN)" != true ]; then $(MAKE) down; fi
+	@mkdir -p "$${AIG_NPU_CACHE_HOST_DIR:-./aig/npu_cache}"
 	@echo "Starting Docker containers..."
 	BENCHMARK_MODE=$(BENCHMARK_MODE) $(DOCKER_COMPOSE) up -d
 	

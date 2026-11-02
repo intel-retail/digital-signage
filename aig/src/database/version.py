@@ -19,6 +19,8 @@ import numpy as np
 # Utils 
 from database.utils import SharedUtils
 
+MODEL_LOAD_RETRY_SECONDS = 300
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -46,6 +48,7 @@ class AigServerMetadata:
             self.preloadedModel = None
             self._model_device = None
             self._model_lock = threading.Lock()
+            self._model_load_failed_at = {}  # device -> monotonic time of the last failed load
             logger.info("[AIG] Model will be loaded on-demand (lazy loading enabled)")
 
             # Video (Text2VideoPipeline) model; also lazily loaded, kept fully separate from the image model
@@ -71,17 +74,24 @@ class AigServerMetadata:
             
             # Load model if not loaded or device changed
             if self.preloadedModel is None or self._model_device != requested_device:
-                if AigServerMetadata.is_device_available(requested_device):
+                failed_at = self._model_load_failed_at.get(requested_device)
+                if failed_at is not None and time.monotonic() - failed_at < MODEL_LOAD_RETRY_SECONDS:
+                    # A failed NPU compile can take minutes; do not repeat it on every request
+                    logger.warning(f"[AIG] Skipping model load on {requested_device}: last attempt failed recently")
+                    self.preloadedModel = None
+                elif AigServerMetadata.is_device_available(requested_device):
                     logger.info(f"[AIG] Loading Text2Image model on device: {requested_device}")
                     try:
-                        self.preloadedModel = openvino_genai.Text2ImagePipeline(
-                            AigServerMetadata.get_t2i_model_path(), 
+                        self.preloadedModel = AigServerMetadata.create_text2image_pipeline(
+                            AigServerMetadata.get_t2i_model_path(),
                             requested_device
                         )
                         self._model_device = requested_device
+                        self._model_load_failed_at.pop(requested_device, None)
                         logger.info(f"[AIG] Model loaded successfully on {requested_device}")
                     except Exception as e:
                         logger.error(f"[AIG] Failed to load model on {requested_device}: {e}")
+                        self._model_load_failed_at[requested_device] = time.monotonic()
                         self.preloadedModel = None
                         self._model_device = None
                 else:
@@ -213,12 +223,24 @@ class AigServerMetadata:
 
     @staticmethod
     def get_t2i_model_device():
-        device = os.getenv('AIG_MODEL_DEVICE', 'GPU')  # Default to GPU if not specified
+        device = os.getenv('AIG_MODEL_DEVICE', 'GPU').strip().upper()  # Default to GPU if not specified
 
         if device not in ['GPU', 'CPU', 'NPU']:
              device = 'CPU'
         
         return device
+
+    @staticmethod
+    def create_text2image_pipeline(model_path, device):
+        """Build a Text2ImagePipeline. NPU needs static shapes, so the pipeline is reshaped to the configured
+        size (guidance_scale 0.0 must match generate()) and compiled blobs are cached to cut NPU compile time."""
+        if str(device).upper() != 'NPU':
+            return openvino_genai.Text2ImagePipeline(model_path, device)
+        cache_dir = os.getenv('AIG_NPU_CACHE_DIR', '/opt/npu_cache')
+        pipe = openvino_genai.Text2ImagePipeline(model_path)
+        pipe.reshape(1, AigServerMetadata.get_img_height(), AigServerMetadata.get_img_width(), 0.0)
+        pipe.compile(device, CACHE_DIR=cache_dir)
+        return pipe
 
     @staticmethod
     def get_t2v_model_path():
@@ -247,9 +269,14 @@ class AigServerMetadata:
 
     @staticmethod
     def get_t2v_model_device():
-        device = os.getenv('AIG_VIDEO_MODEL_DEVICE', 'GPU')  # Default to GPU if not specified
+        device = os.getenv('AIG_VIDEO_MODEL_DEVICE', 'GPU').strip().upper()  # Default to GPU if not specified
 
-        if device not in ['GPU', 'CPU', 'NPU']:
+        # LTX-Video does not compile on the NPU (verified on Panther Lake, driver 1.38.0)
+        if device == 'NPU':
+            logger.warning("[AIG] AIG_VIDEO_MODEL_DEVICE=NPU is not supported for video; using GPU")
+            device = 'GPU'
+
+        if device not in ['GPU', 'CPU']:
              device = 'CPU'
 
         return device

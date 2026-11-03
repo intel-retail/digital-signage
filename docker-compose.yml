@@ -359,7 +359,7 @@ services:
       - --plugins
       - ${MODEL_DOWNLOAD_PLUGINS:-huggingface,openvino,ultralytics}
     ports:
-      - "${HOST_IP:-127.0.0.1}:${MODEL_DOWNLOAD_PORT:-8000}:8000"
+      - "127.0.0.1:${MODEL_DOWNLOAD_PORT:-8000}:8000"
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
       HUGGINGFACEHUB_API_TOKEN: ${HUGGINGFACEHUB_API_TOKEN:-}

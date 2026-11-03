@@ -1,0 +1,75 @@
+{
+  "skill_name": "digital-signage-user",
+  "evals": [
+    {
+      "id": 0,
+      "name": "fresh-clone-bringup",
+      "prompt": "I just cloned this digital-signage repo onto a fresh NUC with an Intel iGPU. Docker's installed and that's about it. Walk me through everything I need to do to get the demo actually running in a browser — I've never deployed this before and I'd rather not discover a missing step three hours in.",
+      "expected_output": "An ordered bring-up procedure covering: model download (all three models), setting the two empty MTX WebRTC credentials in .env with their validation rules, HOST_IP guidance (an IPv4, default 127.0.0.1, localhost rejected), make build && make up, verification, and the correct URL https://localhost:5000 over HTTPS with a self-signed-cert warning.",
+      "files": [],
+      "assertions": [
+        "States that MTX_WEBRTCICESERVERS2_0_USERNAME and MTX_WEBRTCICESERVERS2_0_PASSWORD ship empty and must be set before make up will succeed",
+        "Gives the actual validation rules for those credentials (username letters-only min 5; password alphanumeric min 8 with at least one digit)",
+        "Covers downloading all three models (YOLO11s detection, SDXL-Turbo, MiniLM embeddings) before make up",
+        "Gives the access URL as https on port 5000 (not http) and mentions the self-signed certificate warning",
+        "Presents the steps in a workable order with model download and .env config before make up"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "black-video-stuck-ad",
+      "prompt": "ok so the stack is up, all containers running, and I can load the web ui from my laptop at https://192.168.1.50:5000 — but the video area is just black and the ad panel is stuck showing the same image forever. worked fine when i was testing on the machine itself. what's going on",
+      "expected_output": "Identifies HOST_IP (not matching the address the browser uses, or changed without recreating containers) and/or the TURN UDP port 3478 being unreachable as the likely root cause of the black video for a remote browser, because HOST_IP is interpolated into the TURN URL handed to the browser and published ports bind to it. Separately explains the stuck ad panel, including the 204 No Content polling semantics.",
+      "files": [],
+      "assertions": [
+        "Identifies HOST_IP as a likely cause of the black video (it must be the host's reachable IPv4, not 127.0.0.1 or localhost) and explains it is substituted into the TURN/ICE server URL given to the browser and used to bind published ports; also mentions the UDP 3478 coturn port must be reachable",
+        "Notes that the symptom appearing only for a remote browser (worked locally) is the diagnostic signal for a loopback or mismatched HOST_IP, and that the fix is editing .env then make up",
+        "Addresses the stuck ad panel as a separate issue rather than assuming one root cause explains both",
+        "Mentions concrete diagnostic commands or log checks rather than only offering speculation",
+        "States that .env changes require make up (not docker restart) to take effect"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "npu-and-rtsp-camera",
+      "prompt": "two changes i need to make: run the object detection on the NPU instead of CPU, and stop using the sample video — point it at our RTSP camera at 10.0.0.42 (creds are viewer/viewer123, path is /stream1). tell me exactly what to edit.",
+      "expected_output": "Names configs/pid/config.json for both changes: the device field under payload.parameters.detection-properties, and the pipeline string's source element replaced with rtspsrc plus rtph264depay. Distinguishes detection device from AIG_MODEL_DEVICE.",
+      "files": [],
+      "assertions": [
+        "Names configs/pid/config.json as the file to edit for BOTH the device change and the RTSP source change",
+        "Sets the detection device via the payload parameters detection-properties device field, not via an environment variable",
+        "Provides an rtspsrc pipeline that includes rtph264depay before h264parse",
+        "Distinguishes the detection device from the AIG/SDXL generation device (AIG_MODEL_DEVICE) rather than conflating them",
+        "Mentions the NPU requires /dev/accel on the host, or otherwise flags the device-availability prerequisite"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "standalone-install-prereqs",
+      "prompt": "I installed your digital-signage skill with npx skills add into my agent, and I'm in my home directory on a new Ubuntu box. Get the digital signage demo ready to run — make sure I meet the prerequisites first.",
+      "expected_output": "Recognizes the skill is installed outside the repo, does not look for the Makefile inside the skill folder, locates or offers to clone the repo, checks the host against the published system requirements and Configure Docker steps, then proceeds with models, .env and make up.",
+      "files": [],
+      "assertions": [
+        "Does not assume the Makefile or scripts are inside the skill directory; looks for a checkout (cwd, git toplevel) or offers the git clone command for intel-retail/digital-signage",
+        "Checks the host against the user guide system requirements (Ubuntu 24.04, Docker 24+ with Compose v2, RAM, storage, iGPU) and reports shortfalls",
+        "Points to the Configure Docker steps (non-root Docker, proxy, log rotation) from the Get Started page",
+        "Names the source it used for the guide (published URL or docs/user-guide checkout path)",
+        "Continues with model download, the empty MTX credentials in .env, make build and make up from the repo root"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "model-download-fails",
+      "prompt": "make download_models keeps failing for me — it says it couldn't pull the model-download image / times out waiting for a job. I'm behind a corporate proxy. What do I check?",
+      "expected_output": "Explains that make download_models runs the intel/model-download microservice container via scripts/download_models.sh, points to Docker/daemon proxy configuration, the container logs the script prints, the CA bundle, disk space and license/HF token needs, and says to re-run once fixed (existing artifacts are skipped).",
+      "files": [],
+      "assertions": [
+        "Identifies that models are downloaded by the model-download microservice container (MODEL_DOWNLOAD_IMAGE, MODEL_DOWNLOAD_PORT) through scripts/download_models.sh, not by a local venv script",
+        "Suggests proxy configuration for the Docker daemon/client and checking the model-download container logs",
+        "Mentions checking free disk space and, for gated models, a Hugging Face token",
+        "States that re-running make download_models skips artifacts that already exist, and that LTX-Video is optional and not required by make check_models",
+        "Does not suggest the removed FORCE=1, download_models_pid or download_models_aig options"
+      ]
+    }
+  ]
+}

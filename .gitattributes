@@ -1,0 +1,5 @@
+# Keep .env with LF line endings so shell validation works on Linux
+.env text eol=lf
+
+# Shell scripts must stay LF (Git attributes cannot preserve the executable bit)
+*.sh text eol=lf

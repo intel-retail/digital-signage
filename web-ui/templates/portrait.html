@@ -341,6 +341,7 @@
                         <span class="loading-text">Waiting for initialization to complete...</span>
                     </div>
                     <img id="productImage" class="ad-image" src="" alt="Generated Product Advertisement" style="display: none;">
+                    <video id="productVideo" class="ad-image" style="display: none;" muted playsinline autoplay loop></video>
                     <div id="generationTime" class="generation-time">Advertisement generated in 0s</div>
                 </div>
             </div>
@@ -371,6 +372,7 @@
 
     <script>
         let pollingInterval = null;
+        const benchmarkMode = {{ 'true' if benchmark_mode else 'false' }};
         let isDragging = false;
         let currentX;
         let currentY;
@@ -385,9 +387,8 @@
             setupDraggable();
             
             // Load Stream
-            const host = window.location.hostname;
-            const STREAM_PORT = "8889";
-            document.getElementById("myframe").src = `${window.location.protocol}//${host}:${STREAM_PORT}/samplestream/`;
+            const streamOrigin = window.location.origin;
+            document.getElementById("myframe").src = `${streamOrigin}/samplestream/`;
             updateConnectionStatus(true);
             
             // Start polling for advertisements
@@ -497,26 +498,41 @@
 
             const timestamp = new Date().getTime();
             const clientId = getBrowserFingerprint();
+            const fetchStart = performance.now();
             
             fetch(`/get_current_advertisement?width=${width}&height=${height}&client_id=${clientId}`)
                 .then(res => {
                     if (res.status === 200) {
-                        res.blob().then(imageBlob => {
+                        const isVideo = (res.headers.get('Content-Type') || '').startsWith('video');
+                        res.blob().then(mediaBlob => {
                             const xgenerationTime = res.headers.get('X-Generation-Time');
-                            const imageUrl = URL.createObjectURL(imageBlob);
+                            const adId = res.headers.get('X-Ad-Id');
+                            const deliveryId = res.headers.get('X-Delivery-Id');
+                            const renderStart = performance.now();
+                            const mediaUrl = URL.createObjectURL(mediaBlob);
 
                             if (xgenerationTime) {
                                 const generationTimeElement = document.getElementById('generationTime');
                                 generationTimeElement.textContent = `${xgenerationTime}`;
                                 generationTimeElement.style.display = 'block';
                             }
-                            
+
                             const productImage = document.getElementById('productImage');
+                            const productVideo = document.getElementById('productVideo');
                             const aigServerLoading = document.getElementById('aigServerLoading');
-                        
-                            productImage.src = imageUrl;
-                            productImage.style.display = 'block';
+
+                            if (isVideo) {
+                                productImage.style.display = 'none';
+                                productVideo.src = mediaUrl;
+                                productVideo.style.display = 'block';
+                                productVideo.play().catch(() => {});
+                            } else {
+                                productVideo.style.display = 'none';
+                                productImage.src = mediaUrl;
+                                productImage.style.display = 'block';
+                            }
                             aigServerLoading.style.display = 'none';
+                            reportAdRendered(productImage, adId, deliveryId, fetchStart, renderStart);
                         });
                     }
                     return;
@@ -524,6 +540,23 @@
                 .catch(err => {
                     console.error('Error fetching advertisement:', err);
                 });
+        }
+
+        function reportAdRendered(image, adId, deliveryId, fetchStart, renderStart) {
+            if (!benchmarkMode || !adId || !deliveryId) return;
+            // Second frame: the first callback still runs before its own paint, so sample after it.
+            image.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+                fetch('/ad_rendered', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ad_id: Number(adId),
+                        delivery_id: deliveryId,
+                        browser_fetch_ms: renderStart - fetchStart,
+                        browser_render_ms: performance.now() - renderStart
+                    })
+                }).catch(() => {});
+            }))).catch(() => {});
         }
 
         function updateConnectionStatus(connected) {

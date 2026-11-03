@@ -22,7 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY ./requirements.txt /app/
 RUN pip install --upgrade pip
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt && \
+    python -m pip uninstall -y pip && \
+    rm -rf /usr/local/lib/python3.13/ensurepip/_bundled
 
 RUN apt-get remove --purge -y --allow-remove-essential perl-base
 
@@ -33,10 +35,14 @@ RUN groupadd $USER -g $UID && \
     useradd -r -u $UID -g $USER $USER
 
 COPY main.py .
+COPY mcp_server.py .
 COPY templates/ ./templates/
 
 USER ${USER}
 
 HEALTHCHECK --interval=5m CMD exit 0
+
+# MCP server (agent-facing tools), Streamable HTTP, internal-only unless proxied
+EXPOSE 5100
 
 ENTRYPOINT ["python3", "main.py"]

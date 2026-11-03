@@ -6,15 +6,15 @@ This article contains troubleshooting steps for known issues. If you encounter a
 
 ## 1. Build Fails During `make build`
 
-**Issue**
+**Issue**:
 
 `make build` exits with an error during Docker image construction.
 
-**Reason**
+**Reason**:
 
 Docker Engine or Docker Compose is not installed, not running, or the host cannot reach the internet to download dependencies.
 
-**Solution**
+**Solution**:
 
 - Verify Docker Engine and Docker Compose are installed and running:
 
@@ -29,11 +29,11 @@ Docker Engine or Docker Compose is not installed, not running, or the host canno
 
 ## 2. Containers Keep Restarting
 
-**Issue**
+**Issue**:
 
 One or more containers enter a restart loop after `make up`.
 
-**Solution**
+**Solution**:
 
 Check which container is restarting and review its logs:
 
@@ -51,15 +51,15 @@ Common causes:
 
 ## 3. No Advertisements Displayed in the Browser
 
-**Issue**
+**Issue**:
 
 The Web UI loads but no advertisements appear.
 
-**Reason**
+**Reason**:
 
 Detections are not reaching the Web UI via MQTT, or detected labels are not mapped in `ProductAssociations.csv`.
 
-**Solution**
+**Solution**:
 
 1. Confirm that PID is publishing detections to MQTT by checking PID container logs:
 
@@ -81,15 +81,15 @@ Detections are not reaching the Web UI via MQTT, or detected labels are not mapp
 
 ## 4. Slow Ad Generation on Low-Resource Systems
 
-**Issue**
+**Issue**:
 
 Ad generation is slow on low-resource systems.
 
-**Reason**
+**Reason**:
 
 Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the two compete for GPU resources, leaving insufficient capacity for AIG and causing slow ad generation rendering instability.
 
-**Solution**
+**Solution**:
 
 - Use Google Chrome.
 - On low-resource systems, launch Chrome with GPU acceleration disabled:
@@ -110,63 +110,91 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
 ## 5. Model Download Fails
 
-**Issue**
+**Issue**:
 
-The YOLO11s or AIG model download step exits with an error.
+`make download_models` exits with an error.
 
-**Solution**
+**Solution**:
 
-- Confirm internet access and proxy settings.
-- Ensure Python virtual environment creation succeeds (`python3 -m venv`).
-- For Hugging Face downloads, set the `HF_HUB_ENABLE_HF_TRANSFER=1` environment variable as documented in [Build from Source](./get-started/build-from-source.md).
-- Ensure sufficient disk space (500 GB free recommended).
+- Confirm Docker Engine is running and that standard Docker commands succeed:
+
+  ```bash
+  docker version
+   docker pull intel/model-download:latest
+  ```
+
+- Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
+- Re-run `make download_models`; the command prints the model-download container logs when an API request or job fails.
+- Verify the model request paths in `scripts/download_models.sh` point to the repository model directories.
+- Ensure sufficient free disk space for the downloaded models and the temporary Docker image layers (500 GB free recommended).
 
 ---
 
 ## 6. Video Not Rendering in Browser (MediaMTX `no space left on device`)
 
-**Issue**
+**Issue**:
 
 The browser page loads, but video does not render. MediaMTX logs show `no space left on device` (`ENOSPC`).
 
-**Reason**
+**Reason**:
 
 In this scenario, `ENOSPC` is usually not caused by hard drive capacity. It is commonly caused by exhausting Linux host resources such as inotify watches, inotify instances, open file descriptor limits, or filesystem inodes.
 
-**Solution**
+**Solution**:
 
 1. Confirm current inotify limits on the host:
 
-  ```bash
-  cat /proc/sys/fs/inotify/max_user_watches
-  cat /proc/sys/fs/inotify/max_user_instances
-  ```
+   ```bash
+   cat /proc/sys/fs/inotify/max_user_watches
+   cat /proc/sys/fs/inotify/max_user_instances
+   ```
 
 2. Increase the limits by editing sysctl configuration:
 
-  ```bash
-  sudo nano /etc/sysctl.conf
-  ```
+   ```bash
+   sudo nano /etc/sysctl.conf
+   ```
 
 3. Append the following values at the end of the file:
 
-  ```text
-  fs.inotify.max_user_watches=1048576
-  fs.inotify.max_user_instances=10000
-  ```
+   ```text
+   fs.inotify.max_user_watches=1048576
+   fs.inotify.max_user_instances=10000
+   ```
 
 4. Apply the updated kernel parameters immediately:
 
-  ```bash
-  sudo sysctl -p
-  ```
+   ```bash
+   sudo sysctl -p
+   ```
 
 5. Redeploy the Digital Signage stack and verify MediaMTX is healthy:
 
-  ```bash
-  make up
-  docker logs -f mediamtx
-  ```
+   ```bash
+   make up
+   docker logs -f mediamtx
+   ```
 
 If needed, also verify inode availability (`df -i`) and open file limits (`ulimit -n`) on the host.
 
+## 7. SDXL-Turbo and MiniLM Models (for AIG) Download Failed
+
+**Issue**:
+
+The AIG startup job inside `make download_models` fails while preparing SDXL-Turbo or all-MiniLM-L12-v2.
+
+**Reason**:
+
+The model-download container writes directly into `./aig/models`, so failures are usually caused by insufficient free disk space, interrupted network access, or a partial previous download left in the staging directory.
+
+**Solution**:
+
+1. Ensure the filesystem that contains the repository has enough free space for `./aig/models`.
+2. Remove any incomplete staged AIG download and retry:
+
+   ```bash
+   rm -rf ./aig/models/.model-download/sdxl_turbo_ov ./aig/models/.model-download/all-MiniLM-L12-v2
+   make download_models
+   ```
+
+3. If the failure persists, review the model-download logs emitted by `make download_models` and verify host network/proxy access to Hugging Face.

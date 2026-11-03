@@ -1,14 +1,42 @@
 # Release Notes: Digital Signage
 
+## Version 2026.3
+
+**December 2026**
+
+This release introduces **AI-generated video ads**, **agent-driven MCP controls**, and **performance benchmarking**, along with Qdrant-backed ad search(replace Chromadb with Qdrant vector db), centralized model downloads, and various fixes and documentation improvements.
+
+**New**
+
+- **Experimental AIG NPU support**: image ads using SDXL-Turbo can run on Intel NPU with `AIG_INFERENCE_DEVICE=NPU`; video ads remain GPU-only and fall back to GPU.
+- **AI-generated video ads**: added LTX-Video generation through an MCP tool, supporting catalog products and text descriptions.
+- **Agent-driven ad controls**: added MCP tools to trigger, clear, inspect, and dynamically select displayed ads.
+- **Performance benchmarking**: added timing instrumentation and reports for ad selection, generation, delivery, and browser rendering.
+
+**Improved**
+
+- **Ad search**: replaced the ChromaDB backend with Qdrant.
+- **Model preparation**: moved PID and AIG model downloads to the model-download microservice and unified the download workflow.
+- **Dependencies**: updated Python, Docker Compose, and GitHub Actions dependencies across the project.
+- **Security**: updated vulnerable `mcp` and `setuptools` packages, resolved Bandit findings, and added Zizmor and OpenSSF Scorecard checks.
+- **Documentation**: expanded guidance for MCP, video ads, model downloads, and benchmarking.
+
+**Fixed**
+
+- **Documentation navigation**: fixed table-of-contents and link issues, and added instructions for cloning the benchmarking submodule.
+
+---
+
 ## Version 2026.2.0
 
-**Sep 2026**
+**Release Date:** September 2026
 
 This release introduces **multi-object detection with priority-based ad selection**,
 **WCL integration for improved product matching**, and **CI/CD GitHub Actions workflows**,
-along with a repository reorganization and various dependency upgrades and bug fixes.
+along with deployment hardening, expanded user-guide coverage, and various dependency
+upgrades and bug fixes.
 
-**New**
+**New**:
 
 - **Multi-Object Detection**: the web UI now tracks detected objects across a configurable
   number of recent frames and selects the highest-value item for ad generation, with
@@ -20,35 +48,48 @@ along with a repository reorganization and various dependency upgrades and bug f
   models, and deploys and undeploys the stack, alongside a reusable scans workflow running
   Trivy, Bandit, ClamAV, Docker Bench Security, CodeQL, and Pylint.
 
-**Improved**
+**Improved**:
 
 - **Repository Structure**: PID configuration, models, and videos moved under `configs/pid/`;
   Makefile, Docker Compose mounts, and documentation updated to reflect the new layout.
 - **Nginx**: the nginx reverse proxy service is now active in the Docker Compose deployment.
 - **AIG Container**: AIG base image updated to Ubuntu 24.04 with aligned container and
   dependency versions.
+- **Web UI Runtime Configuration**: web UI now uses configurable runtime parameters
+  from environment settings, with matching updates in Compose, CI workflows, and
+  troubleshooting guidance.
+- **Deployment Hardening**: hardened repository download and extraction handling in
+  container build and deployment flows to reduce risk from malformed zip payloads.
 - **PTL Platform Support**: added Intel PTL platform drivers for the AIG module.
 - **Configurable AIG Inference Steps**: AIG inference steps are now configurable via
   the environment.
+- **Documentation**: expanded the user guide with setup, API reference, troubleshooting,
+  custom-model usage notes, and an updated architecture diagram.
 - **Security**: fixed a vulnerability in web UI request handling; upgraded urllib3,
   diffusers, pillow, requests, and flask to latest available versions.
 
-**Fixed**
+**Fixed**:
 
 - **ChromaDB Startup**: fixed a connectivity issue that prevented the ASe service from
   starting correctly.
+- **AIG API Proxy Routing**: fixed AIG API endpoint behavior behind nginx so
+  proxied requests and swagger-triggered calls resolve to the correct service routes.
+- **Nginx Runtime User**: fixed nginx container runtime user mapping to UID 2999 for
+  consistent execution in the deployed stack.
+- **Tokenizer Compatibility**: fixed an openvino-tokenizers version mismatch in AIG
+  requirements and model inference dependency alignment.
 
 ---
 
 ## Version 1.0.0
 
-**Jan 2026**
+**Release Date:** June 2026
 
 This is the initial pre-production release of the **Context-Aware, Cross-Selling Digital
 Signage** application, introducing the **full end-to-end containerized stack**, **AIG memory
 optimizations**, **container security hardening**, and comprehensive documentation.
 
-**New**
+**New**:
 
 - **Product Identification (PID)**: DL Streamer Pipeline Server with YOLO11s object
   detection publishing results via MQTT, with support for file-based simulation video
@@ -73,7 +114,7 @@ optimizations**, **container security hardening**, and comprehensive documentati
 - **iGPU/NPU Device Detection**: Docker Compose device mounts for DRI and ACCEL are
   conditional, falling back gracefully on systems without GPU or NPU.
 
-**Improved**
+**Improved**:
 
 - **Security**: all services run as non-root users with dedicated accounts,
   no-new-privileges option enforced, read-only filesystems applied to ChromaDB and

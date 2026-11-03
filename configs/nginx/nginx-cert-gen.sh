@@ -19,5 +19,17 @@ if [ -d $SSL_DIR ]; then rm -rf $SSL_DIR/*; fi
 
 envsubst '\$MEDIAMTX_SERVER \$WHIP_SERVER_PORT\' < /tmp/default.conf.template > /etc/nginx/nginx.conf 
 
-openssl req -x509 -nodes -days ${DAYS} -${SHA_ALGO} -newkey rsa:${KEY_LENGTH} -keyout $SSL_DIR/key.pem -out $SSL_DIR/cert.pem -subj "/CN=localhost"
+# SAN list so clients other than literal "localhost" (e.g. host.docker.internal
+# from a sibling container, or the box's real IP from an external agent) can
+# verify this self-signed cert instead of failing hostname verification.
+SAN="DNS:localhost,IP:127.0.0.1,DNS:host.docker.internal"
+if [ -n "$HOST_IP" ] && [ "$HOST_IP" != "localhost" ]; then
+    if echo "$HOST_IP" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        SAN="$SAN,IP:$HOST_IP"
+    else
+        SAN="$SAN,DNS:$HOST_IP"
+    fi
+fi
+
+openssl req -x509 -nodes -days ${DAYS} -${SHA_ALGO} -newkey rsa:${KEY_LENGTH} -keyout $SSL_DIR/key.pem -out $SSL_DIR/cert.pem -subj "/CN=localhost" -addext "subjectAltName=$SAN"
 chmod 640 $SSL_DIR/key.pem $SSL_DIR/cert.pem

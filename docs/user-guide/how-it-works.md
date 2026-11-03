@@ -6,7 +6,7 @@ from video stream ingestion through product detection to advertisement delivery 
 ## High-Level Architecture
 
 The application consists of four main microservices (PID, AIG, ASe, Web UI), plus supporting
-services (MediaMTX, Mosquitto, ChromaDB, COTURN) that communicate via MQTT and REST APIs.
+services (MediaMTX, Mosquitto, Qdrant, COTURN) that communicate via MQTT and REST APIs.
 
 ![Digital Signage Architecture](./_assets/Digital_Signage.png "digital signage architecture")
 
@@ -57,7 +57,7 @@ When multiple products are eligible, the following prioritization applies:
 For each selected product:
 
 1. The Web UI queries ASe (`POST /ase/predef/query/ad`) for a matching predefined advertisement.
-2. If a predefined ad is found in ChromaDB, it is displayed immediately.
+2. If a predefined ad is found in Qdrant, it is displayed immediately.
 3. If no predefined ad is found, the Web UI calls AIG (`POST /aig/minf/`) to generate a dynamic advertisement using the configured text, promo, price, and slogan payload.
 
 ### 7. Delivery to Browser Clients

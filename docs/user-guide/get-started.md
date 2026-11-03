@@ -14,7 +14,8 @@ To configure Docker:
 
 1. **Run Docker as Non-Root**: Follow the steps in [Manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
 
-   > **NOTE:** Run all commands as a regular (non-root) user, without using `sudo`.
+   > [!NOTE]
+   > Run all commands as a regular (non-root) user, without using `sudo`.
 
 2. **Configure Proxy (if required)**:
    - Set up proxy settings for Docker client and containers as described in [Docker Proxy Configuration](https://docs.docker.com/network/proxy/).
@@ -55,7 +56,7 @@ To configure Docker:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/intel-retail/digital-signage
+git clone -b main https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
@@ -67,49 +68,41 @@ make build
 
 ## Step 3: Download AI Models
 
-### Download YOLO11s Model (for PID)
+Digital Signage uses the reusable Model Download microservice to download models and optimize it to run well with OpenVINO. Download models before deployment with `make download_models`; then start the app with `make up`.
 
-> Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) before downloading.
+> [!NOTE]
+> Please review the [YOLO11s license](https://github.com/ultralytics/ultralytics/blob/main/LICENSE) and the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
 ```bash
-cd configs/pid && \
-wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
-sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
-sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
-rm -rf .modelenv && \
-python3 -m venv .modelenv && \
-source .modelenv/bin/activate && \
-pip3 install -r model_download_requirements.txt && \
-rm -rf models && \
-chmod +x downloadAndQuantizeModel.sh && \
-./downloadAndQuantizeModel.sh && \
-rm ./downloadAndQuantizeModel.sh && \
-deactivate && \
-cd ../..
+make download_models
 ```
 
-The quantized model is saved to `./configs/pid/models/object_detection/yolo11s`.
+- Uses the pinned `intel/model-download` image and downloads the model helper files from pinned jsDelivr mirrors.
+- Downloads and quantizes YOLO11s for PID
+- Downloads SDXL-Turbo (OpenVINO™ INT8) and all-MiniLM-L12-v2 for AIG
+- Maps the downloaded artifacts to the paths already used by Digital Signage:
+  - `./configs/pid/models/object_detection/yolo11s`
+  - `./aig/models/sdxl_turbo_ov/int8`
+  - `./aig/models/all-MiniLM-L12-v2`
 
-> **Note:** If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
+> [!NOTE]
+> If the objects are not getting detected in the pretrained YOLO11s model, use a custom object-detection model instead. See [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md) for model training and export guidance.
 
 ### Download SDXL-Turbo and MiniLM Models (for AIG)
 
 > Please review the [SDXL-Turbo license](https://huggingface.co/stabilityai/sdxl-turbo/blob/main/LICENSE.md) before downloading.
 
-```bash
-cd aig && \
-rm -rf .modelenv && \
-python3 -m venv .modelenv && \
-source ./.modelenv/bin/activate && \
-pip3 install -r export-requirements.txt && \
-export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
-deactivate && \
-cd ../
-```
+`make download_models` (via `scripts/download_models.sh`) already exports both of these for you, via the Model Download microservice. See `scripts/download_models.sh` if you need to reproduce the equivalent `optimum-cli`/`hf download` commands standalone (e.g. outside Docker).
 
 Models are downloaded to `./aig/models/`.
+
+### Download LTX-Video Model (optional, for `trigger_video_ad`)
+
+> Please review the [LTX-Video license](https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt) before downloading. This model is only needed if you want `trigger_video_ad` to generate dynamic videos when no predefined video is provisioned for an item; the rest of the application works without it.
+
+`make download_models` also exports this automatically (see the `LTX-Video` section of `scripts/download_models.sh`). It's skipped by default in CI (`SKIP_LTX_VIDEO_EXPORT`) since the export is long-running; for local/manual use it runs by default. To run it standalone instead, see the script for the exact `optimum-cli` command.
+
+Set `AIG_VIDEO_MODEL_PATH` in `.env` to match (defaults to `/opt/models/ltx_video_ov/int8`, matching this path). `AIG_VIDEO_INFERENCE_DEVICE` selects the device for this model independently of `AIG_INFERENCE_DEVICE` (see [Change Inference Device](how-to-guides/change-inference-device.md)).
 
 ## Step 4: Configure Environment
 
@@ -117,14 +110,16 @@ Edit the `.env` file in the repository root and set the following required varia
 
 | Variable                           | Description                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `HOST_IP`                          | Defaults to `localhost`; use the host system IP address if you want to access the web UI remotely |
+| `HOST_IP`                          | Defaults to `127.0.0.1` (loopback-only); binds published ports to this IPv4 address. Use the host's reachable IPv4 address for remote UI access and WebRTC/TURN. |
 | `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters)                                      |
 | `MTX_WEBRTCICESERVERS2_0_PASSWORD` | WebRTC ICE server password (minimum 8 alphanumeric characters, at least one digit)                |
 
 **Optional variables:**
 
 - `RTSP_CAMERA_IP` and related RTSP settings for live camera input.
-- `AIG_MODEL_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
+- `AIG_INFERENCE_DEVICE` to set the inference device for AIG (`CPU` or `GPU`).
+- `AIG_VIDEO_MODEL_PATH` and `AIG_VIDEO_INFERENCE_DEVICE` to enable and configure dynamic video ad generation (`trigger_video_ad`).
+- `AIG_VIDEO_PRECISION` and `AIG_PRELOAD_VIDEO_MODEL` to tune video generation speed and first-request latency (see [Change Inference Device](how-to-guides/change-inference-device.md)).
 - `AIG_*` and `ASE_*` variables for advanced AIG and ASe tuning.
 - `OBJECT_CONFIDENCE_THRESHOLD` and `OBJECT_RECENCY_FRAME_COUNT` for detection filtering.
 - `TIME_TO_DISPLAY_AD_SECONDS` for controlling ad rotation frequency.
@@ -140,7 +135,7 @@ Edit the `.env` file in the repository root and set the following required varia
 make up
 ```
 
-This command validates your environment configuration, verifies that required models are available, removes any previously running containers, and starts all services.
+This command validates your environment configuration, stops any previous stack, downloads and prepares the required models, then starts all services.
 
 ## Step 6: Access the Web UI
 
@@ -150,11 +145,13 @@ Open Google Chrome and navigate to:
 https://localhost:5000
 ```
 
-> **Note:** If you are accessing the UI remotely, replace `localhost` with the host system IP address.
+> [!NOTE]
+> For remote access, set `HOST_IP` in `.env` to the host's reachable IPv4 address, recreate the containers, and replace `localhost` in the URL with that address. Published ports are loopback-only by default; `localhost` is not a valid value for `HOST_IP`.
 
 You should see the live video stream and dynamic advertisements.
 
-> **Note:** For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
+> [!NOTE]
+> For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
 >
 > ```bash
 > google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000

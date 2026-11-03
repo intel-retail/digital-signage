@@ -1,8 +1,9 @@
 import io
 import os
 import gc
+import threading
 #Flask API
-from flask import send_file
+from flask import request, send_file
 from flask_restx import Namespace, Resource, fields
 # GenAI
 import openvino_genai
@@ -28,6 +29,16 @@ if not logger.handlers:
 #AIGServer Environment
 from database.version import AigServerMetadata
 from imgproc.img_frame import ImgDecorator
+
+# Text2ImagePipeline.generate() is not thread-safe; serialize access across concurrent requests
+model_lock = threading.Lock()
+
+# Keeps stage timing out of the normal serving path
+BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
+
+
+def benchmark_timing_requested():
+    return BENCHMARK_MODE and request.headers.get('X-Benchmark-Timing', '').lower() == 'true'
 
 
 api = Namespace('AIG - Inference with Added-Value Services', description='Advertise Image Generation')
@@ -92,6 +103,7 @@ minf_request_scg_frame = api.model('ModelInference_BasicRequest_Frame', {
 minf_request_sch = api.model('ModelInference_BasicRequest', {
     'description': fields.String(required=True, default=None, description="The text description to generate the image.", example="A 35mm photo with bananas, 8k"),
     'device': fields.String(required=True, default='CPU', description="The device for inferencing [CPU|GPU|NPU].", example="CPU", enum=['CPU', 'GPU', 'NPU']),
+    'seed': fields.Integer(required=False, default=None, description="Optional RNG seed; the same seed (with a similar prompt) reproduces a structurally similar image, useful for generating a coherent sequence of related frames.", example=12345),
     'price_details': fields.Nested(minf_request_sch_price, required=False, description="It contains the details of the price to be shown in the image.", example={
         'price': "0.5 $/lb",
         'align': "center",
@@ -185,7 +197,121 @@ class Minf_request_sch(object):
     promo_details:Minf_request_sch_promo=None
     slogan_details:Minf_request_scg_slogan=None
     frame_details:Minf_request_sch_frame=None
-    
+
+
+def apply_ad_overlays(image, data):
+    """Composite price/promo/frame/logo (slogan is currently disabled, matching the existing
+    behavior) onto a single generated frame. Shared by the image endpoint and the video endpoint so
+    each generated video frame gets the same ad treatment as a standalone generated image."""
+    # Price details (circle or raw text)
+    price_details = data.get('price_details')
+    img_postprice = None
+    if price_details is not None and str(price_details.get('price', "")).strip():
+        price:str=price_details.get('price', "")
+        align:str=price_details.get('align',"center")
+        valign:str=price_details.get('valign',"bottom")
+        marperc_from_border:float=float(price_details.get('marperc_from_border',2.0))
+        font_size:int=int(price_details.get('font_size',20))
+        line_width:int=int(price_details.get('line_width',20))
+        price_color:str=price_details.get('price_color',"white")
+
+        if ImgDecorator.is_color_valid(price_color) is False:
+            price_color="white"
+
+        price_in_circle:bool=price_details.get('price_in_circle',False)
+
+        price_circle_color:str=price_details.get('price_circle_color',"black")
+        if ImgDecorator.is_color_valid(price_circle_color) is False:
+            price_circle_color="black"
+
+        if price_in_circle:
+            img_postprice = ImgDecorator.draw_price_circle(image,
+                    price=price, price_color=price_color,
+                    circle_color=price_circle_color,
+                    align=align, valign=valign,
+                    margin_percentage=marperc_from_border,
+                    font_size=font_size, line_width=line_width)
+        else:
+            img_postprice = ImgDecorator.draw_price_raw(image,
+                        price=price, align=align, valign=valign,
+                        margin_percentage=marperc_from_border, font_size=font_size,
+                        line_width=line_width, price_color=price_color)
+
+        if img_postprice is None or not isinstance(img_postprice, Image.Image):
+            img_postprice = image  # Back to the original image if the price circle could not be drawn
+    else:
+        img_postprice = image
+
+    # Promo details (Rounded Rectangle)
+    promo_details = data.get('promo_details')
+    img_postpromo = None
+    if promo_details is not None:
+        promo_text:str=promo_details.get('promo_text', "")
+        text_color:str=promo_details.get('text_color',"white")
+
+        if ImgDecorator.is_color_valid(text_color) is False:
+            text_color="white"
+
+        rect_color:str=promo_details.get('rect_color',"black")
+        if ImgDecorator.is_color_valid(rect_color) is False:
+            rect_color="black"
+
+        rect_padding:int=int(promo_details.get('rect_padding',10))
+        rect_radius:int=int(promo_details.get('rect_radius',20))
+        align:str=promo_details.get('align',"center")
+        valign:str=promo_details.get('valign',"bottom")
+        marperc_from_border:float=float(promo_details.get('marperc_from_border',2.0))
+        font_size:int=int(promo_details.get('font_size',20))
+        line_width:int=int(promo_details.get('line_width',20))
+
+        img_postpromo = ImgDecorator.draw_promo_rounded_rect(img_postprice,
+                    text=promo_text, text_color=text_color, rect_color=rect_color,
+                    align=align, valign=valign,
+                    margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width,
+                    rect_padding=rect_padding, rect_radius=rect_radius)
+    else:
+        img_postpromo = img_postprice
+
+    # Frame
+    frame_details=data.get('framed_details')
+    img_postframe = None
+    if frame_details is not None:
+        framed:bool=bool(frame_details.get('activate',False))
+        marperc_from_border:float=float(frame_details.get('marperc_from_border',2.0))
+
+        if framed:
+            img_postframe = ImgDecorator.draw_frame_double_border(img_postpromo,
+                                                                percentageFromBorder=marperc_from_border)
+        else:
+            img_postframe = img_postpromo
+    else:
+        img_postframe = img_postpromo
+
+    # Logo
+    logo_details = data.get('logo_details')
+    img_postlogo = None
+    if logo_details is not None:
+        aig_server=AigServerMetadata()
+        logo = aig_server.get_logo()
+        if logo is not None:
+            align:str=logo_details.get('align',"left")
+            valign:str=logo_details.get('valign',"top")
+            logo_percentage:float=float(logo_details.get('logo_percentage',15.0))
+            margin_px:int=int(logo_details.get('margin_px',10))
+
+            img_postlogo = ImgDecorator.draw_logo(img_postframe, logo_img=logo,
+                        align=align, valign=valign,
+                        logo_percentage=logo_percentage, margin_px=margin_px)
+        else:
+            img_postlogo = img_postframe
+    else:
+        img_postlogo = img_postframe
+
+    # Slogan is currently a no-op, matching the existing image endpoint's behavior
+    img_postslogan = img_postlogo
+
+    return img_postslogan
+
 @api.route('/minf/',
            doc={"description":"It returns an image based on a text description with the requested add-ons (when applicable).",
                 "produces": ['image/jpeg']
@@ -199,6 +325,7 @@ class ModelInference_Img(Resource):
         list=[]
         data = api.payload # 
         errorMessage=None
+        stage_timings = {}
 
         if data.get('device') not in ['CPU', 'GPU', 'NPU']:
             errorMessage="Device not supported. Only CPU, GPU and NPU are supported."
@@ -208,32 +335,52 @@ class ModelInference_Img(Resource):
         try:
             
             # Model
+            stage_start = time.perf_counter()
             model = AigServerMetadata.get_t2i_model_path() # Model Path only
             description = data.get('description')
             device = data.get('device', 'GPU')
+            seed = data.get('seed', None)
 
             pipe = None
-            if str(device).upper() == AigServerMetadata.get_t2i_model_device():
+            use_preloaded = str(device).upper() == AigServerMetadata.get_t2i_model_device()
+            if use_preloaded:
                 # Use the preloaded model if the device matches
                 pipe = AigServerMetadata().get_preloaded_model()
+                if pipe is None:
+                    # Building another pipeline here would repeat a failed (possibly minutes-long) NPU compile
+                    errorMessage = f"Device {device} unavailable: model failed to load"
+                    logger.error(f"Image Generation. {errorMessage}")
+                    return errorMessage, 503
 
             if pipe is None:
-                pipe = openvino_genai.Text2ImagePipeline(model, device)
+                try:
+                    pipe = AigServerMetadata.create_text2image_pipeline(model, device)
+                except Exception as e:
+                    logger.error(f"Image Generation. Failed to create pipeline for device {device}: {e}")
+                    return f"Device {device} unavailable: {str(e)[:200]}", 500
+            stage_timings['model_load'] = (time.perf_counter() - stage_start) * 1000
             start_time = time.time()          
             image_tensor = None
             max_retries = 3
             counter = 0
+            stage_start = time.perf_counter()
             while counter < max_retries:
                 try:
                     # guidance_scale=0.0 intentionally disables classifier-free guidance for this turbo/OpenVINO-optimized model
-                    image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
-                                                    num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1)
+                    generate_kwargs = {}
+                    if seed is not None:
+                        generate_kwargs['rng_seed'] = seed
+                    with model_lock:
+                        image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
+                                                        num_inference_steps=AigServerMetadata.get_model_inference_steps(), guidance_scale=0.0, num_images_per_prompt=1,
+                                                        **generate_kwargs)
                     if image_tensor is not None and len(image_tensor.data) > 0:
                         counter = max_retries  # Exit loop if image generation is successful
                 except Exception as e:
                     logger.error(f"Image Generation. Attempt {counter + 1} failed with error: {str(e)}")
                     image_tensor = None
                     counter += 1
+            stage_timings['inference'] = (time.perf_counter() - stage_start) * 1000
 
             if image_tensor is None:
                 errorMessage=f"Image Generation. Service is busy."
@@ -249,142 +396,22 @@ class ModelInference_Img(Resource):
             
             end_time = time.time()
 
-            # # Price details
-            # price_details = data.get('price_details')            
-            # img_postprice = None
-            # if price_details is not None:
-            #     price:str=price_details.get('price', "")
-            #     align:str=price_details.get('align',"center")
-            #     valign:str=price_details.get('valign',"bottom")
-            #     marperc_from_border:float=float(price_details.get('marperc_from_border',2.0))
-            #     font_size:int=int(price_details.get('font_size',20))
-            #     line_width:int=int(price_details.get('line_width',20))
-            #     price_color:str=price_details.get('price_color',"white")            
-                
-            #     if ImgDecorator.is_color_valid(price_color) is False:
-            #         price_color="white" # Default color if the provided one is not valid
-                    
-            #     price_in_circle:bool=price_details.get('price_in_circle',False)
-                
-            #     price_circle_color:str=price_details.get('price_circle_color',"black")                
-            #     if ImgDecorator.is_color_valid(price_circle_color) is False:
-            #         price_circle_color="black"
-
-            #     if price_in_circle:
-            #         # Draw the price circle
-            #         img_postprice = ImgDecorator.draw_price_circle(image, 
-            #                 price= price, price_color=price_color,
-            #                 circle_color=price_circle_color,                             
-            #                 align=align, valign=valign,                             
-            #                 margin_percentage=marperc_from_border, 
-            #                 font_size=font_size, line_width=line_width)
-            #     else:
-            #         img_postprice = ImgDecorator.draw_price_circle(image, 
-            #                     price= price, align=align, valign=valign, 
-            #                     margin_percentage=marperc_from_border, font_size=font_size,
-            #                     line_width=line_width, price_color=price_color)    
-            # else:
-            #     img_postprice = image
-
-            img_postprice = image
-
-            # Promo details (Rounded Rectangle)
-            promo_details = data.get('promo_details')
-            img_postpromo = None
-            if promo_details is not None:
-                promo_text:str=promo_details.get('promo_text', "")
-                text_color:str=promo_details.get('text_color',"white")
-                
-                if ImgDecorator.is_color_valid(text_color) is False:
-                    text_color="white"
-
-                rect_color:str=promo_details.get('rect_color',"black")
-                if ImgDecorator.is_color_valid(rect_color) is False:
-                    rect_color="black"
-
-                rect_padding:int=int(promo_details.get('rect_padding',10))
-                rect_radius:int=int(promo_details.get('rect_radius',20))
-                align:str=promo_details.get('align',"center")
-                valign:str=promo_details.get('valign',"bottom")
-                marperc_from_border:float=float(promo_details.get('marperc_from_border',2.0))
-                font_size:int=int(promo_details.get('font_size',20))
-                line_width:int=int(promo_details.get('line_width',20))
-
-                img_postpromo = ImgDecorator.draw_promo_rounded_rect(img_postprice, 
-                            text=promo_text, text_color=text_color, rect_color=rect_color,
-                            align=align, valign=valign,
-                            margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width,
-                            rect_padding=rect_padding, rect_radius=rect_radius)
-            else:
-                img_postpromo = img_postprice
-
-            # Frame
-            frame_details=data.get('framed_details')
-            img_postframe = None
-            if frame_details is not None:
-                framed:bool=bool(frame_details.get('activate',False))
-                marperc_from_border:float=float(frame_details.get('marperc_from_border',2.0))
-                
-                if framed:
-                    img_postframe = ImgDecorator.draw_frame_double_border(img_postpromo,
-                                                                        percentageFromBorder=marperc_from_border)
-                else:
-                    img_postframe = img_postpromo
-            else:
-                img_postframe = img_postpromo
-
-            # Logo
-            logo_details = data.get('logo_details')
-            img_postlogo = None
-            if logo_details is not None:
-                aig_server=AigServerMetadata()
-                logo = aig_server.get_logo()
-                if logo is not None:
-                    align:str=logo_details.get('align',"left")
-                    valign:str=logo_details.get('valign',"top")
-                    logo_percentage:float=float(logo_details.get('logo_percentage',15.0))
-                    margin_px:int=int(logo_details.get('margin_px',10))
-
-                    img_postlogo = ImgDecorator.draw_logo(img_postframe, logo_img=logo,
-                                align=align, valign=valign, 
-                                logo_percentage=logo_percentage, margin_px=margin_px)
-                else:
-                    img_postlogo = img_postframe
-            else:
-                img_postlogo = img_postframe
-
-            # Slogan
-            # slogan_details = data.get('slogan_details')
-            # img_postslogan = None
-            # if slogan_details is not None:
-            #     slogan_text:str=slogan_details.get('slogan_text', "")
-            #     text_color:str=slogan_details.get('text_color',"white")
-            #     if ImgDecorator.is_color_valid(text_color) is False:
-            #         text_color="white"
-
-            #     align:str=slogan_details.get('align',"center")
-            #     valign:str=slogan_details.get('valign',"bottom")
-            #     marperc_from_border:float=float(slogan_details.get('marperc_from_border',2.0))
-            #     font_size:int=int(slogan_details.get('font_size',20))
-            #     line_width:int=int(slogan_details.get('line_width',20))
-
-            #     img_postslogan = ImgDecorator.draw_slogan(img_postlogo, 
-            #                 text=slogan_text, text_color=text_color,
-            #                 align=align, valign=valign,
-            #                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width)
-            # else:
-            #     img_postslogan = img_postlogo
-
-            img_postslogan = img_postlogo # For now, slogan is not incorporated. It can be added in the future as another step after the logo incorporation (or in any other order depending on the requirements)
+            stage_start = time.perf_counter()
+            img_postslogan = apply_ad_overlays(image, data)
+            stage_timings['overlay'] = (time.perf_counter() - stage_start) * 1000
 
             # Save the updated image to a BytesIO object
+            stage_start = time.perf_counter()
             img_io = io.BytesIO()
             img_postslogan.save(img_io, format='JPEG')  # or 'PNG'
             img_io.seek(0)              
+            stage_timings['jpeg_encode'] = (time.perf_counter() - stage_start) * 1000
             
             
             # Clean up memory - unload model if configured to do so
+            stage_start = time.perf_counter()
             if not AigServerMetadata.should_keep_model_in_memory():
+                unload_start = time.perf_counter()
                 if pipe == AigServerMetadata().get_preloaded_model():
                     # Only unload if using the singleton model
                     AigServerMetadata().unload_model()
@@ -394,21 +421,25 @@ class ModelInference_Img(Resource):
                     del pipe
                     gc.collect()
                     logger.info(f"Image Generation. Processed in {end_time - start_time}s, temp model cleaned")
+                stage_timings['model_unload'] = (time.perf_counter() - unload_start) * 1000
             else:
                 logger.info(f"Image Generation. Processed in {end_time - start_time}s, model kept in memory")
             
             # Clean up intermediate objects
+            stage_start = time.perf_counter()
             del image_tensor
             del image
-            del img_postprice
-            del img_postpromo
-            del img_postframe
-            del img_postlogo
             del img_postslogan
             gc.collect()
+            stage_timings['model_cleanup'] = (time.perf_counter() - stage_start) * 1000
             
             #Do not incorporate ,200 at the end because it is understod as a JSON by default (and not an image stream)
-            return send_file(img_io, mimetype='image/jpeg')
+            response = send_file(img_io, mimetype='image/jpeg')
+            if benchmark_timing_requested():
+                response.headers['Server-Timing'] = ', '.join(
+                    f'{name};dur={duration:.3f}' for name, duration in stage_timings.items()
+                )
+            return response
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"
             logger.error(errorMessage)

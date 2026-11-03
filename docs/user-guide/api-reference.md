@@ -28,7 +28,7 @@ Generates an advertisement image from text input and optional overlay parameters
 
 ### `POST /ase/predef/`
 
-Stores a predefined advertisement image and its metadata in ChromaDB.
+Stores a predefined advertisement image and its metadata in Qdrant.
 
 **Request Body:** Ad metadata and image data.
 
@@ -36,7 +36,7 @@ Stores a predefined advertisement image and its metadata in ChromaDB.
 
 ### `POST /ase/predef/query/ad`
 
-Queries ChromaDB for predefined advertisements matching the given product or context.
+Queries Qdrant for predefined advertisements matching the given product or context.
 
 **Request Body:** Query parameters (product label, context).
 
@@ -64,4 +64,4 @@ Returns the current advertisement for the requesting browser client.
 
 PID is powered by DL Streamer Pipeline Server. The full REST API reference for pipeline management and status is available at:
 
-- [DL Streamer Pipeline Server API Reference](https://docs.openedgeplatform.intel.com/2026.1/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)
+- [DL Streamer Pipeline Server API Reference](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/api-reference.html)

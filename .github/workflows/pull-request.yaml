@@ -19,10 +19,7 @@ on:
   
 permissions:
   contents: read
-  packages: read
   pull-requests: read
-  security-events: write
-  actions: read
 
 jobs:
   digital-signage-pre-merge-build:
@@ -41,7 +38,7 @@ jobs:
             docker rm $(docker ps -aq)
         fi
         docker images --quiet --filter=dangling=true | xargs --no-run-if-empty docker rmi -f
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
           persist-credentials: false
     - name: Build
@@ -60,32 +57,7 @@ jobs:
     - name: Download models
       run: |
         cd "${{ github.workspace }}"
-        echo "Downloading PID (YOLO11s) model"
-        cd configs/pid && \
-        wget https://raw.githubusercontent.com/intel-retail/automated-self-checkout/v3.6.3/download_models/downloadAndQuantizeModel.sh && \
-        sed -i 's|MODELS_PATH="${MODELS_DIR:-/workspace/models}"|MODELS_PATH="${MODELS_DIR:-$PWD/models}"|g' downloadAndQuantizeModel.sh && \
-        sed -i 's/MODEL_NAME="yolo11n"/MODEL_NAME="yolo11s"/g' downloadAndQuantizeModel.sh && \
-        rm -rf .modelenv && \
-        python3 -m venv .modelenv && \
-        source .modelenv/bin/activate && \
-        pip3 install -r model_download_requirements.txt && \
-        rm -rf models && \
-        chmod +x downloadAndQuantizeModel.sh && \
-        ./downloadAndQuantizeModel.sh && \
-        rm ./downloadAndQuantizeModel.sh && \
-        deactivate && \
-        cd ../..
-        echo "Downloading AIG (SDXL-Turbo & MiniLM) models"
-        cd aig && \
-        rm -rf .modelenv && \
-        python3 -m venv .modelenv && \
-        source ./.modelenv/bin/activate && \
-        pip3 install -r export-requirements.txt && \
-        export HF_HUB_ENABLE_HF_TRANSFER=1 && \
-        optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
-        huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
-        deactivate && \
-        cd ../
+        make download_models
     - name: Deploy
       run: |
         cd "${{ github.workspace }}"
@@ -112,6 +84,10 @@ jobs:
         make down
   
   digital-signage-scans:
-    uses: ./.github/workflows/scans.yaml
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    uses: $/.github/workflows/scans.yaml
     with:
       target: all-scans

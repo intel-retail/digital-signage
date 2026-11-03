@@ -1,13 +1,15 @@
 import io
 import os
 #Flask API
-from flask import send_file, request
+from flask import send_file, request, g
 from flask_restx import Namespace, Resource, fields
 from PIL import Image
 #Logging
 import math
 import logging
+import time
 logger = logging.getLogger(__name__)
+
 #AseServer Environment
 from database.version import AseServerMetadata
 from imgproc.img_frame import ImgDecorator
@@ -236,10 +238,10 @@ class PredefAdResource(Resource):
         
 
         try:
-            if server.chromadb_exists(image_id):
-                server.chromadb_update(image_id, image_description, image, img_source)
+            if server.qdrant_exists(image_id):
+                server.qdrant_update(image_id, image_description, image, img_source)
             else:
-                server.chromadb_add(image_id,image_description, image, img_source)    
+                server.qdrant_add(image_id, image_description, image, img_source)    
         except Exception as e:
             logger.error(f"Error while adding/updating predefined ad: {e}")
             return {"error": "Failed to add/update predefined ad"}, 500
@@ -257,9 +259,9 @@ class PredefAdResourceDeleteGet(Resource):
     def delete(self,id):        
         try:
             server = AseServerMetadata()
-            if not server.chromadb_exists(id):
+            if not server.qdrant_exists(id):
                 return {"error": "Predefined ad not found"}, 404
-            server.chromadb_remove(id)
+            server.qdrant_remove(id)
 
         except Exception as e:
             return {"error": f" {e}"}, 500
@@ -273,37 +275,37 @@ class PredefAdResourceDeleteGet(Resource):
     def get(self,id):                               
         server = AseServerMetadata()
         item = Predef_ad_schema()
-        if not server.chromadb_exists(id):
-            logger.error(f"[ASE-Chromadb] Predefined ad with ID {id} not found.")
+        if not server.qdrant_exists(id):
+            logger.error(f"[ASE-Qdrant] Predefined ad with ID {id} not found.")
             item.description = f"Predefined ad with ID {id} not found."
             return item, 404
         item = None
         try:        
-            results=server.chromadb_get(id)
+            results=server.qdrant_get(id)
             if not results:
                 item.description = f"Predefined ad with ID {id} not found."
                 return item, 404
                 
             if 'metadatas' not in results or 'ids' not in results :
-                item.description=f"[ASE-Chromadb Result] 'metadatas' or 'ids' not found in results: {results}"
-                logger.error(f"[ASE-Chromadb Result] 'metadatas' or 'ids' not found in results: {results}")
+                item.description=f"[ASE-Qdrant Result] 'metadatas' or 'ids' not found in results: {results}"
+                logger.error(f"[ASE-Qdrant Result] 'metadatas' or 'ids' not found in results: {results}")
                 return {"error": "Incomplete Response from the Vector DB"}, 500
 
             ids = results.get('ids',[])
             metadatas = results.get('metadatas',[])
 
             for query_index, (id_list, metadata_list) in enumerate (zip(ids, metadatas)):
-                for doc_index, doc_id in enumerate(id_list):
+                for doc_index, (doc_id, doc_metadata) in enumerate(zip(id_list, metadata_list)):
                     id_int = None
                     try:
                         id_int = int(doc_id)
-                    except Exception as e:
-                        continue # when id is not int, discard from result and move to the next one
+                    # Ignore IDs that cannot be represented as integers.
+                    except (TypeError, ValueError, OverflowError):  # nosec B112
+                        continue
                     
-                    # Get the metadata for the document    
-                    doc_metadata = metadata_list #metadata_list is the dictionary of metadata for the document
+                    # Get the metadata for the document.
                     if doc_metadata is None:
-                        logger.error(f"[ASE-Chromadb Result] Metadata for ID {id_int} is None.")
+                        logger.error(f"[ASE-Qdrant Result] Metadata for ID {id_int} is None.")
                         item.description = f"Metadata for ID {id_int} is None."
                         return item, 404
                     
@@ -328,7 +330,7 @@ class PredefAdResourceDeleteGet(Resource):
                         item.source = source if source else None
                         item.imgb64 = img_b64                        
                     else:
-                        logger.error(f"[ASE-Chromadb Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
+                        logger.error(f"[ASE-Qdrant Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
                         item.description = f"Incomplete Record. id: {id_int} description: {description} image_path: {img_path}"
         except Exception as e:
             item = Predef_ad_schema()
@@ -359,12 +361,12 @@ class PredefAdResourceQuery(Resource):
         records=[]                
         server = AseServerMetadata()
         try:
-            results=server.chromadb_querytxt(query, n_results=n_results)
+            results=server.qdrant_querytxt(query, n_results=n_results)
             if results is None or len(results) == 0:
                 return {"error": "No results found"}, 404
 
             if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:                    
-                logger.error(f"[ASE-Chromadb Result] 'distances', 'metadatas' or 'ids' not found in results: {results}")
+                logger.error(f"[ASE-Qdrant Result] 'distances', 'metadatas' or 'ids' not found in results: {results}")
                 return {"error": "Incomplete Response from the Vector DB"}, 500
 
             ids = results.get('ids',[])
@@ -373,14 +375,15 @@ class PredefAdResourceQuery(Resource):
 
             for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
                 for doc_index, doc_id in enumerate(id_list):
-                    doc_distance = distance_list[doc_index]                            
+                    doc_score = distance_list[doc_index]
 
-                    if doc_distance is not None and doc_distance <= AseServerMetadata.get_ase_distance_threshold():
+                    if AseServerMetadata.is_qdrant_match(doc_score):
                         id_int = None
                         try:
                             id_int = int(doc_id)
-                        except Exception as e:
-                            continue # when id is not int, discard from result and move to the next one
+                        # Ignore IDs that cannot be represented as integers.
+                        except (TypeError, ValueError, OverflowError):  # nosec B112
+                            continue
 
                         # Get the metadata for the document    
                         doc_metadata = metadata_list[doc_index]                    
@@ -404,7 +407,7 @@ class PredefAdResourceQuery(Resource):
                             item.source = img_source if img_source else None
                             records.append(item)
                         else:
-                            logger.error(f"[ASE-Chromadb Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
+                            logger.error(f"[ASE-Qdrant Result] Incomplete Record. id: {id_int} description: {description} image_path: {img_path}")
 
         except Exception as e:
             logger.error(f"Error while querying predefined ad: {e}")
@@ -423,6 +426,8 @@ class Predefined_Adhocad_Img(Resource):
     def post(self):
         data = api.payload # 
         errorMessage=None
+        stage_timings = {}
+        g.benchmark_timings = stage_timings
         
         predef_query= data.get('query', None)            
         if predef_query is None or len(predef_query) == 0:
@@ -449,45 +454,49 @@ class Predefined_Adhocad_Img(Resource):
         try:
             server = AseServerMetadata()
                         
-            results=server.chromadb_querytxt(predef_query, n_results=predef_n_results)
-            if results is None or len(results) == 0:
-                if predef_use_default_ad_onempty and server.default_ad_image is not None and \
-                    isinstance(server.default_ad_image, Image.Image):
-                    pipeline_imgs.append(server.default_ad_image)
-                else:
-                    return [], 200
-            else:
-                if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:                    
+            results=server.qdrant_querytxt(predef_query, n_results=predef_n_results, timings=stage_timings)
+            stage_start = time.perf_counter()
+            # finally, so the early returns on a search miss still record their scoring and lookup time
+            try:
+                if results is None or len(results) == 0:
                     if predef_use_default_ad_onempty and server.default_ad_image is not None and \
                         isinstance(server.default_ad_image, Image.Image):
                         pipeline_imgs.append(server.default_ad_image)
                     else:
                         return [], 200
                 else:
-                    ids = results.get('ids',[])
-                    metadatas = results.get('metadatas',[])
-                    distances = results.get('distances',[])
+                    if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:
+                        if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                            isinstance(server.default_ad_image, Image.Image):
+                            pipeline_imgs.append(server.default_ad_image)
+                        else:
+                            return [], 200
+                    else:
+                        ids = results.get('ids',[])
+                        metadatas = results.get('metadatas',[])
+                        distances = results.get('distances',[])
 
-                    for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
-                        for doc_index, doc_id in enumerate(id_list):
-                            doc_distance = distance_list[doc_index]
+                        for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
+                            for doc_index, doc_id in enumerate(id_list):
+                                doc_score = distance_list[doc_index]
 
-                            if doc_distance is not None and doc_distance <= AseServerMetadata.get_ase_distance_threshold():
-                                # Get the metadata for the document    
-                                doc_metadata = metadata_list[doc_index]                                                
-                                img_path = doc_metadata.get('img_path',None)
-                                # Get the image from the server
-                                img = server.get_image_file_from_path(img_path)
-                                if img is not None and isinstance(img, Image.Image):
-                                    # Ensure the image is a valid PIL Image
-                                    pipeline_imgs.append(img)
+                                if AseServerMetadata.is_qdrant_match(doc_score):
+                                    # Get the metadata for the document
+                                    doc_metadata = metadata_list[doc_index]
+                                    img_path = doc_metadata.get('img_path',None)
+                                    # Get the image from the server
+                                    img = server.get_image_file_from_path(img_path)
+                                    if img is not None and isinstance(img, Image.Image):
+                                        # Ensure the image is a valid PIL Image
+                                        pipeline_imgs.append(img)
 
-            if len(pipeline_imgs) == 0:
-                if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
-                    pipeline_imgs.append(server.default_ad_image)
-                else:
-                    return [], 200
-
+                if len(pipeline_imgs) == 0:
+                    if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
+                        pipeline_imgs.append(server.default_ad_image)
+                    else:
+                        return [], 200
+            finally:
+                stage_timings['ranking_retrieval'] = (time.perf_counter() - stage_start) * 1000
             for image in pipeline_imgs:
                 if image is None or not isinstance(image, Image.Image):
                     continue  # Skip if the image is None or not a valid PIL Image
@@ -495,7 +504,7 @@ class Predefined_Adhocad_Img(Resource):
                 # Price details                
                 price_details = data.get('price_details')            
                 img_postprice = None
-                if price_details is not None:
+                if price_details is not None and str(price_details.get('price', "")).strip():
                     price:str=price_details.get('price', "")
                     align:str=price_details.get('align',"center")
                     valign:str=price_details.get('valign',"bottom")
@@ -522,7 +531,7 @@ class Predefined_Adhocad_Img(Resource):
                                 margin_percentage=marperc_from_border, 
                                 font_size=font_size, line_width=line_width)
                     else:
-                        img_postprice = ImgDecorator.draw_price_circle(image, 
+                        img_postprice = ImgDecorator.draw_price_raw(image, 
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    
@@ -680,7 +689,7 @@ class Predefined_Adhocad_Img(Resource):
         try:
             server = AseServerMetadata()
                         
-            results=server.chromadb_querytxt(predef_query, n_results=predef_n_results)
+            results=server.qdrant_querytxt(predef_query, n_results=predef_n_results)
             if results is None or len(results) == 0:
                 if predef_use_default_ad_onempty and server.default_ad_image is not None and \
                     isinstance(server.default_ad_image, Image.Image):
@@ -701,9 +710,9 @@ class Predefined_Adhocad_Img(Resource):
 
                     for query_index, (id_list, metadata_list, distance_list) in enumerate (zip(ids, metadatas,distances)):
                         for doc_index, doc_id in enumerate(id_list):
-                            doc_distance = distance_list[doc_index]                            
+                            doc_score = distance_list[doc_index]
 
-                            if doc_distance is not None and doc_distance <= AseServerMetadata.get_ase_distance_threshold():
+                            if AseServerMetadata.is_qdrant_match(doc_score):
                                 # Get the metadata for the document    
                                 doc_metadata = metadata_list[doc_index]                    
                                 img_path = doc_metadata.get('img_path',None)
@@ -728,7 +737,7 @@ class Predefined_Adhocad_Img(Resource):
                 price_details = data.get('price_details')            
                 img_postprice = None
 
-                if price_details is not None:
+                if price_details is not None and str(price_details.get('price', "")).strip():
                     price:str=price_details.get('price', "")
                     align:str=price_details.get('align',"center")
                     valign:str=price_details.get('valign',"bottom")
@@ -755,7 +764,7 @@ class Predefined_Adhocad_Img(Resource):
                                 margin_percentage=marperc_from_border, 
                                 font_size=font_size, line_width=line_width)                        
                     else:
-                        img_postprice = ImgDecorator.draw_price_circle(image, 
+                        img_postprice = ImgDecorator.draw_price_raw(image, 
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    

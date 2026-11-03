@@ -7,6 +7,9 @@ This section collects guides for configuring and extending the Digital Signage a
 - [Configure RTSP Camera Input](./how-to-guides/configure-rtsp-camera.md)
 - [Use Intel® Geti™ Exported Model](./how-to-guides/use-geti-model.md)
 - [Change Inference Device (CPU/GPU/NPU)](./how-to-guides/change-inference-device.md)
+- [Use MCP Agent Tools](./how-to-guides/use-mcp-agent-tools.md)
+- [MCP Server Architecture](./how-to-guides/mcp-server-architecture.md)
+- [Benchmarking](./how-to-guides/benchmarking.md)
 
 <!--hide_directive
 :::{toctree}
@@ -17,6 +20,9 @@ This section collects guides for configuring and extending the Digital Signage a
 ./how-to-guides/configure-rtsp-camera
 Use Geti Exported Model <./how-to-guides/use-geti-model.md>
 Change Inference Device <./how-to-guides/change-inference-device.md>
+Use MCP Agent Tools <./how-to-guides/use-mcp-agent-tools.md>
+MCP Server Architecture <./how-to-guides/mcp-server-architecture.md>
+Benchmarking <./how-to-guides/benchmarking.md>
 
 :::
 hide_directive-->

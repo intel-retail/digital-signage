@@ -26,15 +26,26 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 # Install Intel GPU tools and clean up
-RUN apt-get update && apt-get install -y curl libnuma1 ocl-icd-libopencl1 --no-install-recommends && rm -rf /var/lib/apt/lists/* && \
+RUN apt-get update && apt-get install -y --no-install-recommends curl libnuma1 ocl-icd-libopencl1 ca-certificates && rm -rf /var/lib/apt/lists/* && update-ca-certificates && \
     mkdir /tmp/gpu_deps && cd /tmp/gpu_deps && \
-    curl --fail -L -O   https://github.com/intel/intel-graphics-compiler/releases/download/v2.34.4/intel-igc-core-2_2.34.4+21428_amd64.deb && \
-    curl --fail -L -O   https://github.com/intel/intel-graphics-compiler/releases/download/v2.34.4/intel-igc-opencl-2_2.34.4+21428_amd64.deb && \
-    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-ocloc_26.18.38308.1-0_amd64.deb && \
-    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/intel-opencl-icd_26.18.38308.1-0_amd64.deb && \
-    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/libigdgmm12_22.10.0_amd64.deb && \
-    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.18.38308.1/libze-intel-gpu1_26.18.38308.1-0_amd64.deb && \
+    # intel graphics compiler
+    curl --fail -L -O https://github.com/intel/intel-graphics-compiler/releases/download/v2.41.5/intel-igc-core-2_2.41.5+22716_amd64.deb && \
+    curl --fail -L -O https://github.com/intel/intel-graphics-compiler/releases/download/v2.41.5/intel-igc-opencl-2_2.41.5+22716_amd64.deb && \
+    #intel compute runtime
+    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.35.39758.10/intel-ocloc_26.35.39758.10-0_amd64.deb && \
+    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.35.39758.10/intel-opencl-icd_26.35.39758.10-0_amd64.deb && \
+    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.35.39758.10/libigdgmm12_22.10.0_amd64.deb && \
+    curl --fail -L -O   https://github.com/intel/compute-runtime/releases/download/26.35.39758.10/libze-intel-gpu1_26.35.39758.10-0_amd64.deb && \
+    # install all the debs and clean up
 	dpkg -i *.deb && rm -Rf /tmp/gpu_deps
+
+# Intel NPU user-mode driver (Level Zero loader + NPU driver/compiler/firmware)
+RUN apt-get update && apt-get install -y --no-install-recommends libtbb12 && rm -rf /var/lib/apt/lists/* && \
+    mkdir /tmp/npu_deps && cd /tmp/npu_deps && \
+    curl --fail -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.38.0/linux-npu-driver-v1.38.0.20260910-34487311128-ubuntu2404.tar.gz && \
+    tar -xf linux-npu-driver-*.tar.gz && \
+    curl --fail -L -O https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20260830T100000Z/pool/main/l/level-zero-loader/libze1_1.32.0-1~24.04~ppa1_amd64.deb && \
+    dpkg -i *.deb && rm -Rf /tmp/npu_deps
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -84,11 +95,13 @@ COPY src/requirements.txt /home/aigserver/src/requirements.txt
 USER root
 
 RUN /python3venv/bin/pip3 install --no-cache-dir -r /home/aigserver/src/requirements.txt
-RUN rm -rf /python3venv/lib/python3.10/site-packages/setuptools/_vendor/jaraco.context-5.3.0.dist-info
+RUN python -m pip uninstall -y pip
 
 # Copy source code
 COPY ./run.sh .
 COPY ./src/ ./src
+
+RUN chmod +x ./run.sh
 
 USER ${USER}
 ENTRYPOINT ["./run.sh"]

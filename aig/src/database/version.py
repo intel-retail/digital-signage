@@ -3,19 +3,23 @@ from datetime import datetime
 from PIL import Image
 import os
 import gc
+import tempfile
 import threading
+import time
 # GenAI
 import openvino_genai
 import openvino as ov
 # Logging
 import logging
-# ChromaDB
-import chromadb
-from chromadb.utils import embedding_functions
+# Embeddings / Vector DB
+from sentence_transformers import SentenceTransformer
+from qdrant_client import QdrantClient, models
 # numpy
 import numpy as np
 # Utils 
 from database.utils import SharedUtils
+
+MODEL_LOAD_RETRY_SECONDS = 300
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -44,7 +48,13 @@ class AigServerMetadata:
             self.preloadedModel = None
             self._model_device = None
             self._model_lock = threading.Lock()
+            self._model_load_failed_at = {}  # device -> monotonic time of the last failed load
             logger.info("[AIG] Model will be loaded on-demand (lazy loading enabled)")
+
+            # Video (Text2VideoPipeline) model; also lazily loaded, kept fully separate from the image model
+            self.preloadedVideoModel = None
+            self._video_model_device = None
+            self._video_model_lock = threading.Lock()
             
 
     def get_logo(self):
@@ -64,17 +74,24 @@ class AigServerMetadata:
             
             # Load model if not loaded or device changed
             if self.preloadedModel is None or self._model_device != requested_device:
-                if AigServerMetadata.is_device_available(requested_device):
+                failed_at = self._model_load_failed_at.get(requested_device)
+                if failed_at is not None and time.monotonic() - failed_at < MODEL_LOAD_RETRY_SECONDS:
+                    # A failed NPU compile can take minutes; do not repeat it on every request
+                    logger.warning(f"[AIG] Skipping model load on {requested_device}: last attempt failed recently")
+                    self.preloadedModel = None
+                elif AigServerMetadata.is_device_available(requested_device):
                     logger.info(f"[AIG] Loading Text2Image model on device: {requested_device}")
                     try:
-                        self.preloadedModel = openvino_genai.Text2ImagePipeline(
-                            AigServerMetadata.get_t2i_model_path(), 
+                        self.preloadedModel = AigServerMetadata.create_text2image_pipeline(
+                            AigServerMetadata.get_t2i_model_path(),
                             requested_device
                         )
                         self._model_device = requested_device
+                        self._model_load_failed_at.pop(requested_device, None)
                         logger.info(f"[AIG] Model loaded successfully on {requested_device}")
                     except Exception as e:
                         logger.error(f"[AIG] Failed to load model on {requested_device}: {e}")
+                        self._model_load_failed_at[requested_device] = time.monotonic()
                         self.preloadedModel = None
                         self._model_device = None
                 else:
@@ -95,12 +112,57 @@ class AigServerMetadata:
                 self._model_device = None
                 gc.collect()
                 logger.info("[AIG] Model unloaded successfully")
+
+    def get_preloaded_video_model(self):
+        """
+        Returns the preloaded Text2Video model with lazy loading.
+        If the model is not available, it loads it on-demand.
+        """
+        with self._video_model_lock:
+            requested_device = AigServerMetadata.get_t2v_model_device()
+
+            if self.preloadedVideoModel is None or self._video_model_device != requested_device:
+                model_path = AigServerMetadata.get_t2v_model_path()
+                if not model_path:
+                    logger.error("[AIG] AIG_VIDEO_MODEL_PATH is not configured; video generation is disabled")
+                    self.preloadedVideoModel = None
+                elif AigServerMetadata.is_device_available(requested_device):
+                    logger.info(f"[AIG] Loading Text2Video model on device: {requested_device}")
+                    try:
+                        self.preloadedVideoModel = AigServerMetadata.create_text2video_pipeline(
+                            model_path,
+                            requested_device
+                        )
+                        self._video_model_device = requested_device
+                        logger.info(f"[AIG] Video model loaded successfully on {requested_device}")
+                    except Exception as e:
+                        logger.error(f"[AIG] Failed to load video model on {requested_device}: {e}")
+                        self.preloadedVideoModel = None
+                        self._video_model_device = None
+                else:
+                    logger.error(f"[AIG] Device {requested_device} is not available")
+                    self.preloadedVideoModel = None
+
+            return self.preloadedVideoModel
+
+    def unload_video_model(self):
+        """
+        Unload the Text2Video model from memory to free up resources.
+        """
+        with self._video_model_lock:
+            if self.preloadedVideoModel is not None:
+                logger.info("[AIG] Unloading Text2Video model from memory")
+                del self.preloadedVideoModel
+                self.preloadedVideoModel = None
+                self._video_model_device = None
+                gc.collect()
+                logger.info("[AIG] Video model unloaded successfully")
             
     
     """
     Metadata for AIG Server.
     """
-    __version__ = "0.1.0"
+    __version__ = os.getenv("AIG_VERSION")
     __name_short = "AIG Server"
     __name_extended = "Advertise Image Generator (AIG) Server"
     __description_short = "It creates advertise image dyncamically based on a text description."
@@ -112,16 +174,14 @@ class AigServerMetadata:
         :param device: Device type (e.g., 'GPU', 'CPU').
         :return: True if the device is available, False otherwise.
         """
+        if device.upper() == 'CPU':
+            return True  # CPU is always present; skip ov.Core() which probes GPU and crashes without hardware
         try:
             core = ov.Core()
-            core.available_devices
-            if device in core.available_devices:
-                return True
+            return device in core.available_devices
         except Exception as e:
             logger.error(f"[OpenVINO] Error checking device availability: {e}")
             return False
-        
-        return False
         
     @staticmethod
     def version():
@@ -163,12 +223,104 @@ class AigServerMetadata:
 
     @staticmethod
     def get_t2i_model_device():
-        device = os.getenv('AIG_MODEL_DEVICE', 'GPU')  # Default to GPU if not specified
+        device = os.getenv('AIG_MODEL_DEVICE', 'GPU').strip().upper()  # Default to GPU if not specified
 
         if device not in ['GPU', 'CPU', 'NPU']:
              device = 'CPU'
         
         return device
+
+    @staticmethod
+    def create_text2image_pipeline(model_path, device):
+        """Build a Text2ImagePipeline. NPU needs static shapes, so the pipeline is reshaped to the configured
+        size (guidance_scale 0.0 must match generate()) and compiled blobs are cached to cut NPU compile time."""
+        if str(device).upper() != 'NPU':
+            return openvino_genai.Text2ImagePipeline(model_path, device)
+        cache_dir = os.getenv('AIG_NPU_CACHE_DIR', '/opt/npu_cache')
+        pipe = openvino_genai.Text2ImagePipeline(model_path)
+        pipe.reshape(1, AigServerMetadata.get_img_height(), AigServerMetadata.get_img_width(), 0.0)
+        pipe.compile(device, CACHE_DIR=cache_dir)
+        return pipe
+
+    @staticmethod
+    def get_t2v_model_path():
+        return os.getenv('AIG_VIDEO_MODEL_PATH')
+
+    @staticmethod
+    def get_video_precision(device):
+        """Execution precision for the video model: f16 by default (about 5-6x faster than f32 on Intel
+        iGPU with comparable output quality); set AIG_VIDEO_PRECISION=f32 to force full precision."""
+        precision = os.getenv('AIG_VIDEO_PRECISION', 'f16').strip().lower()
+        return precision if precision in ('f16', 'f32') else 'f16'
+
+    @staticmethod
+    def create_text2video_pipeline(model_path, device):
+        """Build a Text2VideoPipeline with an explicit execution precision (see get_video_precision).
+        An explicit hint is needed because the CPU plugin's bf16 default collapses this model's output to
+        near-flat/washed-out (min/max ~60-260 out of 255 in bf16 vs full 0-255 in f32). Falls back to the
+        plugin's default precision if the device rejects the hint, so video generation still works."""
+        precision = AigServerMetadata.get_video_precision(device)
+        try:
+            return openvino_genai.Text2VideoPipeline(model_path, device, INFERENCE_PRECISION_HINT=precision)
+        except Exception as e:
+            logger.warning(f"[AIG] Text2VideoPipeline rejected INFERENCE_PRECISION_HINT={precision} on {device} "
+                           f"({e}); falling back to default precision")
+            return openvino_genai.Text2VideoPipeline(model_path, device)
+
+    @staticmethod
+    def get_t2v_model_device():
+        device = os.getenv('AIG_VIDEO_MODEL_DEVICE', 'GPU').strip().upper()  # Default to GPU if not specified
+
+        # LTX-Video does not compile on the NPU (verified on Panther Lake, driver 1.38.0)
+        if device == 'NPU':
+            logger.warning("[AIG] AIG_VIDEO_MODEL_DEVICE=NPU is not supported for video; using GPU")
+            device = 'GPU'
+
+        if device not in ['GPU', 'CPU']:
+             device = 'CPU'
+
+        return device
+
+    @staticmethod
+    def get_video_width():
+        # Independent from AIG_IMG_WIDTH_DEFAULT so bumping video resolution never affects image ads.
+        # LTX-Video works best with dimensions divisible by 32; 704x480 matches its own recommended default.
+        return int(os.getenv('AIG_VIDEO_WIDTH_DEFAULT', 704))
+
+    @staticmethod
+    def get_video_height():
+        return int(os.getenv('AIG_VIDEO_HEIGHT_DEFAULT', 480))
+
+    @staticmethod
+    def get_video_num_frames():
+        # LTX-Video requires num_frames % 8 == 1 (e.g. 17, 25, 33, 41); non-conforming values produce artifacts.
+        return int(os.getenv('AIG_VIDEO_NUM_FRAMES', 41))
+
+    @staticmethod
+    def get_video_inference_steps():
+        # LTX-Video/diffusers default is 50; more steps improve quality at the cost of generation time
+        return int(os.getenv('AIG_VIDEO_NUM_INFERENCE_STEPS', 50))
+
+    @staticmethod
+    def get_video_negative_prompt():
+        return os.getenv('AIG_VIDEO_NEGATIVE_PROMPT',
+                          'worst quality, inconsistent motion, blurry, jittery, distorted')
+
+    @staticmethod
+    def get_video_guidance_scale():
+        # Unlike the distilled SDXL-Turbo image model (which needs guidance disabled), LTX-Video is a
+        # regular diffusion model that requires real classifier-free guidance or output is incoherent noise.
+        # Lightricks recommends 5.0 for this (non-distilled) model; going much higher oversaturates/distorts
+        # output rather than improving it.
+        return float(os.getenv('AIG_VIDEO_GUIDANCE_SCALE', 5.0))
+
+    @staticmethod
+    def get_video_frame_rate():
+        return int(os.getenv('AIG_VIDEO_FRAME_RATE', 8))
+
+    @staticmethod
+    def get_video_loop_seconds():
+        return float(os.getenv('AIG_VIDEO_LOOP_SECONDS', 5))
 
     @staticmethod
     def get_rest_server_port():
@@ -193,6 +345,11 @@ class AigServerMetadata:
         Returns True if model should stay loaded, False to unload after each use.
         """
         return os.getenv('AIG_KEEP_MODEL_IN_MEMORY', 'false').lower() == 'true'
+
+    @staticmethod
+    def should_preload_video_model():
+        """Load the video model at server start (true) instead of on the first video request (false)."""
+        return os.getenv('AIG_PRELOAD_VIDEO_MODEL', 'false').strip().lower() == 'true'
     
 class ServerEnvironment:
     @staticmethod
@@ -230,138 +387,183 @@ class AseServerMetadata:
     
     def __init__(self):
         # It avoids re-initialization of the instance for the singleton pattern
-        if not hasattr(self, 'chroma_client'):
+        if not hasattr(self, '_qdrant_client'):
             # Lazy initialization - client is None until first use
-            self._chroma_client = None
+            self._qdrant_client = None
             self._collection = None
-            self._embedding_function = None
-            self._chromadb_lock = threading.Lock()
+            self._embedding_model = None
+            self._embedding_dimensions = None
+            self._qdrant_lock = threading.Lock()
+            self._record_locks = {}
+            self._record_locks_lock = threading.Lock()
             
-            #Load the Default Ad image
+            # Load the Default Ad image
             self.default_ad_image = None
             try:
-                self.default_ad_image=Image.open(AseServerMetadata.get_ase_default_ad_img())
+                self.default_ad_image = Image.open(AseServerMetadata.get_ase_default_ad_img())
             except Exception as e:
                 logger.error(f"[ASE] Error loading default ad image: {e}")
                 self.default_ad_image = None
 
             self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
             
-            logger.info("[ASE] ChromaDB will be loaded on-demand (lazy loading enabled)")
+            logger.info("[ASE] Qdrant will be loaded on-demand (lazy loading enabled)")
     
     @property
-    def chroma_client(self):
-        """Lazy-load ChromaDB client on first access"""
-        if self._chroma_client is None:
-            with self._chromadb_lock:
-                if self._chroma_client is None:  # Double-check locking
-                    self._initialize_chromadb()
-        return self._chroma_client
+    def qdrant_client(self):
+        """Lazy-load Qdrant client on first access."""
+        if self._qdrant_client is None:
+            with self._qdrant_lock:
+                if self._qdrant_client is None:  # Double-check locking
+                    self._initialize_qdrant()
+        return self._qdrant_client
     
     @property
     def collection(self):
-        """Lazy-load collection on first access"""
+        """Lazy-load collection on first access."""
         if self._collection is None:
-            # Accessing chroma_client will trigger initialization
-            _ = self.chroma_client
+            # Accessing qdrant_client will trigger initialization
+            _ = self.qdrant_client
         return self._collection
     
-    def _initialize_chromadb(self):
-        """Initialize ChromaDB client and collection (called lazily)"""
-        logger.info("[ASE] Initializing ChromaDB client with persistent storage...")
+    @staticmethod
+    def _normalize_point_id(id):
+        if id is None:
+            raise ValueError("id must be provided.")
         try:
-            self._chroma_client = chromadb.HttpClient(
-                host=AseServerMetadata.get_ase_chromadb_host(), 
-                port=AseServerMetadata.get_ase_chromadb_port()
+            return int(id)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"id must be convertible to int for Qdrant storage. Got: {id}") from e
+
+    def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if self._embedding_model is None:
+            raise ValueError("Qdrant embedding model is not initialized. Please check the connection settings.")
+        embeddings = self._embedding_model.encode(texts, normalize_embeddings=True)
+        return embeddings.tolist() if hasattr(embeddings, "tolist") else embeddings
+
+    def _get_record_lock(self, point_id: int):
+        with self._record_locks_lock:
+            if point_id not in self._record_locks:
+                self._record_locks[point_id] = threading.Lock()
+            return self._record_locks[point_id]
+    
+    def _initialize_qdrant(self):
+        """Initialize Qdrant client, embedding model and collection (called lazily)."""
+        logger.info("[ASE] Initializing Qdrant client with persistent storage...")
+        try:
+            self._qdrant_client = QdrantClient(
+                host=AseServerMetadata.get_ase_qdrant_host(),
+                port=AseServerMetadata.get_ase_qdrant_port()
             )
-            logger.info(f"[ASE] ChromaDB client connected to {AseServerMetadata.get_ase_chromadb_host()}:{AseServerMetadata.get_ase_chromadb_port()}")
+            logger.info(
+                f"[ASE] Qdrant client connected to "
+                f"{AseServerMetadata.get_ase_qdrant_host()}:{AseServerMetadata.get_ase_qdrant_port()}"
+            )
         except Exception as e:
-            logger.error(f"[ASE] Error initializing ChromaDB client: {e}")
-            self._chroma_client = None
+            logger.error(f"[ASE] Error initializing Qdrant client: {e}")
+            self._qdrant_client = None
             return
 
-        if self._chroma_client is not None:
-            local_path = os.getenv('ASE_MODEL_PATH')
-            try:
-                self._embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=local_path)
-                logger.info(f"[ASE] Embedding function initialized with model: {local_path}")
-            except Exception as e:
-                logger.error(f"[ASE] Error initializing embedding function with model '{local_path}': {e}")
-                logger.warning("[ASE] Falling back to default embedding function.")
-                self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
-            
-            try:
-                self._collection = self._chroma_client.get_or_create_collection(
-                    name=AseServerMetadata.get_ase_collection_name(), 
-                    embedding_function=self._embedding_function
+        local_path = os.getenv('ASE_MODEL_PATH')
+        try:
+            self._embedding_model = SentenceTransformer(local_path)
+            self._embedding_dimensions = self._embedding_model.get_sentence_embedding_dimension()
+            logger.info(f"[ASE] Embedding model initialized with: {local_path}")
+        except Exception as e:
+            logger.error(f"[ASE] Error initializing embedding model with '{local_path}': {e}")
+            self._embedding_model = None
+            self._embedding_dimensions = None
+            self._qdrant_client = None
+            return
+
+        collection_name = AseServerMetadata.get_ase_collection_name()
+        try:
+            if not self._qdrant_client.collection_exists(collection_name=collection_name):
+                self._qdrant_client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=models.VectorParams(
+                        size=self._embedding_dimensions,
+                        distance=models.Distance.COSINE
+                    )
                 )
-                logger.info(f"[ASE] Collection '{AseServerMetadata.get_ase_collection_name()}' ready")
-            except Exception as e:
-                logger.error(f"[ASE] Failed to create collection: {e}")
-                self._collection = None
-            
-            # Load sample data after collection is ready
-            self.process_sample_data()
-        else:
-            logger.error("[ASE] Failed to initialize ChromaDB client.")
+                logger.info(f"[ASE] Collection '{collection_name}' created")
+            else:
+                collection_info = self._qdrant_client.get_collection(collection_name=collection_name)
+                vectors_config = collection_info.config.params.vectors
+                vector_params = next(iter(vectors_config.values())) if isinstance(vectors_config, dict) else vectors_config
+                configured_size = getattr(vector_params, "size", None)
+                configured_distance = getattr(vector_params, "distance", None)
+                if configured_size != self._embedding_dimensions or configured_distance != models.Distance.COSINE:
+                    raise ValueError(
+                        f"Collection '{collection_name}' expects vectors of size {configured_size} "
+                        f"with distance {configured_distance}, but model '{local_path}' produces "
+                        f"size {self._embedding_dimensions} for cosine search."
+                    )
+                logger.info(f"[ASE] Collection '{collection_name}' already exists")
+            self._collection = collection_name
+        except Exception as e:
+            logger.error(f"[ASE] Failed to create collection '{collection_name}': {e}")
             self._collection = None
-            
+            self._qdrant_client = None
+            return
+        
+        # Load sample data after collection is ready
+        self.process_sample_data()
     
-    def chromadb_heartbeat(self):
+    def qdrant_heartbeat(self):
         """
-        Check the Chromadb reachability.
+        Check Qdrant reachability.
         """
-        if self.chroma_client is not None:
-            return self.chroma_client.heartbeat()
-        else:            
+        if self.qdrant_client is not None:
+            return self.qdrant_client.get_collections()
+        else:
             return None
     
     def process_sample_data(self):
         """
-        Load sample data into the ChromaDB collection if it is enabled.
+        Load sample data into the Qdrant collection if it is enabled.
         """
         if not AseServerMetadata.get_ase_enable_sampledata():
             return
         path_sample_data = os.getenv('ASE_ENABLE_SAMPLEDATA_DIR', '/opt/sharedata/sample')
         if path_sample_data is None or not os.path.exists(path_sample_data):
-            logger.error(f"[ChromaDB] Sample data directory {path_sample_data} does not exist.")
+            logger.error(f"[Qdrant] Sample data directory {path_sample_data} does not exist.")
             return
         
-        results=SharedUtils.load_sampledata(self.collection, path_sample_data)  # Ensure the image path exists
+        results = SharedUtils.load_sampledata(self.collection, path_sample_data)
 
         if results is None:
-            logger.error("[ChromaDB] No sample data found or failed to load sample data.")
+            logger.error("[Qdrant] No sample data found or failed to load sample data.")
             return
         
         count = 0
         total = 0
         for result in results:
             try:
-                id = result['id'] #int
+                id = result['id']
                 description = result['description']
                 image = result['image']
-                source = result.get('source', 'ase')  # Default source is 'ase'
+                source = result.get('source', 'ase')
                 
-                if not self.chromadb_exists(id):
-                    self.chromadb_add(id, description, image, source)
-                    count = count +1
+                if not self.qdrant_exists(id):
+                    self.qdrant_add(id, description, image, source)
+                    count = count + 1
                 
                 total = total + 1
             except Exception as e:
-                logger.error(f"[ChromaDB] Error processing sample data: {e}")
+                logger.error(f"[Qdrant] Error processing sample data: {e}")
 
-        logger.warning(f"[ChromaDB] {count} of {total} Sample data loaded successfully.")
-        
-
+        logger.warning(f"[Qdrant] {count} of {total} sample data items loaded successfully.")
+    
     @staticmethod
-    def get_ase_enable_sampledata() ->  bool:
+    def get_ase_enable_sampledata() -> bool:
         """
         Get the ASE enable sample data flag.
         Default is 'False'.
         """
         val = None
         try:
-            val=int(os.getenv('ASE_ENABLE_SAMPLEDATA', 0))
+            val = int(os.getenv('ASE_ENABLE_SAMPLEDATA', 0))
         except ValueError:
             return False
         
@@ -370,14 +572,21 @@ class AseServerMetadata:
     @staticmethod
     def get_ase_distance_threshold() -> float:
         """
-        Get the ASE distance threshold for image similarity.
-        Default is '0.5'.
+        Get the ASE similarity threshold for predefined ad matching.
+        Read the minimum cosine similarity score configured for Qdrant.
         """
         try:
-            return float(os.getenv('ASE_DISTANCE_MAX_THRESHOLD', 1.5))  # Default distance threshold
+            return float(os.getenv('ASE_QDRANT_SCORE_MIN_THRESHOLD', 0.8))
         except ValueError:
-            return 1.5
-        
+            return 0.8
+
+    @staticmethod
+    def is_qdrant_match(score: float) -> bool:
+        """
+        Return True when the Qdrant cosine similarity score passes the configured threshold.
+        """
+        return score is not None and score >= AseServerMetadata.get_ase_distance_threshold()
+    
     @staticmethod
     def get_ase_img_id():
         """
@@ -395,27 +604,30 @@ class AseServerMetadata:
             if not os.path.exists(filepath):
                 return proposal
             else:
-                continue #Look for a another ID            
-        
+                continue
+    
     @staticmethod
     def get_ase_collection_name():
-        return os.getenv('ASE_COLLECTION_NAME', 'ase-collection') # ASE collection name
+        """
+        Get the ASE Qdrant collection name.
+        """
+        return os.getenv('ASE_COLLECTION_NAME', 'ase-collection')
     
     @staticmethod
-    def get_ase_chromadb_port() ->int:
+    def get_ase_qdrant_port() -> int:
         """
-        Get the ASE Chroma DB Port.
-        Default is '8000'.
+        Get the ASE Qdrant port.
+        Default is '6333'.
         """
-        return int(os.getenv('ASE_CHROMADB_PORT', 8000)) # Default host for Chroma DB
+        return int(os.getenv('ASE_QDRANT_PORT', 6333))
     
     @staticmethod
-    def get_ase_chromadb_host():
+    def get_ase_qdrant_host():
         """
-        Get the ASE Chroma DB host.
-        Default is 'ase-chromadb'.
+        Get the ASE Qdrant host.
+        Default is 'ase-qdrant'.
         """
-        return os.getenv('ASE_CHROMADB_HOST', 'ase-chromadb') # Default host for Chroma DB        
+        return os.getenv('ASE_QDRANT_HOST', 'ase-qdrant')
     
     @staticmethod
     def get_ase_default_ad_img():
@@ -428,25 +640,36 @@ class AseServerMetadata:
     @staticmethod
     def get_ase_img_path():
         """
-        Get the ASE img path.
+        Get the ASE image path.
         """
         return os.getenv('ASE_IMG_PATH', '/opt/sharedata/imgs')
 
     @staticmethod
-    def save_image_to_dir(image: Image.Image, id: int):
-        # Ensure the directory exists
-        directory=AseServerMetadata.get_ase_img_path()
-        filename = f"img_{str(id)}.jpg"
-        os.makedirs(directory, exist_ok=True)
-        # Build the full path
-        filepath = os.path.join(directory, filename)
-        # Save the image
+    def _build_payload(id: int, description: str, filepath: str, image: Image.Image, source: str):
+        return {
+            "source": source,
+            "id": id,
+            "description": description,
+            "img_path": filepath,
+            "img_height": image.height,
+            "img_width": image.width
+        }
+
+    @staticmethod
+    def save_image_to_path(image: Image.Image, filepath: str):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         try:
             image.save(filepath)
         except Exception as e:
-            logger.error(f"[ChromaDB] Error saving image to {filepath}: {e}")
+            logger.error(f"[Qdrant] Error saving image to {filepath}: {e}")
             raise ValueError(f"Could not save image to {filepath}. Error: {e}")
 
+    @staticmethod
+    def save_image_to_dir(image: Image.Image, id: int):
+        directory = AseServerMetadata.get_ase_img_path()
+        filename = f"img_{str(id)}.jpg"
+        filepath = os.path.join(directory, filename)
+        AseServerMetadata.save_image_to_path(image, filepath)
         return filepath
 
     @staticmethod
@@ -469,7 +692,7 @@ class AseServerMetadata:
     @staticmethod
     def get_image_file_from_path(filepath: str) -> Image.Image:
         """
-        Get the image file from filepath 
+        Get the image file from filepath.
         :param filepath: The path of the image.
         :return: The image file.
         """
@@ -506,142 +729,263 @@ class AseServerMetadata:
         """
         return self.logo
 
-    def chromadb_add(self,id:int, description:str,image:Image, source:str="ase"):
+    def qdrant_add(self, id: int, description: str, image: Image.Image, source: str = "ase"):
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
         
         if id is None or description is None or image is None:
             raise ValueError("id, description and image must be provided.")
 
         filepath = None
         try:
-            filepath=AseServerMetadata.save_image_to_dir(image, id)
+            filepath = AseServerMetadata.save_image_to_dir(image, id)
         except Exception as e:
-            logger.error(f"[ChromaDB] Error processing image: {e}")
-            raise ValueError("Invalid image provided.") 
+            logger.error(f"[Qdrant] Error processing image: {e}")
+            raise ValueError("Invalid image provided.")
 
-        img_height = image.height
-        img_width = image.width
+        payload = AseServerMetadata._build_payload(id, description, filepath, image, source)
 
         try:
-            self.collection.add(
-                documents=[description],
-                metadatas=[{"source": source, "id": id, "description": description, "img_path": filepath, "img_height": img_height, "img_width": img_width}],
-                ids=[str(id)]
+            vector = self._embed_texts([description])[0]
+            self.qdrant_client.upsert(
+                collection_name=self.collection,
+                wait=True,
+                points=[
+                    models.PointStruct(
+                        id=AseServerMetadata._normalize_point_id(id),
+                        vector=vector,
+                        payload=payload
+                    )
+                ]
             )
-            logger.info(f"[ChromaDB] Document with ID {id} added successfully.")
+            logger.info(f"[Qdrant] Document with ID {id} added successfully.")
         except Exception as e:
             AseServerMetadata.remove_image_file(id)
-            logger.error(f"[ChromaDB] Error adding document with ID {id}: {e}")
-            raise ValueError(f"Could not add document with ID {id} to ChromaDB. Error: {e}")
+            logger.error(f"[Qdrant] Error adding document with ID {id}: {e}")
+            raise ValueError(f"Could not add document with ID {id} to Qdrant. Error: {e}")
         
         return True
     
-    def chromadb_remove(self, id:str):
+    def qdrant_remove(self, id: str):
         """
-        Remove a document from ChromaDB by its ID.
+        Remove a document from Qdrant by its ID.
         """
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
-        
-        if id is None:
-            raise ValueError("id must be provided.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
 
+        point_id = AseServerMetadata._normalize_point_id(id)
         try:
-            self.collection.delete(ids=[id])
+            self.qdrant_client.delete(
+                collection_name=self.collection,
+                points_selector=models.PointIdsList(points=[point_id]),
+                wait=True
+            )
             try:
-                AseServerMetadata.remove_image_file(int(id))
-            except ValueError as e:
-                logger.info(f"{id}: Not image is associated with it.")
+                AseServerMetadata.remove_image_file(point_id)
+            except ValueError:
+                logger.info(f"{id}: No image is associated with it.")
 
-            logger.info(f"[ChromaDB] Document with ID {id} removed successfully.")
+            logger.info(f"[Qdrant] Document with ID {id} removed successfully.")
         except Exception as e:
-            logger.error(f"[ChromaDB] Error removing document with ID {id}: {e}")
-            raise ValueError(f"Could not remove document with ID {id} from ChromaDB. Error: {e}")
+            logger.error(f"[Qdrant] Error removing document with ID {id}: {e}")
+            raise ValueError(f"Could not remove document with ID {id} from Qdrant. Error: {e}")
         
         return True
     
-    def chromadb_querytxt(self, simpletext:str, n_results:int=3):
-        return self.chromadb_query([simpletext], n_results)
+    def qdrant_querytxt(self, simpletext: str, n_results: int = 3, timings=None):
+        return self.qdrant_query([simpletext], n_results, timings=timings)
     
-    def chromadb_query(self, query_texts:list, n_results:int=3):
+    def qdrant_query(self, query_texts: list, n_results: int = 3, timings=None):
         """
-        Query the ChromaDB collection with the given query texts.
-        :param query_texts: List of query texts to search for.
-        :param n_results: Number of results to return.
-        :return: Query results.
+        Query the Qdrant collection with the given query texts.
+        For backward compatibility the returned dictionary still exposes the key
+        `distances`, but the stored values are Qdrant cosine similarity scores.
+        Callers must therefore keep results whose score is greater than or equal
+        to `get_ase_distance_threshold()`.
         """
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
         
         if not query_texts or not isinstance(query_texts, list):
             raise ValueError("query_texts must be a non-empty list.")
 
         try:
-            results = self.collection.query(
-                query_texts=query_texts,
-                n_results=n_results
+            stage_start = time.perf_counter()
+            query_vectors = self._embed_texts(query_texts)
+            if timings is not None:
+                timings['query_build'] = (time.perf_counter() - stage_start) * 1000
+            stage_start = time.perf_counter()
+            result_ids = []
+            result_metadatas = []
+            result_distances = []
+            result_documents = []
+
+            for query_vector in query_vectors:
+                response = self.qdrant_client.query_points(
+                    collection_name=self.collection,
+                    query=query_vector,
+                    limit=n_results,
+                    with_payload=True,
+                    with_vectors=False
+                )
+                points = response.points if hasattr(response, "points") else response
+
+                ids = []
+                metadatas = []
+                distances = []
+                documents = []
+                for point in points:
+                    payload = point.payload or {}
+                    ids.append(str(point.id))
+                    metadatas.append(payload)
+                    distances.append(point.score)
+                    documents.append(payload.get("description"))
+
+                result_ids.append(ids)
+                result_metadatas.append(metadatas)
+                result_distances.append(distances)
+                result_documents.append(documents)
+
+            if timings is not None:
+                timings['vector_search'] = (time.perf_counter() - stage_start) * 1000
+            results = {
+                "ids": result_ids,
+                "metadatas": result_metadatas,
+                "distances": result_distances,
+                "documents": result_documents
+            }
+            logger.info(
+                f"[Qdrant] Query executed successfully with "
+                f"{sum(len(documents) for documents in result_documents)} results."
             )
-            logger.info(f"[ChromaDB] Query executed successfully with {len(results['documents'])} results.")
             return results
         except Exception as e:
-            logger.error(f"[ChromaDB] Error executing query: {e}")
+            logger.error(f"[Qdrant] Error executing query: {e}")
             raise ValueError(f"Could not execute query. Error: {e}")
     
-    def chromadb_exists(self, id:int):
+    def qdrant_exists(self, id: int):
         """
-        Check if a document with the given ID exists in the ChromaDB collection.
+        Check if a document with the given ID exists in the Qdrant collection.
         """
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
-        if id is None:
-            raise ValueError("id must be provided.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
 
+        point_id = AseServerMetadata._normalize_point_id(id)
         try:
-            result = self.collection.get(ids=[str(id)])
-            # If the id exists, result['ids'] will contain the id
-            if result is None or 'ids' not in result or not result['ids']:
-                logger.info(f"[ChromaDB] Document with ID {id} does not exist.")
+            result = self.qdrant_client.retrieve(
+                collection_name=self.collection,
+                ids=[point_id],
+                with_payload=True,
+                with_vectors=False
+            )
+            if not result:
+                logger.info(f"[Qdrant] Document with ID {id} does not exist.")
                 return False
             
-            return str(id) in result.get('ids', [])[0]
+            return True
         except Exception as e:
-            logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
+            logger.error(f"[Qdrant] Error checking existence of document with ID {id}: {e}")
             return False
-        
-    def chromadb_update(self, id, description: str, image: Image.Image, source: str = "ase"):
+    
+    def qdrant_update(self, id, description: str, image: Image.Image, source: str = "ase"):
         """
-        Update a document in ChromaDB by its ID.
+        Update a document in Qdrant by its ID.
         """
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
         if id is None or description is None or image is None:
             raise ValueError("id, description, and image must be provided.")
+        
+        point_id = AseServerMetadata._normalize_point_id(id)
+        with self._get_record_lock(point_id):
+            existing_records = self.qdrant_client.retrieve(
+                collection_name=self.collection,
+                ids=[point_id],
+                with_payload=True,
+                with_vectors=False
+            )
+            if not existing_records:
+                return self.qdrant_add(id, description, image, source)
 
-        # Remove the old document and image (if they exist)
-        self.chromadb_remove(str(id))
+            current_payload = existing_records[0].payload or {}
+            current_img_path = current_payload.get("img_path", os.path.join(AseServerMetadata.get_ase_img_path(), f"img_{id}.jpg"))
+            previous_description = current_payload.get("description")
+            new_payload = AseServerMetadata._build_payload(id, description, current_img_path, image, source)
+            os.makedirs(os.path.dirname(current_img_path), exist_ok=True)
+            temp_fd, temp_img_path = tempfile.mkstemp(
+                prefix=f"img_{id}_",
+                suffix=".jpg",
+                dir=os.path.dirname(current_img_path)
+            )
+            os.close(temp_fd)
 
-        # Add the new/updated document and image
-        return self.chromadb_add(id, description, image, source)    
+            try:
+                AseServerMetadata.save_image_to_path(image, temp_img_path)
+                vector = self._embed_texts([description])[0]
+                self.qdrant_client.upsert(
+                    collection_name=self.collection,
+                    wait=True,
+                    points=[
+                        models.PointStruct(
+                            id=point_id,
+                            vector=vector,
+                            payload=new_payload
+                        )
+                    ]
+                )
+                os.replace(temp_img_path, current_img_path)
+                logger.info(f"[Qdrant] Document with ID {id} updated successfully.")
+                return True
+            except Exception as e:
+                if os.path.exists(temp_img_path):
+                    os.remove(temp_img_path)
+
+                if previous_description is not None:
+                    try:
+                        previous_vector = self._embed_texts([previous_description])[0]
+                        self.qdrant_client.upsert(
+                            collection_name=self.collection,
+                            wait=True,
+                            points=[
+                                models.PointStruct(
+                                    id=point_id,
+                                    vector=previous_vector,
+                                    payload=current_payload
+                                )
+                            ]
+                        )
+                    except Exception as restore_error:
+                        logger.error(f"[Qdrant] Failed to restore previous payload for ID {id}: {restore_error}")
+
+                logger.error(f"[Qdrant] Error updating document with ID {id}: {e}")
+                raise ValueError(f"Could not update document with ID {id} in Qdrant. Error: {e}")
     
-    def chromadb_get(self, id:str):
+    def qdrant_get(self, id: str):
         """
-        Get a document with the given ID in the ChromaDB collection.
+        Get a document with the given ID in the Qdrant collection.
         """
         if self.collection is None:
-            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
-        if id is None:
-            raise ValueError("id must be provided.")
+            raise ValueError("Qdrant collection is not initialized. Please check the connection settings.")
 
+        point_id = AseServerMetadata._normalize_point_id(id)
         try:
-            result = self.collection.get(ids=[str(id)])
-            # If the id exists, result['ids'] will contain the id
-            if result is None or 'ids' not in result:
-                logger.warning(f"[ChromaDB] Document with ID {id} does not exist.")
+            result = self.qdrant_client.retrieve(
+                collection_name=self.collection,
+                ids=[point_id],
+                with_payload=True,
+                with_vectors=False
+            )
+            if not result:
+                logger.warning(f"[Qdrant] Document with ID {id} does not exist.")
                 return None
             
-            return result
+            payload = result[0].payload or {}
+            return {
+                "ids": [[str(result[0].id)]],
+                "metadatas": [[payload]],
+                "documents": [[payload.get("description")]]
+            }
         except Exception as e:
-            logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
+            logger.error(f"[Qdrant] Error checking existence of document with ID {id}: {e}")
             return None
     

@@ -133,8 +133,8 @@ services:
     security_opt:
       - no-new-privileges
     ports:
-      - "${COTURN_UDP_PORT}:3478"
-      - "${COTURN_UDP_PORT}:3478/udp"
+      - "${HOST_IP:-127.0.0.1}:${COTURN_UDP_PORT}:3478"
+      - "${HOST_IP:-127.0.0.1}:${COTURN_UDP_PORT}:3478/udp"
     command: ["-v"]  # Verbose mode for logging
     networks:
     - app_network
@@ -325,7 +325,7 @@ services:
       WHIP_SERVER_PORT: ${WHIP_SERVER_PORT}
       HOST_IP: ${HOST_IP}
     ports:
-      - "5000:15443"   # HTTPS for Web-UI and AIG & DLSPS Rest API
+      - "${HOST_IP:-127.0.0.1}:5000:15443"   # HTTPS for Web-UI and AIG & DLSPS Rest API
     volumes:
       - ./configs/nginx/nginx.conf:/tmp/default.conf.template:ro
       - ./configs/nginx/nginx-cert-gen.sh:/usr/local/bin/nginx-cert-gen.sh:ro

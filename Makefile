@@ -221,12 +221,8 @@ validate_host_ip:
 		echo "HOST_IP is not set in $(ENV_FILE)."; \
 		exit 1; \
 	fi; \
-	if [ "$$host_ip" = "localhost" ]; then \
-		echo "HOST_IP ($$host_ip) is valid."; \
-		exit 0; \
-	fi; \
 	if ! echo "$$host_ip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$$'; then \
-		echo "HOST_IP ($$host_ip) is not a valid IPv4 address format or localhost."; \
+		echo "HOST_IP ($$host_ip) must be a valid IPv4 address format (use 127.0.0.1 for local-only access)."; \
 		exit 1; \
 	fi; \
 	for octet in $$(echo "$$host_ip" | tr '.' ' '); do \

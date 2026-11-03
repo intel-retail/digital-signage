@@ -110,7 +110,7 @@ Edit the `.env` file in the repository root and set the following required varia
 
 | Variable                           | Description                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `HOST_IP`                          | Defaults to `localhost`; use the host system IP address if you want to access the web UI remotely |
+| `HOST_IP`                          | Defaults to `127.0.0.1` (loopback-only); binds published ports to this IPv4 address. Use the host's reachable IPv4 address for remote UI access and WebRTC/TURN. |
 | `MTX_WEBRTCICESERVERS2_0_USERNAME` | WebRTC ICE server username (minimum 5 alphabetic characters)                                      |
 | `MTX_WEBRTCICESERVERS2_0_PASSWORD` | WebRTC ICE server password (minimum 8 alphanumeric characters, at least one digit)                |
 
@@ -146,7 +146,7 @@ https://localhost:5000
 ```
 
 > [!NOTE]
-> If you are accessing the UI remotely, replace `localhost` with the host system IP address.
+> For remote access, set `HOST_IP` in `.env` to the host's reachable IPv4 address, recreate the containers, and replace `localhost` in the URL with that address. Published ports are loopback-only by default; `localhost` is not a valid value for `HOST_IP`.
 
 You should see the live video stream and dynamic advertisements.
 

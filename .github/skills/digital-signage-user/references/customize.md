@@ -11,7 +11,10 @@ Changing input source, inference device, models, and ad content. Every change he
 - [Change the inference device](#change-the-inference-device)
 - [Swap the detection model](#swap-the-detection-model)
 - [Add or change predefined ads](#add-or-change-predefined-ads)
+- [Enable AI video ads](#enable-ai-video-ads)
+- [Drive the display from an agent (MCP)](#drive-the-display-from-an-agent-mcp)
 - [Tune ad behavior](#tune-ad-behavior)
+- [Benchmark](#benchmark)
 
 ## Where the knobs live
 
@@ -20,10 +23,12 @@ Newcomers reliably look in the wrong place, so start here:
 | To change | Edit | Not |
 |---|---|---|
 | Video source, detection model, detection device | `configs/pid/config.json` | `.env` |
-| Generation device, model path, overlay defaults | `.env` | `config.json` |
-| Which products map to which ads | `web-ui/ProductAssociations.csv` | code |
-| Ad images | `web-ui/pre-defined-ads/` + the CSV | the API directly |
+| Generation device (image/video), model path, NPU cache, overlay defaults | `.env` | `config.json` |
+| Which products map to which ads (image or video) | `web-ui/ProductAssociations.csv` | code |
+| Ad images / predefined videos | `web-ui/pre-defined-ads/` + the CSV | the API directly |
+| Context → product rules for the MCP `select_dynamic_ad` tool | `web-ui/context_rules.json` | code |
 | Detection sensitivity, ad cadence | `.env` | `config.json` |
+| Which host address the UI/TURN listen on | `HOST_IP` in `.env` | compose |
 
 The pipeline server's model and device are pipeline *payload parameters*, not environment
 variables — `RTSP_CAMERA_IP` existing in `.env` misleads people into thinking otherwise. It is
@@ -80,7 +85,10 @@ ffplay rtsp://<user>:<pass>@10.0.0.42:554/stream1
 want to use it, interpolate it yourself. Note that credentials embedded in `config.json` are
 stored in plaintext in the repo — prefer a camera account with view-only rights.
 
-Raise `latency=` if the stream stutters; lower it for responsiveness on a reliable network.
+Raise `latency=` if the stream stutters; lower it for responsiveness on a reliable network. The
+how-to guide (`docs/user-guide/how-to-guides/configure-rtsp-camera.md`) uses `latency=0
+drop-on-latency=true` with `rtph264depay ! video/x-h264,stream-format=byte-stream ! decodebin3`
+and no `protocols=udp` — a good starting point on a reliable network.
 
 ## Change the inference device
 
@@ -98,21 +106,43 @@ There are **two independent devices** and confusing them is a common mistake.
 
 Set to `CPU`, `GPU`, or `NPU`.
 
-**Generation (AIG / SDXL-Turbo)** — `AIG_MODEL_DEVICE` in `.env`, default `GPU`.
+**Image generation (AIG / SDXL-Turbo)** — `AIG_INFERENCE_DEVICE` in `.env`, default `GPU`; `CPU`,
+`GPU` or `NPU` (experimental). The same variable feeds both aig-server and the web UI, so the
+device the web UI requests always matches the preloaded pipeline.
 
-Both require the corresponding host device to exist. `GPU` needs a populated `/dev/dri`; `NPU`
+**Video generation (LTX-Video)** — `AIG_VIDEO_INFERENCE_DEVICE`, default `GPU`; `CPU` or `GPU`
+only (`NPU` is changed to `GPU`). See [Enable AI video ads](#enable-ai-video-ads).
+
+Each requires the corresponding host device to exist. `GPU` needs a populated `/dev/dri`; `NPU`
 needs `/dev/accel`. The Makefile probes for these when it is parsed and substitutes `/dev/null`
 if absent, so a missing device produces a container that starts normally and then fails at
-inference — check `docker logs` rather than assuming the mount worked.
+inference (requests return `503`) — check `docker logs` rather than assuming the mount worked.
 
-For NPU access you may need the udev rule in `configs/pid/scripts/cfgNPUAccess.sh`, which grants
-access to `/dev/accel/accel0`. It is not run by `make up`; run it on the host once.
+For NPU access on the host you may need the udev rule in `configs/pid/scripts/cfgNPUAccess.sh`,
+which grants access to `/dev/accel/accel0`. It is not run by `make up`; run it on the host once.
+No host user-mode NPU driver is needed for AIG — the aig-server image bundles it, so rebuild the
+image (`make build`) after pulling updates.
 
-One subtlety on the generation side: the web UI hardcodes `"device": "GPU"` in its dynamic-ad
-request. Setting `AIG_MODEL_DEVICE=CPU` without changing the UI means every request sees a
-device mismatch and builds a fresh pipeline instead of reusing the preloaded one — technically
-correct, dramatically slower. Keep them aligned, or change the UI (a code change — use
-`digital-signage-dev`).
+### Running image ads on the NPU (experimental)
+
+```text
+AIG_INFERENCE_DEVICE=NPU
+AIG_KEEP_MODEL_IN_MEMORY=true
+```
+
+then `make up`. What to expect:
+
+- The model is compiled for a fixed size, `AIG_IMG_WIDTH_DEFAULT` x `AIG_IMG_HEIGHT_DEFAULT`
+  (448 x 448); the first start takes about 3 minutes.
+- Compiled blobs are cached in `AIG_NPU_CACHE_HOST_DIR` (default `./aig/npu_cache`, mounted at
+  `/opt/npu_cache`). It survives `make down`, must be writable by `UID`, and takes about 7 GB per
+  image size — delete the directory's contents to reclaim space.
+- Keep `AIG_KEEP_MODEL_IN_MEMORY=true`; otherwise every request reloads the model.
+- If the NPU load fails, requests return `503` and the load isn't retried for 5 minutes
+  (restart `aig-server` to retry). See `troubleshooting.md` § NPU.
+
+Switching device later means `make up` again. `make benchmark-*` targets also rewrite the
+detection `device` and `AIG_INFERENCE_DEVICE` (see [Benchmark](#benchmark)).
 
 ## Swap the detection model
 
@@ -133,17 +163,18 @@ model that emits `Orange_Fruit` won't match a CSV row for `orange`. Either renam
 or post-process the labels. Detections will look fine in the video overlay while no ad ever
 fires — that mismatch is the single most common cause.
 
-Keep the original model directory in place until the new one works; `make check_models` only
-verifies the directory is non-empty, so it won't catch a broken swap.
+Keep the original model directory in place until the new one works: `make check_models` (part of
+`make up`) requires `yolo11s/INT8/yolo11s.xml` and `.bin` to exist, so deleting the default model
+blocks startup even if your replacement is fine. The check can't tell whether the new model works.
 
 ## Add or change predefined ads
 
-Predefined ads are seeded into ChromaDB by the web UI at every startup from
-`web-ui/ProductAssociations.csv`. There is no persistent state to migrate — `make down` removes
-the volume and the next `make up` re-seeds.
+Predefined ads are seeded into Qdrant (the `ase-qdrant` container) by the web UI at every startup
+from `web-ui/ProductAssociations.csv`. There is no persistent state to migrate — `make down`
+removes the Qdrant volumes and the next `make up` re-seeds.
 
 1. Put a **JPEG** in `web-ui/pre-defined-ads/`. Existing files there are the naming precedent:
-   `apple_banana.jpg`, `oven_microwave.jpg`.
+   `apple_orange.jpg`, `oven_microwave.jpg`.
 2. Add or edit a row in `web-ui/ProductAssociations.csv`.
 3. `make up`.
 
@@ -160,18 +191,58 @@ CSV columns:
 | `slogan` | Slogan text |
 | `associated_cross_sell` | The cross-sold product |
 | `dynamic_ad_prompt` | Prompt used when generating an ad with SDXL-Turbo |
-| `pre_defined_ad_image` | Filename in `pre-defined-ads/`. **Leave empty to force dynamic generation** for this row |
+| `pre_defined_ad_image` | Filename in `pre-defined-ads/` (JPEG). **Leave empty to force dynamic generation** for this row |
+| `pre_defined_ad_video` | Optional filename in `pre-defined-ads/` of a ready-made clip for MCP `trigger_video_ad` (see [Enable AI video ads](#enable-ai-video-ads)). Camera-driven ads never use it |
 
 Multiple rows may share a `primary_product` — they become variants, and the selection logic
-rotates between them to avoid repetition. That is the cheapest way to add variety.
+rotates between them to avoid repetition. That is the cheapest way to add variety. The shipped CSV
+has about 100 rows over 50 products, but only a handful name an image.
 
 A row with an empty `pre_defined_ad_image` always generates dynamically, which is slower but
 needs no artwork. Rows with an image still fall back to generation when the semantic match
-misses the `ASE_DISTANCE_MAX_THRESHOLD` cutoff.
+scores below `ASE_QDRANT_SCORE_MIN_THRESHOLD`.
 
-Since matching is semantic rather than by filename, the ad's stored **description** drives
-retrieval. The seeding path derives it from the CSV row, so a row whose text doesn't describe
-the image well retrieves poorly even when the image is right.
+Matching is semantic rather than by filename. At seeding the stored **description** is
+`"<primary_product> and <associated_cross_sell>"`, and the lookup query is built the same way, so
+those two columns — not the prompt or the image — decide which ad a row retrieves. Seeding adds
+entries without ids on every web-ui start; `make down && make up` gives a clean set.
+
+## Enable AI video ads
+
+Video ads are produced only by the MCP `trigger_video_ad` tool (never by the camera flow). They
+use a predefined clip when the item has one, otherwise the LTX-Video model generates one.
+
+1. Get the model: `make download_models` exports it to `aig/models/ltx_video_ov/int8` (long and
+   large; skipped when `CI` is set or `SKIP_LTX_VIDEO_EXPORT=1`; force with
+   `SKIP_LTX_VIDEO_EXPORT=0`). Review the LTX-Video license first. It is not needed for `make up`.
+2. Check `.env`: `AIG_VIDEO_MODEL_PATH` (default `/opt/models/ltx_video_ov/int8`; unset disables
+   generation) and `AIG_VIDEO_INFERENCE_DEVICE` (`GPU` or `CPU`). Budget ~8 GB extra GPU/shared
+   memory with the default `AIG_VIDEO_PRECISION=f16` (~11 GB with `f32`); 32 GB RAM recommended.
+3. Optionally `AIG_PRELOAD_VIDEO_MODEL=true` (with `AIG_KEEP_MODEL_IN_MEMORY=true`) to load it at
+   start instead of on the first video request.
+4. Keep `VIDEO_AD_DISPLAY_SECONDS` equal to `AIG_VIDEO_LOOP_SECONDS` (both `3`); change
+   `AIG_VIDEO_NUM_FRAMES` (must be 8k+1) / `AIG_VIDEO_FRAME_RATE` together with them so the motion
+   isn't stretched.
+5. `make up`.
+
+Generation takes about 30 s on an Intel iGPU in `f16` (minutes in `f32`). The resolution default
+is 704x480 (divisible by 32). To skip generation for a product, add a `.mp4`, `.webp` or `.gif`
+to `web-ui/pre-defined-ads/` and name it in the row's `pre_defined_ad_video`; it must be no longer
+than `VIDEO_AD_DISPLAY_SECONDS` + 0.5 s or it is skipped with a warning at startup.
+
+## Drive the display from an agent (MCP)
+
+The web UI runs an MCP server reachable through nginx at `https://<HOST_IP>:5000/mcp` (Streamable
+HTTP, self-signed certificate). Tools: `describe`, `get_current_ad`, `get_catalog`,
+`select_dynamic_ad(weather, demand, age_mix, daypart, display_seconds)`,
+`trigger_ad(item, display_seconds, promo_text, slogan)`, `trigger_video_ad(item | description)`
+and `clear_ad`. Agent ads override the camera-driven flow (default 60 s for images) until they
+expire or `clear_ad` runs. `select_dynamic_ad` maps context to a product through
+`web-ui/context_rules.json` (`rules` with `weather` / `demand` / `age_mix` / `daypart` → `product`,
+best match wins, else `default_product`); every product named there must exist in the CSV.
+Edit the JSON and `make up` to change the rules. Setup and a Python client are in
+`docs/user-guide/how-to-guides/use-mcp-agent-tools.md`; failures in `troubleshooting.md`
+§ MCP and video ads.
 
 ## Tune ad behavior
 
@@ -182,11 +253,25 @@ All in `.env`, all requiring `make up`:
 | Ads change too fast / too slow | `TIME_TO_DISPLAY_AD_SECONDS` (default 5) — a minimum, not a period |
 | Spurious detections trigger ads | Raise `OBJECT_RECENCY_FRAME_COUNT` (5) or `OBJECT_CONFIDENCE_THRESHOLD` (0.5) |
 | Products detected but no ads | Lower those same two |
-| Predefined ads never chosen | Raise `ASE_DISTANCE_MAX_THRESHOLD` (0.2) toward 0.4–0.5 |
-| Wrong predefined ads chosen | Lower it, or improve the CSV descriptions |
-| Generation too slow | `AIG_KEEP_MODEL_IN_MEMORY=true`, and align `AIG_MODEL_DEVICE` with the UI's `GPU` |
+| Predefined ads never chosen | **Lower** `ASE_QDRANT_SCORE_MIN_THRESHOLD` (0.8) in small steps, e.g. 0.7 |
+| Wrong predefined ads chosen | **Raise** it, or improve the `primary_product` / `associated_cross_sell` text |
+| Generation too slow | `AIG_KEEP_MODEL_IN_MEMORY=true`; check `AIG_INFERENCE_DEVICE` is a device the host has |
 | Memory too high | `AIG_KEEP_MODEL_IN_MEMORY=false` — roughly 10 GB down to 2 GB, at a latency cost |
+| Video clips too slow to generate | Lower `AIG_VIDEO_NUM_FRAMES` / `AIG_VIDEO_NUM_INFERENCE_STEPS`, keep `AIG_VIDEO_PRECISION=f16` |
+| UI reachable from other machines | `HOST_IP` = the host's real IPv4, then `make up` |
 
 `OBJECT_RECENCY_FRAME_COUNT` is subtler than it looks: a label must appear in at least that many
 messages within a rolling window of **twice** that value. Raising it makes detection both
 stricter and slower to react.
+
+## Benchmark
+
+Not part of deployment. `make update-submodules` fetches the `performance-tools` submodule
+(it isn't checked out by default), then `make benchmark-pid | benchmark-aig | benchmark-web-ui |
+benchmark-qdrant | benchmark-metrics | benchmark-e2e | benchmark-all` run the stack with
+`BENCHMARK_MODE=true`, wait `BENCHMARK_WARMUP_SECONDS` (300) and write results to
+`results/<timestamp>/`; `make consolidate-benchmarks` merges them. They **restart the stack** and,
+unless `SKIP_BENCHMARK_DEVICE_CONFIG=true`, rewrite the detection `device` in
+`configs/pid/config.json` (`PID_DEVICE`, default `CPU`) and `AIG_INFERENCE_DEVICE` in `.env`
+(`AIG_DEVICE`, default `GPU`) — re-check both afterwards. Set `COLLECT_METRICS=false` to skip host
+metrics. Full guide: `docs/user-guide/how-to-guides/benchmarking.md`.

@@ -16,7 +16,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The containers docker-compose.yml actually declares, in dependency order.
 CONTAINERS=(
     mqtt-broker
-    ase-chromadb
+    ase-qdrant
     mediamtx
     coturn
     dlstreamer-pipeline-server
@@ -42,7 +42,7 @@ warn() { printf '  %swarn%s  %s\n'   "${YELLOW}" "${RESET}" "$*"; WARNINGS=$((WA
 
 command -v docker >/dev/null 2>&1 || { echo "docker is not installed or not on PATH" >&2; exit 2; }
 
-# A stack that was never started produces eight identical "not created" lines, which buries
+# A stack that was never started produces identical "not created" lines, which buries
 # the one thing the user needs to know. Detect that case up front.
 EXISTING=0
 for name in "${CONTAINERS[@]}"; do
@@ -119,10 +119,14 @@ done
 
 hdr "Endpoints"
 
-# Read the published UI port from compose rather than assuming 5000.
-UI_PORT="$(docker port nginx_proxy 2>/dev/null | awk -F: '/->|15443/ {print $NF; exit}')"
+# Published ports are bound to HOST_IP (default 127.0.0.1), so probe the address nginx is
+# actually bound to rather than assuming localhost or port 5000.
+UI_BIND="$(docker port nginx_proxy 15443/tcp 2>/dev/null | head -1)"
+UI_PORT="${UI_BIND##*:}"
 UI_PORT="${UI_PORT:-5000}"
-BASE="https://localhost:${UI_PORT}"
+UI_HOST="${UI_BIND%:*}"
+case "${UI_HOST}" in ""|"0.0.0.0"|"::"|"[::]") UI_HOST="localhost" ;; esac
+BASE="https://${UI_HOST}:${UI_PORT}"
 
 probe() {
     local label="$1" url="$2" expect="$3"

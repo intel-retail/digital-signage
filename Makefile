@@ -22,12 +22,7 @@ export ACCEL_MOUNT_PATH
 ENV_FILE = ./.env
 HELM_PACKAGE_SCRIPT = ./package_helm.sh
 SCRIPTS_DIR = ./scripts
-DOWNLOAD_MODELS_SCRIPT = $(SCRIPTS_DIR)/download-models.sh
 CHECK_STACK_SCRIPT = $(SCRIPTS_DIR)/check-stack.sh
-
-# Pass FORCE=1 to re-download models that are already present
-FORCE ?=
-MODEL_FORCE_FLAG = $(if $(filter 1 true yes,$(FORCE)),--force,)
 
 include $(ENV_FILE)
 export $(shell sed 's/=.*//' $(ENV_FILE))
@@ -219,24 +214,6 @@ check_models:
 	done
 	@echo "All required model artifacts are present."
 
-
-# Download and prepare every model the stack needs: YOLO11s (detection) into
-# configs/pid/models/, SDXL-Turbo and MiniLM into aig/models/. Idempotent - already
-# populated targets are skipped unless FORCE=1 is passed. Expect tens of minutes on a
-# first run, mostly the SDXL-Turbo export.
-.PHONY: download_models
-download_models:
-	@$(DOWNLOAD_MODELS_SCRIPT) $(MODEL_FORCE_FLAG)
-
-# Only the YOLO11s detection model (configs/pid/models/)
-.PHONY: download_models_pid
-download_models_pid:
-	@$(DOWNLOAD_MODELS_SCRIPT) --pid-only $(MODEL_FORCE_FLAG)
-
-# Only the SDXL-Turbo and MiniLM models (aig/models/)
-.PHONY: download_models_aig
-download_models_aig:
-	@$(DOWNLOAD_MODELS_SCRIPT) --aig-only $(MODEL_FORCE_FLAG)
 
 .PHONY: validate_host_ip
 validate_host_ip:

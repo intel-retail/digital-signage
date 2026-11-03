@@ -12,6 +12,7 @@ MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS="${MODEL_DOWNLOAD_POLL_INTERVAL_SECONDS:-10
 MODEL_DOWNLOAD_PORT="${MODEL_DOWNLOAD_PORT:-8000}"
 MODEL_DOWNLOAD_COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
 MODEL_DOWNLOAD_URL="http://127.0.0.1:${MODEL_DOWNLOAD_PORT}/api/v1"
+
 HF_TOKEN_VALUE="${HUGGINGFACEHUB_API_TOKEN:-${HF_TOKEN:-}}"
 
 log() {
@@ -114,6 +115,7 @@ if ! "${compose[@]}" up -d model-download; then
     exit 1
 fi
 
+log "Waiting for service health at ${MODEL_DOWNLOAD_URL}/health"
 
 health_deadline=$((SECONDS + 180))
 until curl -fsS "${MODEL_DOWNLOAD_URL}/health" >/dev/null 2>&1; do

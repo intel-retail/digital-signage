@@ -108,6 +108,11 @@ Set `AIG_VIDEO_MODEL_PATH` in `.env` to match (defaults to `/opt/models/ltx_vide
 
 Edit the `.env` file in the repository root and set the following required variables:
 
+> [!NOTE]
+> On Ubuntu 26.04, set `DLSTREAMER_PIPELINE_SERVER_IMAGE` in `.env` to
+> `intel/dlstreamer-pipeline-server:2026.3.0-ubuntu26-rc1` before deployment.
+> The default image targets Ubuntu 24.04.
+
 | Variable                           | Description                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `HOST_IP`                          | Defaults to `127.0.0.1` (loopback-only); binds published ports to this IPv4 address. Use the host's reachable IPv4 address for remote UI access and WebRTC/TURN. |

@@ -121,7 +121,7 @@ The web UI records two named events. Each one is written to the `web-ui` contain
 | Event | `data` fields | When |
 | --- | --- | --- |
 | `product_detected` | `label`, `confidence` | A product passes the confidence and recency checks. It is reported when it appears, and again only after it was absent for `QSR_EVENT_DETECTION_COOLDOWN_SECONDS` (default 60). |
-| `ad_displayed` | `product`, `variant` (`predefined` or `generated`), `media` (`image` or `video`), `trigger` (`camera` or `agent`) | An ad goes live, whether from the camera flow or an agent tool. |
+| `ad_displayed` | `product`, `variant` (`predefined` or `generated`), `media` (`image` or `video`), `trigger` (`camera` or `agent`) | An ad goes live, whether from the camera flow or an agent tool. Image ads fire when a display client is first served the image. |
 
 Read the log with `docker logs web-ui 2>&1 | grep SIGNAGE_EVENT`.
 

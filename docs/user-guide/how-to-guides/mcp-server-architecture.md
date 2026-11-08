@@ -95,7 +95,8 @@ as the QSR agent rely on this to avoid recording a refused action as executed.
 `product_detected` and `ad_displayed` events, logs each as a `SIGNAGE_EVENT {json}` line and, when
 `QSR_EVENTS_URL` is set, delivers it from a background thread. `main.py` emits `product_detected` from the
 MQTT detection path (with a per-label cooldown) and `ad_displayed` when an ad goes live, from both the camera
-flow and the agent tools. Event fields and settings are described in
+flow and the agent tools. An image ad is announced when a display client is first served it, so an image
+hidden behind a video override, superseded, or cleared before it is served produces no event. Event fields and settings are described in
 [use-mcp-agent-tools.md](use-mcp-agent-tools.md#events).
 
 ## Control flow — client connecting and calling a tool

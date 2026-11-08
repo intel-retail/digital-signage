@@ -35,6 +35,8 @@ its own startup using a trust-on-first-use fetch; see the qsr-agent project's
 
 > **Video ad generation time:** `trigger_video_ad` returns immediately and the video is generated in the background. On an Intel iGPU with the default `f16` precision this takes about 25-30 s per video; the first request also loads the video model (about 20 s) unless `AIG_PRELOAD_VIDEO_MODEL=true`. Running in `f32` takes about 3 minutes. See [Change Inference Device](change-inference-device.md#video-precision-and-preloading). A new `trigger_video_ad` call may be rejected until the current video finishes.
 
+When `select_dynamic_ad`, `trigger_ad` or `trigger_video_ad` refuses a request (missing or invalid arguments, an ad already generating, an unknown item), the call fails as an MCP tool error (`isError` is set) instead of returning a normal text result. Agents can therefore tell a refused action from an executed one.
+
 ## Connect and Test
 
 ### MCP Inspector
@@ -110,6 +112,28 @@ async def run_mcp_client(host_ip: str, port: int = 5000):
 if __name__ == "__main__":
     asyncio.run(run_mcp_client("localhost"))
 ```
+
+## Events
+
+The web UI records two named events. Each one is written to the `web-ui` container log as a single
+`SIGNAGE_EVENT {json}` line (with an increasing `seq`) and can also be pushed to an agent.
+
+| Event | `data` fields | When |
+| --- | --- | --- |
+| `product_detected` | `label`, `confidence` | A product passes the confidence and recency checks. It is reported when it appears, and again only after it was absent for `QSR_EVENT_DETECTION_COOLDOWN_SECONDS` (default 60). |
+| `ad_displayed` | `product`, `variant` (`predefined` or `generated`), `media` (`image` or `video`), `trigger` (`camera` or `agent`) | An ad goes live, whether from the camera flow or an agent tool. |
+
+Read the log with `docker logs web-ui 2>&1 | grep SIGNAGE_EVENT`.
+
+To push events to an agent, set these in `.env`:
+
+- `QSR_EVENTS_URL`: the agent endpoint, for example `http://<agent-host>:8600/autonomy/events`. Leave it empty to only log events.
+- `QSR_STORE_ID`: the store identifier the agent expects. Defaults to `qsr-001`.
+
+The `web-ui` container sends through the proxy settings from your environment, so add the agent host to `no_proxy`.
+Delivery runs in the background and retries three times; a client error other than HTTP 429 is not retried. A failed or slow agent never delays ad rendering.
+
+The log is not persisted and there is no replay: the delivery queue is in memory, so events queued while the agent is unreachable are lost when the `web-ui` container restarts.
 
 ## Notes
 

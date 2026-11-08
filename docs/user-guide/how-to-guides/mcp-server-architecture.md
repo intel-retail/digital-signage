@@ -83,6 +83,21 @@ natural-language capability summary instead of parsing the schema.
   (same `.env` source variable) or the server can't reuse its preloaded video
   pipeline and rebuilds it from disk on every call.
 
+## Error reporting
+
+The action tools (`select_dynamic_ad`, `trigger_ad`, `trigger_video_ad`) raise `ValueError` when the
+core function returns an `error`, so FastMCP reports the call as a tool error (`isError`). Clients such
+as the QSR agent rely on this to avoid recording a refused action as executed.
+
+## Events
+
+[web-ui/events.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/events.py) builds the
+`product_detected` and `ad_displayed` events, logs each as a `SIGNAGE_EVENT {json}` line and, when
+`QSR_EVENTS_URL` is set, delivers it from a background thread. `main.py` emits `product_detected` from the
+MQTT detection path (with a per-label cooldown) and `ad_displayed` when an ad goes live, from both the camera
+flow and the agent tools. Event fields and settings are described in
+[use-mcp-agent-tools.md](use-mcp-agent-tools.md#events).
+
 ## Control flow — client connecting and calling a tool
 
 ```mermaid

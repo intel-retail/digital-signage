@@ -296,21 +296,24 @@ class Ad_Generator(threading.Thread):
         self.ad_ready_ns = None
         self.last_ad_trace = None
         # slot -> (product, trace, trigger) of an image ad generated but not yet served to a client.
+        # Always read and written under _state_lock, together with the state that makes the ad servable.
         self.pending_display_events = {'camera': None, 'agent': None}
 
-    def queue_display_event(self, slot, product, trace, trigger):
-        """Hold ad_displayed until the image is served; a newer ad in the slot supersedes it, and a
-        failed generation (no trace) clears it."""
+    def set_agent_override(self, ad, seconds, product, trace):
+        """Make ad the live agent override and queue its ad_displayed event (none without a trace)."""
         with self._state_lock:
-            self.pending_display_events[slot] = (product, trace, trigger) if trace else None
+            self.pending_display_events['agent'] = (product, trace, 'agent') if trace else None
+            self.agent_override_ad = ad
+            self.agent_override_until = time.time() + seconds
+            self.agent_override_item = product
 
-    def _emit_pending_display_event(self, slot, ad_id=None):
-        with self._state_lock:
-            pending = self.pending_display_events[slot]
-            if pending is None or (ad_id is not None and pending[1]['ad_id'] != ad_id):
-                return
-            self.pending_display_events[slot] = None
-        emit_image_ad_displayed(*pending)
+    def _take_display_event(self, slot, ad_id=None):
+        """Pop the slot's pending event; with ad_id, only if it belongs to that ad. Hold _state_lock."""
+        pending = self.pending_display_events[slot]
+        if pending is None or (ad_id is not None and pending[1]['ad_id'] != ad_id):
+            return None
+        self.pending_display_events[slot] = None
+        return pending
 
     def _signal_agent_wants_lock(self):
         """Called by an agent call before it starts trying to acquire _generation_lock, so the camera
@@ -355,11 +358,10 @@ class Ad_Generator(threading.Thread):
                         if not associations:
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         with self._generation_lock:
-                            self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                            self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False,
+                                                        camera_event=True)
                             trace = self.last_ad_trace
                         self.last_generated_timestamp = time.time()
-                        if trace:
-                            self.queue_display_event('camera', item, trace, 'camera')
                         if BENCHMARK_MODE and trace:
                             frame_time_ns = getattr(label_set, 'frame_time_ns', None)
                             logger.info("WEB_UI_AD_TRACE %s", json.dumps({
@@ -627,7 +629,7 @@ class Ad_Generator(threading.Thread):
         }
         return aig_payload, description, pre_defined_ad_description
 
-    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False):
+    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False, camera_event=False):
         """Process individual message from queue"""
         try:
 
@@ -725,6 +727,8 @@ class Ad_Generator(threading.Thread):
                         'ad_generation_total_ms': elapsed_time * 1000,
                         'response_size_kb': len(new_ad) / 1024,
                     }
+                    if camera_event:
+                        self.pending_display_events['camera'] = (label, self.last_ad_trace, 'camera')
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
                 logger.info(time_taken)
             else:
@@ -745,9 +749,14 @@ class Ad_Generator(threading.Thread):
             self.last_known_width = width
 
         # Agent-commanded override takes priority; served continuously until expiry
-        if self.agent_override_ad and time.time() < self.agent_override_until:
-            self._emit_pending_display_event('agent')
-            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None, None
+        with self._state_lock:
+            override_ad, override_item = self.agent_override_ad, self.agent_override_item
+            live = bool(override_ad) and time.time() < self.agent_override_until
+            pending = self._take_display_event('agent') if live else None
+        if live:
+            if pending:
+                emit_image_ad_displayed(*pending)
+            return override_ad, f"Agent-commanded: {override_item}", None, None
 
         # Return None if no ad has been generated yet
         if client_id is None:
@@ -761,9 +770,10 @@ class Ad_Generator(threading.Thread):
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
             ad_id = self.ad_sequence if ready_ns is not None else None
+            pending = self._take_display_event('camera', ad_id) if ad_id is not None else None
         delivery_id = uuid.uuid4().hex if BENCHMARK_MODE and ad_id is not None else None
-        if ad_id is not None:
-            self._emit_pending_display_event('camera', ad_id)
+        if pending:
+            emit_image_ad_displayed(*pending)
         if BENCHMARK_MODE and ad_id is not None:
             logger.info("WEB_UI_AD_SERVED %s", json.dumps({
                 'ad_id': ad_id,
@@ -1187,9 +1197,7 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.queue_display_event('agent', item_name, ad_generator_Obj.last_ad_trace, 'agent')
-                ad_generator_Obj.agent_override_ad = captured
-                ad_generator_Obj.agent_override_until = time.time() + secs
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
                 logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Agent ad generation produced no image for '{item_name}'")
@@ -1315,9 +1323,10 @@ def clear_agent_override():
     trigger may still be rejected as busy until that abandoned request completes on its own."""
     global ad_generator_Obj
     prev_item = ad_generator_Obj.agent_override_item
-    ad_generator_Obj.agent_override_ad = None
-    ad_generator_Obj.agent_override_until = 0.0
-    ad_generator_Obj.queue_display_event('agent', None, None, None)
+    with ad_generator_Obj._state_lock:
+        ad_generator_Obj.agent_override_ad = None
+        ad_generator_Obj.agent_override_until = 0.0
+        ad_generator_Obj.pending_display_events['agent'] = None
     if ad_generator_Obj.agent_override_generating:
         ad_generator_Obj.agent_override_cancelled = True
     else:
@@ -1433,10 +1442,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
         if not captured:
             return {'error': f"ad generation failed for '{resolved}'"}
-        ad_generator_Obj.queue_display_event('agent', resolved, trace, 'agent')
-        ad_generator_Obj.agent_override_ad = captured
-        ad_generator_Obj.agent_override_until = time.time() + display_seconds
-        ad_generator_Obj.agent_override_item = resolved
+        ad_generator_Obj.set_agent_override(captured, display_seconds, resolved, trace)
         source = 'predefined' if 'Pre-defined' in (ad_generator_Obj.time_taken_last_generated_ad or '') else 'aig'
         return {
             'resolved_product': resolved, 'matched_rule': matched_rule, 'source': source,
@@ -1459,10 +1465,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.queue_display_event(
-                    'agent', item_name, ad_generator_Obj.last_ad_trace, 'agent')
-                ad_generator_Obj.agent_override_ad = captured
-                ad_generator_Obj.agent_override_until = time.time() + secs
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
                 logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")

@@ -23,6 +23,18 @@ To see system requirements and step-by-step installation instructions, start her
 
 Refer to [Digital Signage: Context-Aware, Cross-Selling](./docs/user-guide/how-it-works.md).
 
+## AI Agent Skills
+
+This repository ships [Agent Skills](https://agentskills.io) in [.github/skills/](.github/skills/) so AI coding agents (GitHub Copilot, Claude Code, Cursor, and others) can deploy, operate, and modify the application. General agent guidelines live in [AGENTS.md](AGENTS.md), which the agent-specific entry points (`CLAUDE.md`, `GEMINI.md`, `.windsurfrules`, `.cursor/rules/`, `.github/copilot-instructions.md`) point to.
+
+| Skill | Use it to |
+|---|---|
+| [digital-signage-user](.github/skills/digital-signage-user/SKILL.md) | Deploy, configure, verify, and troubleshoot the stack: model download, `.env`, `make up` failures, video and ad issues, inference device, RTSP camera, and the REST API. |
+| [digital-signage-dev](.github/skills/digital-signage-dev/SKILL.md) | Change the code under `aig/` and `web-ui/`, the pipeline config, or nginx routing, following the repository's conventions and its live-API validation loop. |
+| [generate-changelog](.github/skills/generate-changelog/SKILL.md), [generate-release-notes](.github/skills/generate-release-notes/SKILL.md) | Maintainer tooling: build `CHANGELOG.md` entries and release notes from git history. |
+
+The deployment and development skills read the repository's `Makefile`, `.env`, and sources at runtime, so they work from a local checkout of this repository and can also be installed on their own, for example with `npx skills add intel-retail/digital-signage`. System requirements and prerequisites are taken from the published [user guide](docs/user-guide/get-started.md).
+
 ## Learn More
 
 Additional how-to and deployment guides:

@@ -299,6 +299,7 @@ class Ad_Generator(threading.Thread):
         # Always read and written under _state_lock, together with the state that makes the ad servable.
         self.pending_display_events = {'camera': None, 'agent': None}
         self._override_shown = False  # set while an agent image ad is served, to re-deliver the camera ad once it ends
+        self._video_shown = False  # same for a video ad, which the browser would otherwise keep looping
 
     def generate_agent_advertisement(self, label, associations):
         """Generate an agent ad without replacing the camera-driven ad that resumes when the override ends.
@@ -774,9 +775,10 @@ class Ad_Generator(threading.Thread):
             if pending:
                 emit_image_ad_displayed(*pending)
             return override_ad, f"Agent-commanded: {override_item}", None, None
-        if self._override_shown:
+        if self._override_shown or self._video_shown:
             # Browsers keep the last image on a 204, so every client must receive the camera ad again.
             self._override_shown = False
+            self._video_shown = False
             with self._state_lock:
                 self.list_of_clients = []
 
@@ -882,6 +884,7 @@ class Ad_Generator(threading.Thread):
             return None
         if client_id is None:
             return None
+        self._video_shown = True
         if client_id not in self.video_list_of_clients:
             self.video_list_of_clients.append(client_id)
             return self.video_override_media

@@ -36,6 +36,7 @@ RUN groupadd $USER -g $UID && \
 
 COPY main.py .
 COPY mcp_server.py .
+COPY events.py .
 COPY templates/ ./templates/
 
 USER ${USER}

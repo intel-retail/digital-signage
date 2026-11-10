@@ -23,6 +23,7 @@ import random
 import unicodedata
 from PIL import Image
 import uuid
+import events
 
 AIG_SERVER_URL = os.getenv('AIG_SERVER_URL', 'http://aig-server:5003')
 AIG_DYNAMIC_AD_ENDPOINT = f"{AIG_SERVER_URL}/aig/minf/"
@@ -56,6 +57,8 @@ PRE_DEFINED_ADS_DIR = '/app/pre-defined-ads'
 AGENT_LOCK_WAIT_SECONDS = 6.0
 # Keeps stage timing, trace logs and browser reporting out of the normal serving path
 BENCHMARK_MODE = os.getenv('BENCHMARK_MODE', 'false').strip().lower() == 'true'
+# Time a label must be absent before its next detection counts as a new product_detected event
+DETECTION_EVENT_COOLDOWN_SECONDS = float(os.getenv('QSR_EVENT_DETECTION_COOLDOWN_SECONDS', 60))
 # Context rules for select_dynamic_ad (MCP action); empty dict means the feature is unavailable
 context_rules = {}
 # Configure logging
@@ -93,6 +96,12 @@ def resolve_product_label(label):
     """Map an incoming label to a known CSV product key, if available."""
     normalized_label = normalize_product_key(label)
     return product_association_lookup.get(normalized_label)
+
+
+def emit_image_ad_displayed(product, trace, trigger):
+    """Emit ad_displayed for an image ad that just went live; trace is Ad_Generator.last_ad_trace."""
+    variant = 'predefined' if trace and trace.get('path') == 'predefined' else 'generated'
+    events.emit(events.AD_DISPLAYED, product=product, variant=variant, media='image', trigger=trigger)
 
 def _get_video_duration_seconds(path):
     """Return an mp4/video file's duration in seconds, or None if it can't be read."""
@@ -286,6 +295,25 @@ class Ad_Generator(threading.Thread):
         self.ad_sequence = 0
         self.ad_ready_ns = None
         self.last_ad_trace = None
+        # slot -> (product, trace, trigger) of an image ad generated but not yet served to a client.
+        # Always read and written under _state_lock, together with the state that makes the ad servable.
+        self.pending_display_events = {'camera': None, 'agent': None}
+
+    def set_agent_override(self, ad, seconds, product, trace):
+        """Make ad the live agent override and queue its ad_displayed event (none without a trace)."""
+        with self._state_lock:
+            self.pending_display_events['agent'] = (product, trace, 'agent') if trace else None
+            self.agent_override_ad = ad
+            self.agent_override_until = time.time() + seconds
+            self.agent_override_item = product
+
+    def _take_display_event(self, slot, ad_id=None):
+        """Pop the slot's pending event; with ad_id, only if it belongs to that ad. Hold _state_lock."""
+        pending = self.pending_display_events[slot]
+        if pending is None or (ad_id is not None and pending[1]['ad_id'] != ad_id):
+            return None
+        self.pending_display_events[slot] = None
+        return pending
 
     def _signal_agent_wants_lock(self):
         """Called by an agent call before it starts trying to acquire _generation_lock, so the camera
@@ -330,7 +358,8 @@ class Ad_Generator(threading.Thread):
                         if not associations:
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         with self._generation_lock:
-                            self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                            self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False,
+                                                        camera_event=True)
                             trace = self.last_ad_trace
                         self.last_generated_timestamp = time.time()
                         if BENCHMARK_MODE and trace:
@@ -600,7 +629,7 @@ class Ad_Generator(threading.Thread):
         }
         return aig_payload, description, pre_defined_ad_description
 
-    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False):
+    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False, camera_event=False):
         """Process individual message from queue"""
         try:
 
@@ -698,6 +727,8 @@ class Ad_Generator(threading.Thread):
                         'ad_generation_total_ms': elapsed_time * 1000,
                         'response_size_kb': len(new_ad) / 1024,
                     }
+                    if camera_event:
+                        self.pending_display_events['camera'] = (label, self.last_ad_trace, 'camera')
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
                 logger.info(time_taken)
             else:
@@ -718,8 +749,14 @@ class Ad_Generator(threading.Thread):
             self.last_known_width = width
 
         # Agent-commanded override takes priority; served continuously until expiry
-        if self.agent_override_ad and time.time() < self.agent_override_until:
-            return self.agent_override_ad, f"Agent-commanded: {self.agent_override_item}", None, None
+        with self._state_lock:
+            override_ad, override_item = self.agent_override_ad, self.agent_override_item
+            live = bool(override_ad) and time.time() < self.agent_override_until
+            pending = self._take_display_event('agent') if live else None
+        if live:
+            if pending:
+                emit_image_ad_displayed(*pending)
+            return override_ad, f"Agent-commanded: {override_item}", None, None
 
         # Return None if no ad has been generated yet
         if client_id is None:
@@ -733,7 +770,10 @@ class Ad_Generator(threading.Thread):
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
             ad_id = self.ad_sequence if ready_ns is not None else None
+            pending = self._take_display_event('camera', ad_id) if ad_id is not None else None
         delivery_id = uuid.uuid4().hex if BENCHMARK_MODE and ad_id is not None else None
+        if pending:
+            emit_image_ad_displayed(*pending)
         if BENCHMARK_MODE and ad_id is not None:
             logger.info("WEB_UI_AD_SERVED %s", json.dumps({
                 'ad_id': ad_id,
@@ -859,6 +899,7 @@ class MQTTSubscriber:
         self.object_recency_count = int(os.getenv('OBJECT_RECENCY_FRAME_COUNT', 5))
         self.object_threshold_confidence = float(os.getenv('OBJECT_CONFIDENCE_THRESHOLD', 0.5))
         self.max_message_history = self.object_recency_count * 2  # Number of messages to track
+        self.last_detection_seen = {}  # label -> monotonic time it last passed the detection checks
 
         logger.info(f"MQTT Subscriber initialized for {broker}:{port} on topic {topic}")
     
@@ -950,15 +991,18 @@ class MQTTSubscriber:
                     # and haven't been processed recently
                     stage_start = time.perf_counter_ns()
                     label_to_process = []
+                    label_confidence = {}
                     for label, data in recency_eligible:
                         avg_confidence = sum(data['confidences']) / len(data['confidences'])
                         # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
                         if avg_confidence >= self.object_threshold_confidence:  # Confidence threshold
                             label_to_process.append(label)
+                            label_confidence[label] = avg_confidence
                     stages['confidence_gating_ms'] = (time.perf_counter_ns() - stage_start) / 1_000_000
                     if len(label_to_process) > 0:
                         logger.debug(f"Labels to process after recency check: {label_to_process}")
                         message_queue.put(SelectionCandidates(label_to_process, frame_id, frame_time_ns))
+                        self.emit_detection_events(label_confidence)
                     
                 else:
                     logger.info("No tensor data found in gva_meta")
@@ -981,6 +1025,15 @@ class MQTTSubscriber:
                     **stages,
                 }))
     
+    def emit_detection_events(self, label_confidence):
+        """Emit product_detected when a label appears, or reappears after being absent for the cooldown."""
+        now = time.monotonic()
+        for label, confidence in label_confidence.items():
+            last_seen = self.last_detection_seen.get(label)
+            self.last_detection_seen[label] = now
+            if last_seen is None or now - last_seen >= DETECTION_EVENT_COOLDOWN_SECONDS:
+                events.emit(events.PRODUCT_DETECTED, label=label, confidence=round(confidence, 3))
+
     def connect(self):
         """Connect to MQTT broker"""
         try:
@@ -1144,8 +1197,7 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.agent_override_ad = captured
-                ad_generator_Obj.agent_override_until = time.time() + secs
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
                 logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Agent ad generation produced no image for '{item_name}'")
@@ -1230,6 +1282,9 @@ def trigger_video_ad_core(item=None, description=None):
                 # generation-time string, since trigger_video_ad is always agent-commanded (never camera-driven).
                 ad_generator_Obj.video_override_media = (video_bytes, mimetype, f"Agent-commanded: {status_label}")  # set last: single atomic swap
                 logger.info(f"Video ad ready for '{status_label}' ({VIDEO_AD_DISPLAY_SECONDS}s, {mimetype}, {gen_label})")
+                events.emit(events.AD_DISPLAYED, product=status_label,
+                            variant='predefined' if gen_label.startswith('Pre-defined') else 'generated',
+                            media='video', trigger='agent')
             else:
                 logger.error(f"Video ad generation produced no clip for '{status_label}'")
                 ad_generator_Obj.video_override_item = None
@@ -1268,8 +1323,10 @@ def clear_agent_override():
     trigger may still be rejected as busy until that abandoned request completes on its own."""
     global ad_generator_Obj
     prev_item = ad_generator_Obj.agent_override_item
-    ad_generator_Obj.agent_override_ad = None
-    ad_generator_Obj.agent_override_until = 0.0
+    with ad_generator_Obj._state_lock:
+        ad_generator_Obj.agent_override_ad = None
+        ad_generator_Obj.agent_override_until = 0.0
+        ad_generator_Obj.pending_display_events['agent'] = None
     if ad_generator_Obj.agent_override_generating:
         ad_generator_Obj.agent_override_cancelled = True
     else:
@@ -1376,6 +1433,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             with ad_generator_Obj._generation_lock:
                 ad_generator_Obj.generate_advertisement(resolved, associations, check_predefined=True, dummy_ad=False)
                 captured = ad_generator_Obj.last_generated_ad
+                trace = ad_generator_Obj.last_ad_trace
             total_ms = round((time.time() - start) * 1000)
         finally:
             ad_generator_Obj._clear_agent_wants_lock()
@@ -1384,9 +1442,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
         if not captured:
             return {'error': f"ad generation failed for '{resolved}'"}
-        ad_generator_Obj.agent_override_ad = captured
-        ad_generator_Obj.agent_override_until = time.time() + display_seconds
-        ad_generator_Obj.agent_override_item = resolved
+        ad_generator_Obj.set_agent_override(captured, display_seconds, resolved, trace)
         source = 'predefined' if 'Pre-defined' in (ad_generator_Obj.time_taken_last_generated_ad or '') else 'aig'
         return {
             'resolved_product': resolved, 'matched_rule': matched_rule, 'source': source,
@@ -1409,8 +1465,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.agent_override_ad = captured
-                ad_generator_Obj.agent_override_until = time.time() + secs
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
                 logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")

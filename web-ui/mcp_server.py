@@ -61,7 +61,8 @@ def build_mcp_app():
             "provisioned, else AI-generated with catalog overlays), or description for free text describing "
             "the video's content directly; exactly one of the two is required, not both; "
             "clear_ad() clears any active override and returns to the camera-driven flow. "
-            "Note: a detection/display event history is not available yet."
+            "Events: product_detected {label, confidence} and ad_displayed {product, variant, media, trigger} "
+            "are recorded in the service log and pushed to the QSR agent when QSR_EVENTS_URL is set."
         )
 
     @mcp.tool()
@@ -111,10 +112,10 @@ def build_mcp_app():
             "weather": weather, "demand": demand, "age_mix": age_mix, "daypart": daypart
         }.items() if v}
         if not context:
-            return "No context provided (need at least one of weather, demand, age_mix, daypart)."
+            raise ValueError("No context provided (need at least one of weather, demand, age_mix, daypart).")
         result = main.select_dynamic_ad_core(context, display_seconds=display_seconds, benchmark=benchmark)
         if result.get('error'):
-            return f"Could not resolve context {context}: {result['error']}"
+            raise ValueError(f"Could not resolve context {context}: {result['error']}")
         product = result['resolved_product']
         if benchmark:
             timing = result.get('timing_ms', {})
@@ -128,11 +129,11 @@ def build_mcp_app():
         """Directly display a specific catalog item's ad by name, bypassing context resolution."""
         main = _app()
         if not item.strip():
-            return "item is required."
+            raise ValueError("item is required.")
         result = main.trigger_ad_core(item, display_seconds=display_seconds,
                                        promo_text=promo_text or None, slogan=slogan or None)
         if result.get('error'):
-            return f"{result['error']}"
+            raise ValueError(result['error'])
         return (f"Ad for '{result['item']}' is generating now and will appear on the display within a "
                 f"few seconds, live for {result['display_seconds']}s.")
 
@@ -152,12 +153,12 @@ def build_mcp_app():
         item = item.strip()
         description = description.strip()
         if main._is_blank(item) and main._is_blank(description):
-            return "Provide either item or description."
+            raise ValueError("Provide either item or description.")
         if not main._is_blank(item) and not main._is_blank(description):
-            return "Provide only one of item or description, not both."
+            raise ValueError("Provide only one of item or description, not both.")
         result = main.trigger_video_ad_core(item=item or None, description=description or None)
         if result.get('error'):
-            return f"{result['error']}"
+            raise ValueError(result['error'])
         return (f"Video ad for '{result['item']}' is generating now (this can take a few minutes) and will "
                 f"appear on the display once ready, playing for {result['display_seconds']}s.")
 

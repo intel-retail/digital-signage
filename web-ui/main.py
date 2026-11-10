@@ -298,14 +298,27 @@ class Ad_Generator(threading.Thread):
         # slot -> (product, trace, trigger) of an image ad generated but not yet served to a client.
         # Always read and written under _state_lock, together with the state that makes the ad servable.
         self.pending_display_events = {'camera': None, 'agent': None}
+        self._override_shown = False  # set while an agent image ad is served, to re-deliver the camera ad once it ends
+        self._video_shown = False  # same for a video ad, which the browser would otherwise keep looping
 
-    def set_agent_override(self, ad, seconds, product, trace):
-        """Make ad the live agent override and queue its ad_displayed event (none without a trace)."""
+    def generate_agent_advertisement(self, label, associations):
+        """Generate an agent ad without touching the camera-driven ad that resumes when the override ends.
+
+        Returns (image bytes or None, trace, time-taken label). Hold _generation_lock."""
+        return self.generate_advertisement(label, associations, check_predefined=True, dummy_ad=False, publish=False)
+
+    def set_agent_override(self, ad, seconds, product, trace, epoch):
+        """Make ad the live agent override and queue its ad_displayed event (none without a trace).
+
+        Returns False, installing nothing, if override_epoch moved on since epoch was read."""
         with self._state_lock:
+            if self.override_epoch != epoch:
+                return False
             self.pending_display_events['agent'] = (product, trace, 'agent') if trace else None
             self.agent_override_ad = ad
             self.agent_override_until = time.time() + seconds
             self.agent_override_item = product
+        return True
 
     def _take_display_event(self, slot, ad_id=None):
         """Pop the slot's pending event; with ad_id, only if it belongs to that ad. Hold _state_lock."""
@@ -629,8 +642,12 @@ class Ad_Generator(threading.Thread):
         }
         return aig_payload, description, pre_defined_ad_description
 
-    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False, camera_event=False):
-        """Process individual message from queue"""
+    def generate_advertisement(self, label, associations, check_predefined=False, dummy_ad=False, camera_event=False, publish=True):
+        """Process individual message from queue.
+
+        Returns (image bytes, trace, time-taken label), or (None, None, None) on failure. With publish=False the
+        camera-driven ad state is left untouched, so an agent ad never reaches a client as a camera ad."""
+        result = (None, None, None)
         try:
 
             logger.info(f"Detected object: {label}, {len(associations) if associations else 0} associations found")
@@ -638,7 +655,8 @@ class Ad_Generator(threading.Thread):
             logger.info(f"Generating advertisement for product: {label} ")
             
             # Make API call to AIG server
-            self.last_ad_trace = None
+            if publish:
+                self.last_ad_trace = None
             aig_response = None
             total_start_time = time.time()
             data_available_predefined = False
@@ -713,32 +731,38 @@ class Ad_Generator(threading.Thread):
                 # Image and trace must become visible together, or a client can pair the new JPEG
                 # with the previous ad's id and ready time.
                 with self._state_lock:
-                    self.last_generated_ad = new_ad
                     self.ad_sequence += 1
-                    self.ad_ready_ns = time.time_ns()
-                    self.time_taken_last_generated_ad = time_taken
-                    self.list_of_clients = []  # Reset client list to force refresh
-                    self.last_ad_trace = {
+                    ready_ns = time.time_ns()
+                    trace = {
                         'ad_id': self.ad_sequence,
-                        'ready_ns': self.ad_ready_ns,
+                        'ready_ns': ready_ns,
                         'path': 'predefined' if data_available_predefined else 'dynamic',
                         'ase_query_ms': predefined_http_elapsed * 1000 if check_predefined else None,
                         'aig_generation_ms': None if data_available_predefined else dynamic_http_elapsed * 1000,
                         'ad_generation_total_ms': elapsed_time * 1000,
                         'response_size_kb': len(new_ad) / 1024,
                     }
-                    if camera_event:
-                        self.pending_display_events['camera'] = (label, self.last_ad_trace, 'camera')
+                    if publish:
+                        self.last_generated_ad = new_ad
+                        self.ad_ready_ns = ready_ns
+                        self.time_taken_last_generated_ad = time_taken
+                        self.list_of_clients = []  # Reset client list to force refresh
+                        self.last_ad_trace = trace
+                        if camera_event:
+                            self.pending_display_events['camera'] = (label, trace, 'camera')
+                result = (new_ad, trace, time_taken)
                 logger.info(f"Advertisement generated successfully for product: {label} (took {elapsed_time:.2f} seconds)")
                 logger.info(time_taken)
             else:
-                with self._state_lock:
-                    self.last_generated_ad = None
+                if publish:
+                    with self._state_lock:
+                        self.last_generated_ad = None
                 if not dummy_ad: 
                     logger.error(f"AIG server error: {aig_response.status_code} (took {elapsed_time:.2f} seconds)")
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
+        return result
         
     def get_current_advertisement(self, height=None, width=None, client_id=None):
         """Return the current advertisement being displayed, optionally resized"""
@@ -754,9 +778,16 @@ class Ad_Generator(threading.Thread):
             live = bool(override_ad) and time.time() < self.agent_override_until
             pending = self._take_display_event('agent') if live else None
         if live:
+            self._override_shown = True
             if pending:
                 emit_image_ad_displayed(*pending)
             return override_ad, f"Agent-commanded: {override_item}", None, None
+        if self._override_shown or self._video_shown:
+            # Browsers keep the last image on a 204, so every client must receive the camera ad again.
+            self._override_shown = False
+            self._video_shown = False
+            with self._state_lock:
+                self.list_of_clients = []
 
         # Return None if no ad has been generated yet
         if client_id is None:
@@ -769,7 +800,8 @@ class Ad_Generator(threading.Thread):
             ad_data = self.last_generated_ad
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
-            ad_id = self.ad_sequence if ready_ns is not None else None
+            # The trace id, not ad_sequence: an agent ad generated meanwhile advanced the sequence.
+            ad_id = self.last_ad_trace['ad_id'] if ready_ns is not None and self.last_ad_trace else None
             pending = self._take_display_event('camera', ad_id) if ad_id is not None else None
         delivery_id = uuid.uuid4().hex if BENCHMARK_MODE and ad_id is not None else None
         if pending:
@@ -859,6 +891,7 @@ class Ad_Generator(threading.Thread):
             return None
         if client_id is None:
             return None
+        self._video_shown = True
         if client_id not in self.video_list_of_clients:
             self.video_list_of_clients.append(client_id)
             return self.video_override_media
@@ -1192,16 +1225,15 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
         ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
-            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-            captured = ad_generator_Obj.last_generated_ad
-            if ad_generator_Obj.override_epoch != my_epoch:
-                logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
-            elif captured:
-                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
+            captured, trace, _ = ad_generator_Obj.generate_agent_advertisement(item_name, assocs)
+            if not captured:
+                if ad_generator_Obj.override_epoch == my_epoch:
+                    logger.error(f"Agent ad generation produced no image for '{item_name}'")
+                    ad_generator_Obj.agent_override_item = None
+            elif ad_generator_Obj.set_agent_override(captured, secs, item_name, trace, my_epoch):
                 logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
             else:
-                logger.error(f"Agent ad generation produced no image for '{item_name}'")
-                ad_generator_Obj.agent_override_item = None
+                logger.info(f"Agent ad for '{item_name}' discarded; override was cleared or superseded during generation")
         finally:
             ad_generator_Obj.agent_override_generating = False
             ad_generator_Obj._generation_lock.release()
@@ -1276,6 +1308,17 @@ def trigger_video_ad_core(item=None, description=None):
             if ad_generator_Obj.video_override_epoch != my_epoch:
                 logger.info(f"Video ad for '{status_label}' discarded; override was cleared during generation")
             elif video_bytes:
+                with ad_generator_Obj._state_lock:
+                    # A newer video command supersedes a running image ad, which must not resume after it,
+                    # and an image request still generating, which must not appear after the video.
+                    ad_generator_Obj.override_epoch += 1
+                    ad_generator_Obj.agent_override_ad = None
+                    ad_generator_Obj.agent_override_until = 0.0
+                    ad_generator_Obj.pending_display_events['agent'] = None
+                    if ad_generator_Obj.agent_override_generating:
+                        ad_generator_Obj.agent_override_cancelled = True
+                    else:
+                        ad_generator_Obj.agent_override_item = None
                 ad_generator_Obj.video_override_until = time.time() + VIDEO_AD_DISPLAY_SECONDS
                 ad_generator_Obj.video_list_of_clients = []  # reset so every polling client gets it once
                 # Banner mirrors the image-ad convention ("Agent-commanded: <item>") instead of the raw
@@ -1327,11 +1370,11 @@ def clear_agent_override():
         ad_generator_Obj.agent_override_ad = None
         ad_generator_Obj.agent_override_until = 0.0
         ad_generator_Obj.pending_display_events['agent'] = None
+        ad_generator_Obj.override_epoch += 1  # invalidates any image generation started before this clear
     if ad_generator_Obj.agent_override_generating:
         ad_generator_Obj.agent_override_cancelled = True
     else:
         ad_generator_Obj.agent_override_item = None
-    ad_generator_Obj.override_epoch += 1  # invalidates any image generation started before this clear
 
     prev_video_item = ad_generator_Obj.video_override_item
     ad_generator_Obj.video_override_media = None
@@ -1431,9 +1474,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         try:
             start = time.time()
             with ad_generator_Obj._generation_lock:
-                ad_generator_Obj.generate_advertisement(resolved, associations, check_predefined=True, dummy_ad=False)
-                captured = ad_generator_Obj.last_generated_ad
-                trace = ad_generator_Obj.last_ad_trace
+                captured, trace, time_taken = ad_generator_Obj.generate_agent_advertisement(resolved, associations)
             total_ms = round((time.time() - start) * 1000)
         finally:
             ad_generator_Obj._clear_agent_wants_lock()
@@ -1442,8 +1483,9 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
             return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
         if not captured:
             return {'error': f"ad generation failed for '{resolved}'"}
-        ad_generator_Obj.set_agent_override(captured, display_seconds, resolved, trace)
-        source = 'predefined' if 'Pre-defined' in (ad_generator_Obj.time_taken_last_generated_ad or '') else 'aig'
+        if not ad_generator_Obj.set_agent_override(captured, display_seconds, resolved, trace, my_epoch):
+            return {'error': f"benchmark ad for '{resolved}' discarded; override was cleared during generation"}
+        source = 'predefined' if 'Pre-defined' in (time_taken or '') else 'aig'
         return {
             'resolved_product': resolved, 'matched_rule': matched_rule, 'source': source,
             'timing_ms': {'total': total_ms}, 'status': 'ok'
@@ -1460,16 +1502,15 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
-            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-            captured = ad_generator_Obj.last_generated_ad
-            if ad_generator_Obj.override_epoch != my_epoch:
-                logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
-            elif captured:
-                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
+            captured, trace, _ = ad_generator_Obj.generate_agent_advertisement(item_name, assocs)
+            if not captured:
+                if ad_generator_Obj.override_epoch == my_epoch:
+                    logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")
+                    ad_generator_Obj.agent_override_item = None
+            elif ad_generator_Obj.set_agent_override(captured, secs, item_name, trace, my_epoch):
                 logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
             else:
-                logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")
-                ad_generator_Obj.agent_override_item = None
+                logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared or superseded during generation")
         finally:
             ad_generator_Obj.agent_override_generating = False
             ad_generator_Obj._generation_lock.release()

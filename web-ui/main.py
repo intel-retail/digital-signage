@@ -298,6 +298,22 @@ class Ad_Generator(threading.Thread):
         # slot -> (product, trace, trigger) of an image ad generated but not yet served to a client.
         # Always read and written under _state_lock, together with the state that makes the ad servable.
         self.pending_display_events = {'camera': None, 'agent': None}
+        self._override_shown = False  # set while an agent image ad is served, to re-deliver the camera ad once it ends
+
+    def generate_agent_advertisement(self, label, associations):
+        """Generate an agent ad without replacing the camera-driven ad that resumes when the override ends.
+
+        Returns (image bytes or None, trace, time-taken label) of the generated ad. Hold _generation_lock."""
+        with self._state_lock:
+            camera = (self.last_generated_ad, self.time_taken_last_generated_ad, self.ad_ready_ns, self.last_ad_trace)
+        try:
+            self.generate_advertisement(label, associations, check_predefined=True, dummy_ad=False)
+            with self._state_lock:
+                return self.last_generated_ad, self.last_ad_trace, self.time_taken_last_generated_ad
+        finally:
+            with self._state_lock:
+                (self.last_generated_ad, self.time_taken_last_generated_ad,
+                 self.ad_ready_ns, self.last_ad_trace) = camera
 
     def set_agent_override(self, ad, seconds, product, trace):
         """Make ad the live agent override and queue its ad_displayed event (none without a trace)."""
@@ -754,9 +770,15 @@ class Ad_Generator(threading.Thread):
             live = bool(override_ad) and time.time() < self.agent_override_until
             pending = self._take_display_event('agent') if live else None
         if live:
+            self._override_shown = True
             if pending:
                 emit_image_ad_displayed(*pending)
             return override_ad, f"Agent-commanded: {override_item}", None, None
+        if self._override_shown:
+            # Browsers keep the last image on a 204, so every client must receive the camera ad again.
+            self._override_shown = False
+            with self._state_lock:
+                self.list_of_clients = []
 
         # Return None if no ad has been generated yet
         if client_id is None:
@@ -769,7 +791,8 @@ class Ad_Generator(threading.Thread):
             ad_data = self.last_generated_ad
             time_taken = self.time_taken_last_generated_ad
             ready_ns = self.ad_ready_ns
-            ad_id = self.ad_sequence if ready_ns is not None else None
+            # The trace id, not ad_sequence: an agent ad generated meanwhile advanced the sequence.
+            ad_id = self.last_ad_trace['ad_id'] if ready_ns is not None and self.last_ad_trace else None
             pending = self._take_display_event('camera', ad_id) if ad_id is not None else None
         delivery_id = uuid.uuid4().hex if BENCHMARK_MODE and ad_id is not None else None
         if pending:
@@ -1192,12 +1215,11 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
         ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
-            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-            captured = ad_generator_Obj.last_generated_ad
+            captured, trace, _ = ad_generator_Obj.generate_agent_advertisement(item_name, assocs)
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Agent ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, trace)
                 logger.info(f"Agent ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Agent ad generation produced no image for '{item_name}'")
@@ -1431,9 +1453,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         try:
             start = time.time()
             with ad_generator_Obj._generation_lock:
-                ad_generator_Obj.generate_advertisement(resolved, associations, check_predefined=True, dummy_ad=False)
-                captured = ad_generator_Obj.last_generated_ad
-                trace = ad_generator_Obj.last_ad_trace
+                captured, trace, time_taken = ad_generator_Obj.generate_agent_advertisement(resolved, associations)
             total_ms = round((time.time() - start) * 1000)
         finally:
             ad_generator_Obj._clear_agent_wants_lock()
@@ -1443,7 +1463,7 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         if not captured:
             return {'error': f"ad generation failed for '{resolved}'"}
         ad_generator_Obj.set_agent_override(captured, display_seconds, resolved, trace)
-        source = 'predefined' if 'Pre-defined' in (ad_generator_Obj.time_taken_last_generated_ad or '') else 'aig'
+        source = 'predefined' if 'Pre-defined' in (time_taken or '') else 'aig'
         return {
             'resolved_product': resolved, 'matched_rule': matched_rule, 'source': source,
             'timing_ms': {'total': total_ms}, 'status': 'ok'
@@ -1460,12 +1480,11 @@ def select_dynamic_ad_core(context, display_seconds=60, benchmark=False):
         ad_generator_Obj.agent_override_cancelled = False
         my_epoch = ad_generator_Obj.override_epoch
         try:
-            ad_generator_Obj.generate_advertisement(item_name, assocs, check_predefined=True, dummy_ad=False)
-            captured = ad_generator_Obj.last_generated_ad
+            captured, trace, _ = ad_generator_Obj.generate_agent_advertisement(item_name, assocs)
             if ad_generator_Obj.override_epoch != my_epoch:
                 logger.info(f"Context-resolved ad for '{item_name}' discarded; override was cleared during generation")
             elif captured:
-                ad_generator_Obj.set_agent_override(captured, secs, item_name, ad_generator_Obj.last_ad_trace)
+                ad_generator_Obj.set_agent_override(captured, secs, item_name, trace)
                 logger.info(f"Context-resolved ad ready for '{item_name}' ({secs}s)")
             else:
                 logger.error(f"Context-resolved ad generation produced no image for '{item_name}'")

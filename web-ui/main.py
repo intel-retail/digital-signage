@@ -1301,6 +1301,10 @@ def trigger_video_ad_core(item=None, description=None):
             if ad_generator_Obj.video_override_epoch != my_epoch:
                 logger.info(f"Video ad for '{status_label}' discarded; override was cleared during generation")
             elif video_bytes:
+                with ad_generator_Obj._state_lock:
+                    # A newer video command supersedes a running image ad, which must not resume after it.
+                    ad_generator_Obj.agent_override_until = 0.0
+                    ad_generator_Obj.pending_display_events['agent'] = None
                 ad_generator_Obj.video_override_until = time.time() + VIDEO_AD_DISPLAY_SECONDS
                 ad_generator_Obj.video_list_of_clients = []  # reset so every polling client gets it once
                 # Banner mirrors the image-ad convention ("Agent-commanded: <item>") instead of the raw

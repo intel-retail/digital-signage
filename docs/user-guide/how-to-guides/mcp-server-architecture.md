@@ -43,9 +43,9 @@ natural-language capability summary instead of parsing the schema.
 
 | Tool | Signature | Purpose |
 | --- | --- | --- |
-| `describe()` | → str | Static capability summary for the agent |
-| `get_current_ad()` | → str | What's currently on screen (camera / agent / generating) |
-| `get_catalog()` | → str | Lists products and their cross-sell promos |
+| `describe()` | → dict | Service contract: store, event types, read/act tools, accepted context values, prose `summary` |
+| `get_current_ad()` | → dict | What's on screen: `source` (camera/agent/none), `product`, `media`, `state`, `seconds_remaining`, `summary` |
+| `get_catalog()` | → dict | `products` with price, unit and cross-sell promos, plus a prose `summary` |
 | `select_dynamic_ad()` | `(weather, demand, age_mix, daypart, display_seconds, benchmark)` → str | Resolves a shopping context to a product and displays its ad |
 | `trigger_ad()` | `(item, display_seconds, promo_text, slogan)` → str | Directly displays a named catalog item's ad |
 | `trigger_video_ad()` | `(item, description)` → str | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s); exactly one of `item` (a catalog product; predefined video if provisioned, else AI-generated with catalog overlays) or `description` (free text describing the video directly) is required — not both, since their overlays/content would be unrelated; MCP-triggered only; generation runs in the background (about 25-30 s on GPU with the default `f16` precision, see [Change Inference Device](change-inference-device.md#video-precision-and-preloading)) |

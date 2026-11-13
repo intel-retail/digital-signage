@@ -25,17 +25,21 @@ its own startup using a trust-on-first-use fetch; see the qsr-agent project's
 
 | Tool | Description |
 | --- | --- |
-| `describe` | Describes what the agent can read and do. |
-| `get_current_ad` | Returns a short description of the advertisement currently shown. |
-| `get_catalog` | Lists available products and their cross-sell promos. |
-| `select_dynamic_ad` | Resolves a shopping context (`weather`, `demand`, `age_mix`, `daypart`) to a product and displays its ad. |
-| `trigger_ad` | Directly displays a specific catalog item's ad by name, bypassing context resolution. Like `select_dynamic_ad`, it generates a dynamic (AI-generated) ad when no predefined image exists for the item. |
+| `describe` | Returns the service contract as structured data: `service`, `store_id`, `event_types` (with their `data` fields), `event_delivery`, `read_tools`, `act_tools`, the `context_values` each `select_dynamic_ad` key accepts, and a prose `summary`. |
+| `get_current_ad` | Returns the ad on screen as structured data: `source` (`camera`, `agent` or `none`), `product`, `media` (`image` or `video`), `state` (`showing`, `generating`, `cancelling` or `none`), `seconds_remaining` and a one-sentence `summary`. |
+| `get_catalog` | Returns `products` (name, price, unit, cross-sells) and a prose `summary`. |
+| `select_dynamic_ad` | Resolves a shopping context (`weather`, `demand`, `age_mix`, `daypart`) to a product and displays its ad. Each value given must be one the rules file knows (see `describe().context_values`); an unknown value is refused rather than falling through to the default product. `display_seconds` must be 1-600. |
+| `trigger_ad` | Directly displays a specific catalog item's ad by name, bypassing context resolution. Like `select_dynamic_ad`, it generates a dynamic (AI-generated) ad when no predefined image exists for the item. `display_seconds` must be 1-600. |
 | `trigger_video_ad` | Displays a looping video ad, live on screen for `VIDEO_AD_DISPLAY_SECONDS` (default 5s). Takes exactly one of `item` (a catalog product; uses its predefined video if provisioned, otherwise generates one with the catalog's price/promo/slogan/frame overlays) or `description` (free text describing the video's content directly, no overlays) — not both, since their overlays/content would be unrelated. MCP-triggered only — never produced by the camera-driven flow. When the video is ready it ends any agent-commanded image ad that is still showing. |
 | `clear_ad` | Clears any active agent-commanded override and returns to the camera-driven flow. |
 
 When an agent-commanded image or video ad ends (after its display time, or by `clear_ad`), the display shows the current camera-driven ad again at the next poll, without waiting for a new detection.
 
 > **Video ad generation time:** `trigger_video_ad` returns immediately and the video is generated in the background. On an Intel iGPU with the default `f16` precision this takes about 25-30 s per video; the first request also loads the video model (about 20 s) unless `AIG_PRELOAD_VIDEO_MODEL=true`. Running in `f32` takes about 3 minutes. See [Change Inference Device](change-inference-device.md#video-precision-and-preloading). A new `trigger_video_ad` call may be rejected until the current video finishes.
+
+The read tools (`describe`, `get_current_ad`, `get_catalog`) carry the MCP `readOnlyHint` annotation and
+return structured content, so an agent reads fields such as `source` and `product` instead of parsing
+wording; the `summary` field keeps a one-sentence description for chat replies.
 
 When `select_dynamic_ad`, `trigger_ad` or `trigger_video_ad` refuses a request (missing or invalid arguments, an ad already generating, an unknown item), the call fails as an MCP tool error (`isError` is set) instead of returning a normal text result. Agents can therefore tell a refused action from an executed one.
 
@@ -130,6 +134,9 @@ Read the log with `docker logs web-ui 2>&1 | grep SIGNAGE_EVENT`.
 To push events to an agent, set these in `.env`:
 
 - `QSR_EVENTS_URL`: the agent endpoint, for example `http://<agent-host>:8600/autonomy/events`. Leave it empty to only log events.
+- `QSR_EVENT_TYPES`: comma-separated event types to deliver, or `*` for all. Defaults to empty, which
+  delivers nothing: both events only record what the signage already did, and the agent runs one model
+  call per event it receives, so a deployment opts in (for example `QSR_EVENT_TYPES=ad_displayed`).
 - `QSR_STORE_ID`: the store identifier the agent expects. Defaults to `qsr-001`.
 
 The `web-ui` container sends through the proxy settings from your environment, so add the agent host to `no_proxy`.

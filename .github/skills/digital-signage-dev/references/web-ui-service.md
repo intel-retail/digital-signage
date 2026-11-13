@@ -244,9 +244,9 @@ isolated — Flask, MQTT and AIG keep running. No authentication is configured.
 
 | Tool | Does |
 |---|---|
-| `describe()` | Capability summary |
-| `get_current_ad()` | What is on screen: camera, agent image, video, or generating/cancelling states |
-| `get_catalog()` | Products, prices, cross-sells from the CSV |
+| `describe()` | Structured contract: store, event types, read/act tools, accepted context values, plus a prose `summary` |
+| `get_current_ad()` | Structured: `source` (camera/agent/none), `product`, `media`, `state` (showing/generating/cancelling/none), `seconds_remaining`, `summary` |
+| `get_catalog()` | `products` (name, price, unit, cross-sells) from the CSV, plus a prose `summary` |
 | `select_dynamic_ad(weather, demand, age_mix, daypart, display_seconds=60, benchmark=False)` | Resolve context → product via `context_rules.json`, then generate and show its image ad |
 | `trigger_ad(item, display_seconds=60, promo_text="", slogan="")` | Show a named catalog item's image ad; optionally override promo/slogan text on every variant |
 | `trigger_video_ad(item="", description="")` | Show a looping video ad for `VIDEO_AD_DISPLAY_SECONDS`; **exactly one** of `item` or `description` |

@@ -300,6 +300,7 @@ services:
       - AIG_VIDEO_INFERENCE_DEVICE=${AIG_VIDEO_INFERENCE_DEVICE:-GPU} # Must match aig-server's AIG_VIDEO_MODEL_DEVICE
       - BENCHMARK_MODE=${BENCHMARK_MODE:-false} # Trace logs and browser reporting stay off unless benchmarking
       - QSR_EVENTS_URL=${QSR_EVENTS_URL:-} # QSR agent events endpoint, e.g. http://<agent-host>:8600/autonomy/events; empty = events are logged only
+      - QSR_EVENT_TYPES=${QSR_EVENT_TYPES:-} # Event types to deliver (comma list or *); empty = none, since the agent runs a model call per event
       - QSR_STORE_ID=${QSR_STORE_ID:-qsr-001} # Must equal the QSR agent's QSR_RESTAURANT_ID
       - QSR_EVENT_DETECTION_COOLDOWN_SECONDS=${QSR_EVENT_DETECTION_COOLDOWN_SECONDS:-60} # Absence needed before a label's next detection is a new product_detected event
     depends_on:

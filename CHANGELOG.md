@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - Added benchmarking for ad selection, generation, delivery, and browser rendering. ([#137]) ([#148])
 
 ### Changed
+- MCP read tools (`describe`, `get_current_ad`, `get_catalog`) return structured content with the `readOnlyHint` annotation; `select_dynamic_ad` refuses context values the rules file does not know and both image-ad tools bound `display_seconds`; agent event delivery is opt-in per type through `QSR_EVENT_TYPES`.
 - Replaced the ASE ChromaDB backend with Qdrant. ([#118])
 - Moved PID and AIG model downloads to the model-download microservice and consolidated model preparation into `make download_models`. ([#119])
 - Updated AIG and web UI image tags to `2026.3.0`. ([#104])

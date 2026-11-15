@@ -2,9 +2,9 @@
 Named Digital Signage events.
 
 Every event is written to the application log as one ordered `SIGNAGE_EVENT {json}` line (the
-`seq` field increases by one per event within a process run) and, when QSR_EVENTS_URL is set, also
-pushed to that endpoint in the QSR agent's event envelope. Delivery runs on a background thread, so
-a slow or unreachable agent never delays ad rendering.
+`seq` field increases by one per event within a process run) and, when QSR_EVENTS_URL is set, the
+types listed in QSR_EVENT_TYPES are also pushed to that endpoint in the QSR agent's event envelope.
+Delivery runs on a background thread, so a slow or unreachable agent never delays ad rendering.
 """
 import itertools
 import json
@@ -35,6 +35,23 @@ STORE_ID = os.getenv('QSR_STORE_ID', 'qsr-001').strip()
 SEND_ATTEMPTS = 3
 SEND_TIMEOUT_SECONDS = 5.0
 QUEUE_LIMIT = 1000
+
+
+def _forwarded_types(value):
+    """Event types to deliver: a comma list, `*` for all, empty for none (both events only record what
+    the signage already did, so a deployment opts in rather than paying a model call per detection)."""
+    names = {name.strip() for name in value.split(',') if name.strip()}
+    if '*' in names:
+        return set(EVENT_FIELDS)
+    unknown = names - set(EVENT_FIELDS)
+    if unknown:
+        logger.warning("QSR_EVENT_TYPES ignores unknown event types: %s", ', '.join(sorted(unknown)))
+    return names & set(EVENT_FIELDS)
+
+
+FORWARDED_TYPES = _forwarded_types(os.getenv('QSR_EVENT_TYPES', ''))
+if EVENTS_URL and not FORWARDED_TYPES:
+    logger.warning("QSR_EVENTS_URL is set but QSR_EVENT_TYPES is empty; events are logged, none are delivered")
 
 _sequence = itertools.count(1)
 _sequence_lock = threading.Lock()
@@ -69,7 +86,7 @@ def emit(event_type, **data):
         with _sequence_lock:
             seq = next(_sequence)
             logger.info("SIGNAGE_EVENT %s", json.dumps({'seq': seq, **event}))
-        if EVENTS_URL:
+        if EVENTS_URL and event_type in FORWARDED_TYPES:
             _start_sender()
             try:
                 _outbox.put_nowait(event)

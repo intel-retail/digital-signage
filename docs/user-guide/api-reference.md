@@ -40,7 +40,7 @@ Generates an animated video advertisement from a text description using the opti
 }
 ```
 
-`description` and `device` (`CPU`, `GPU`, or `NPU`) are required. `seed` and the `price_details`, `promo_details`, `logo_details`, `slogan_details`, and `framed_details` overlay objects are optional.
+`description` and `device` (`CPU` or `GPU` for video generation) are required. Although the request schema also accepts `NPU`, LTX-Video does not support it, and this endpoint does not apply the configuration-driven GPU fallback; requesting `NPU` fails during pipeline creation. `seed` and the `price_details`, `promo_details`, `logo_details`, `slogan_details`, and `framed_details` overlay objects are optional.
 
 **Response:** Generated looping animated WEBP (`image/webp` binary stream).
 

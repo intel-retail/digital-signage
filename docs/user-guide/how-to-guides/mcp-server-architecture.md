@@ -103,9 +103,27 @@ hidden behind a video override, superseded, or cleared before it is served produ
 
 ```mermaid
 ---
-config: {"theme": "dark"}
+config:
+  theme: base
+  themeVariables:
+    fontSize: 14px
+    actorBkg: "#E3F2FD"
+    actorBorder: "#1E88E5"
+    actorTextColor: "#0D47A1"
+    signalColor: "#37474F"
+    signalTextColor: "#263238"
+    noteBkgColor: "#FFF8E1"
+    noteBorderColor: "#FFB300"
+    noteTextColor: "#5D4037"
+    activationBkgColor: "#E8F5E9"
+    activationBorderColor: "#43A047"
+  sequence:
+    mirrorActors: false
+    messageAlign: center
+    actorMargin: 60
 ---
 sequenceDiagram
+    autonumber
     participant Client as MCP Client<br/>(Inspector / LLM agent)
     participant Nginx as nginx proxy<br/>(TLS, :5000)
     participant MCP as MCP server thread<br/>(FastMCP, :5100)
@@ -113,91 +131,146 @@ sequenceDiagram
     participant AdGen as Ad_Generator<br/>(generate_advertisement)
     participant AIG as AIG server<br/>(:5003)
 
-    Client->>Nginx: HTTPS POST /mcp (initialize)
-    Nginx->>MCP: proxy_pass http://web-ui:5100/mcp
-    MCP-->>Client: initialize result (capabilities)
+    rect rgb(236, 244, 252)
+        Note over Client,MCP: 1. Session setup and tool discovery
+        Client->>+Nginx: HTTPS POST /mcp (initialize)
+        Nginx->>+MCP: proxy_pass http://web-ui:5100/mcp
+        MCP-->>-Client: initialize result (capabilities)
+        deactivate Nginx
 
-    Client->>Nginx: tools/list
-    Nginx->>MCP: forward
-    MCP-->>Client: [describe, get_current_ad, get_catalog,<br/>select_dynamic_ad, trigger_ad, trigger_video_ad, clear_ad] + schemas
-
-    Client->>Nginx: tools/call "trigger_ad" {item, display_seconds}
-    Nginx->>MCP: forward (proxy_buffering off, streamable-http)
-    MCP->>Main: _app() -> sys.modules['__main__']
-    MCP->>Main: trigger_ad_core(item, display_seconds, ...)
-    Main->>Main: resolve_product_label(item)
-    Main->>Main: acquire _generation_lock (non-blocking)
-    Main-->>MCP: {'status': 'generating', 'item': resolved, ...}
-    MCP-->>Client: "Ad for '<item>' is generating now..." (immediate)
-
-    Note over Main,AIG: background daemon thread (async, after response sent)
-    Main->>AdGen: generate_advertisement(item, associations)
-    AdGen->>AIG: POST /ase/predef/query/ad (check predefined)
-    AIG-->>AdGen: predefined image (if found)
-    alt no predefined match
-        AdGen->>AIG: POST /aig/minf/ (dynamic generation)
-        AIG-->>AdGen: generated image bytes
+        Client->>+Nginx: tools/list
+        Nginx->>+MCP: forward
+        MCP-->>-Client: [describe, get_current_ad, get_catalog,<br/>select_dynamic_ad, trigger_ad, trigger_video_ad, clear_ad] + schemas
+        deactivate Nginx
     end
-    AdGen->>Main: last_generated_ad captured
-    Main->>Main: agent_override_ad = captured<br/>agent_override_until = now + secs
-    Main->>Main: release _generation_lock
 
-    Client->>Nginx: tools/call "get_current_ad"
-    Nginx->>MCP: forward
-    MCP->>Main: get_active_ad_info()
-    Main-->>MCP: {'mode': 'agent', 'item': ..., 'seconds_remaining': ...}
-    MCP-->>Client: "Currently showing an agent-commanded ad for '<item>'..."
+    rect rgb(237, 247, 237)
+        Note over Client,Main: 2. tools/call "trigger_ad" — returns immediately
+        Client->>+Nginx: tools/call "trigger_ad" {item, display_seconds}
+        Nginx->>+MCP: forward (proxy_buffering off, streamable-http)
+        MCP->>+Main: _app() -> sys.modules['__main__']
+        MCP->>Main: trigger_ad_core(item, display_seconds, ...)
+        Main->>Main: resolve_product_label(item)
+        Main->>Main: acquire _generation_lock (non-blocking)
+        Main-->>-MCP: {'status': 'generating', 'item': resolved, ...}
+        MCP-->>-Client: "Ad for '<item>' is generating now..." (immediate)
+        deactivate Nginx
+    end
+
+    rect rgb(255, 248, 225)
+        Note over Main,AIG: 3. Background daemon thread (async, after response sent)
+        activate Main
+        Main->>+AdGen: generate_advertisement(item, associations)
+        AdGen->>+AIG: POST /ase/predef/query/ad (check predefined)
+        AIG-->>-AdGen: predefined image (if found)
+        alt no predefined match
+            AdGen->>+AIG: POST /aig/minf/ (dynamic generation)
+            AIG-->>-AdGen: generated image bytes
+        end
+        AdGen->>-Main: last_generated_ad captured
+        Main->>Main: agent_override_ad = captured<br/>agent_override_until = now + secs
+        Main->>Main: release _generation_lock
+        deactivate Main
+    end
+
+    rect rgb(243, 237, 247)
+        Note over Client,Main: 4. tools/call "get_current_ad" — reads override state
+        Client->>+Nginx: tools/call "get_current_ad"
+        Nginx->>+MCP: forward
+        MCP->>+Main: get_active_ad_info()
+        Main-->>-MCP: {'mode': 'agent', 'item': ..., 'seconds_remaining': ...}
+        MCP-->>-Client: "Currently showing an agent-commanded ad for '<item>'..."
+        deactivate Nginx
+    end
 ```
 
 ## Data flow — state and payloads across components
 
 ```mermaid
 ---
-config: {"theme": "dark"}
+config:
+  theme: base
+  themeVariables:
+    fontSize: 14px
+    primaryColor: "#FFFFFF"
+    primaryBorderColor: "#607D8B"
+    primaryTextColor: "#263238"
+    lineColor: "#546E7A"
+    clusterBkg: "#FAFAFA"
+    clusterBorder: "#B0BEC5"
+  flowchart:
+    curve: linear
+    nodeSpacing: 25
+    rankSpacing: 60
+    padding: 12
 ---
-flowchart LR
+flowchart TB
+    classDef client fill:#E3F2FD,stroke:#1E88E5,stroke-width:2px,color:#0D47A1
+    classDef proxy  fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100
+    classDef tool   fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
+    classDef state  fill:#F3E5F5,stroke:#8E24AA,stroke-width:2px,color:#4A148C
+    classDef lock   fill:#FCE4EC,stroke:#D81B60,stroke-width:2px,stroke-dasharray:5 3,color:#880E4F
+    classDef flask  fill:#E0F7FA,stroke:#00ACC1,stroke-width:2px,color:#006064
+    classDef aig    fill:#FFFDE7,stroke:#F9A825,stroke-width:2px,color:#F57F17
+
     subgraph Client["MCP Client"]
-        C1[LLM agent / Inspector]
+        C1["LLM agent / Inspector"]
     end
 
     subgraph Proxy["nginx (TLS termination)"]
-        N1["/mcp location\nproxy_pass web-ui:5100"]
+        N1["/mcp location<br/>proxy_pass web-ui:5100"]
     end
 
     subgraph WebUI["web-ui container"]
+        direction TB
+
         subgraph MCPThread["MCP server thread (:5100)"]
-            T1[describe]
-            T2[get_current_ad]
-            T3[get_catalog]
-            T4[select_dynamic_ad]
-            T5[trigger_ad]
-            T6[clear_ad]
-            T7[trigger_video_ad]
+            direction LR
+            T1["describe"]
+            T2["get_current_ad"]
+            T3["get_catalog"]
+            T4["select_dynamic_ad"]
+            T5["trigger_ad"]
+            T6["clear_ad"]
+            T7["trigger_video_ad"]
         end
 
         subgraph SharedState["Shared in-memory state (Ad_Generator instance)"]
-            S1[(product_associations\nfrom ProductAssociations.csv)]
-            S2[(context_rules\nfrom context_rules.json)]
-            S3[(agent_override_ad /\n_until / _item / _generating\noverride_epoch)]
-            S4[(last_generated_ad\nlast_selected_item)]
-            S5[(_generation_lock)]
-            S6[(video_override_media /\n_until / _item / _generating\nproduct_video_paths)]
-            S7[(_video_generation_lock)]
+            direction LR
+            subgraph Catalog["Catalog and rules"]
+                direction TB
+                S1[("product_associations<br/>from ProductAssociations.csv")]
+                S2[("context_rules<br/>from context_rules.json")]
+            end
+            subgraph ImageState["Image ad override"]
+                direction TB
+                S3[("agent_override_ad /<br/>_until / _item / _generating<br/>override_epoch")]
+                S4[("last_generated_ad<br/>last_selected_item")]
+                S5[("_generation_lock")]
+            end
+            subgraph VideoState["Video ad override"]
+                direction TB
+                S6[("video_override_media /<br/>_until / _item / _generating<br/>product_video_paths")]
+                S7[("_video_generation_lock")]
+            end
         end
 
-        F1["Flask routes\n/, /portrait,\n/get_current_advertisement"]
-        MQ["MQTT subscriber\n(camera detections)"]
+        F1["Flask routes<br/>/, /portrait,<br/>/get_current_advertisement"]
+        MQ["MQTT subscriber<br/>(camera detections)"]
     end
 
     subgraph AIGServer["aig-server container (:5003)"]
-        A1["/ase/predef/query/ad\n(predefined lookup)"]
-        A2["/aig/minf/\n(dynamic image generation, model_lock)"]
-        A3["/aig/mvid/\n(video generation, LTX-Video)"]
+        direction LR
+        A1["/ase/predef/query/ad<br/>(predefined lookup)"]
+        A2["/aig/minf/<br/>(dynamic image generation, model_lock)"]
+        A3["/aig/mvid/<br/>(video generation, LTX-Video)"]
     end
 
-    C1 <-->|"HTTPS: initialize / tools-list / tools-call"| N1
-    N1 <-->|"HTTP proxy"| T1 & T2 & T3 & T4 & T5 & T6 & T7
+    %% Client -> proxy -> MCP tools
+    C1 <==>|"HTTPS: initialize / tools-list / tools-call"| N1
+    N1 <==>|"HTTP proxy"| MCPThread
 
+    %% Tools -> state
     T2 --> S3
     T2 --> S4
     T2 --> S6
@@ -212,24 +285,35 @@ flowchart LR
     T7 --> S1
     T7 -->|"acquire/release"| S7
 
-    T4 & T5 -->|generate_advertisement| A1
+    %% Image ad generation path
+    T4 & T5 -->|"generate_advertisement"| A1
     A1 -->|"miss"| A2
-    A1 & A2 -->|image bytes| S3
-    S3 -->|captured ad, expiry timestamp| S4
+    A1 & A2 -->|"image bytes"| S3
+    S3 -->|"captured ad, expiry timestamp"| S4
 
+    %% Video ad generation path
     T7 -->|"predefined video miss"| A3
-    A3 -->|animated WEBP| S6
+    A3 -->|"animated WEBP"| S6
 
-    MQ -->|camera-detected item| S1
-    MQ -->|generate_advertisement when no override| A1
-    F1 -->|reads| S3
-    F1 -->|reads| S4
+    %% Camera-driven flow and display readers
+    MQ -->|"camera-detected item"| S1
+    MQ -->|"generate_advertisement when no override"| A1
+    F1 -->|"reads"| S3
+    F1 -->|"reads"| S4
     C1 -.->|"REST (unrelated path)"| F1
+
+    class C1 client
+    class N1 proxy
+    class T1,T2,T3,T4,T5,T6,T7 tool
+    class S1,S2,S3,S4,S6 state
+    class S5,S7 lock
+    class F1,MQ flask
+    class A1,A2,A3 aig
 ```
 
 **Key control-flow points:**
 
-- All 6 tools are dispatched through the single FastMCP thread; each calls back into
+- All 7 tools are dispatched through the single FastMCP thread; each calls back into
   `main.py`'s module-level functions via `_app()` (same process, no HTTP hop internally).
 - `trigger_ad` / `select_dynamic_ad` return immediately (status `generating`) while the
   actual image generation runs in a separate daemon thread — the MCP call never blocks

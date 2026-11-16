@@ -172,6 +172,7 @@ flowchart LR
             T4[select_dynamic_ad]
             T5[trigger_ad]
             T6[clear_ad]
+            T7[trigger_video_ad]
         end
 
         subgraph SharedState["Shared in-memory state (Ad_Generator instance)"]
@@ -180,6 +181,8 @@ flowchart LR
             S3[(agent_override_ad /\n_until / _item / _generating\noverride_epoch)]
             S4[(last_generated_ad\nlast_selected_item)]
             S5[(_generation_lock)]
+            S6[(video_override_media /\n_until / _item / _generating\nproduct_video_paths)]
+            S7[(_video_generation_lock)]
         end
 
         F1["Flask routes\n/, /portrait,\n/get_current_advertisement"]
@@ -189,13 +192,15 @@ flowchart LR
     subgraph AIGServer["aig-server container (:5003)"]
         A1["/ase/predef/query/ad\n(predefined lookup)"]
         A2["/aig/minf/\n(dynamic image generation, model_lock)"]
+        A3["/aig/mvid/\n(video generation, LTX-Video)"]
     end
 
     C1 <-->|"HTTPS: initialize / tools-list / tools-call"| N1
-    N1 <-->|"HTTP proxy"| T1 & T2 & T3 & T4 & T5 & T6
+    N1 <-->|"HTTP proxy"| T1 & T2 & T3 & T4 & T5 & T6 & T7
 
     T2 --> S3
     T2 --> S4
+    T2 --> S6
     T3 --> S1
     T4 --> S2
     T4 --> S1
@@ -203,11 +208,17 @@ flowchart LR
     T5 --> S1
     T5 -->|"acquire/release"| S5
     T6 --> S3
+    T6 --> S6
+    T7 --> S1
+    T7 -->|"acquire/release"| S7
 
     T4 & T5 -->|generate_advertisement| A1
     A1 -->|"miss"| A2
     A1 & A2 -->|image bytes| S3
     S3 -->|captured ad, expiry timestamp| S4
+
+    T7 -->|"predefined video miss"| A3
+    A3 -->|animated WEBP| S6
 
     MQ -->|camera-detected item| S1
     MQ -->|generate_advertisement when no override| A1

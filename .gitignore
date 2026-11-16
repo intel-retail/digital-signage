@@ -184,6 +184,8 @@ configs/pid/models/*
 !configs/pid/models/object_detection/
 configs/pid/models/object_detection/*
 !configs/pid/models/object_detection/.gitkeep
+configs/nginx/certs/*
+!configs/nginx/certs/.gitkeep
 aig/sharedata/imgs/
 aig/.modelenv
 

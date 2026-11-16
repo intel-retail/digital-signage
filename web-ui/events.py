@@ -118,15 +118,19 @@ def _send_loop():
 def _deliver(session, event):
     for attempt in range(SEND_ATTEMPTS):
         status = None
+        body = ''
         try:
-            status = session.post(EVENTS_URL, json=event, timeout=SEND_TIMEOUT_SECONDS).status_code
+            response = session.post(EVENTS_URL, json=event, timeout=SEND_TIMEOUT_SECONDS)
+            status = response.status_code
+            body = response.text[:120].replace('\n', ' ')
         except requests.RequestException as e:
             logger.warning(f"Event delivery failed (attempt {attempt + 1}): {e}")
         if status is not None and 200 <= status < 300:
             return True
         # A client error other than throttling will not succeed on retry.
         if status is not None and 400 <= status < 500 and status != 429:
-            logger.error(f"Event {event['event_id']} rejected with HTTP {status}")
+            # The body tells a proxy block page apart from an agent-side rejection.
+            logger.error(f"Event {event['event_id']} rejected with HTTP {status}: {body}")
             return False
         if attempt + 1 < SEND_ATTEMPTS:
             time.sleep(0.5 * 2 ** attempt)

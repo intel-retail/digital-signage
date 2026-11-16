@@ -182,7 +182,9 @@ working.
 ### Certificate warning, then nothing loads
 
 The certificate is self-signed with `CN=localhost` and Subject Alternative Names for
-`localhost`, `127.0.0.1`, `host.docker.internal` and `HOST_IP`, regenerated on every nginx start.
+`localhost`, `127.0.0.1`, `host.docker.internal` and `HOST_IP`. It is generated once into
+`configs/nginx/certs/` and reused across restarts and `make up`; it changes only if that
+directory is emptied, the cert expires, or `HOST_IP` changes.
 Browse to a name in that list — anything else fails hostname verification as well as trust. You
 must accept the warning **for the iframe origin as well**, which browsers treat separately in
 some configurations. Loading `https://<HOST_IP>:5000/samplestream/` directly once and accepting
@@ -294,7 +296,7 @@ The MCP server runs inside `web-ui` (port 5100, internal) and nginx exposes it a
 
 | Symptom | Cause and fix |
 |---|---|
-| Client can't connect or fails TLS | The certificate is self-signed; the client must skip verification or trust it, and connect to `localhost`, `127.0.0.1`, `host.docker.internal` or `HOST_IP` (the SANs). Port 5100 isn't published — always go through nginx |
+| Client can't connect or fails TLS | The certificate is self-signed; pin it rather than skip verification — read `configs/nginx/certs/cert.pem` on the host or `curl -k -o cert.pem https://<HOST_IP>:5000/cert.pem` once. Connect to `localhost`, `127.0.0.1`, `host.docker.internal` or `HOST_IP` (the SANs). The cert persists across restarts and `make up`, so a pinned copy keeps working until `HOST_IP` changes or it expires. Port 5100 isn't published — always go through nginx |
 | 502 Bad Gateway on `/mcp` | `docker logs web-ui \| grep -i mcp`. `MCP server thread started` is normal; `mcp package not available` or a bind error means MCP is disabled (nginx has nothing on 5100) while the rest of the app keeps working |
 | `select_dynamic_ad` says no context or "could not resolve" | Needs at least one of `weather`, `demand`, `age_mix`, `daypart`, and an exact (case-insensitive) match in `web-ui/context_rules.json`; otherwise `default_product` (`banana`) is used. If that file is missing/invalid the tool is unavailable (log: `Could not load context rules`). The resolved product must exist in the CSV |
 | `Unknown item: ...` | `trigger_ad`/`trigger_video_ad` take a `primary_product` from the CSV (normalized like detections). The error lists `available_items`; `get_catalog` shows them |

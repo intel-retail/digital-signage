@@ -123,17 +123,30 @@ generation.
 ## nginx routing
 
 `configs/nginx/nginx.conf` is a template — `nginx-cert-gen.sh` runs `envsubst` over
-`$MEDIAMTX_SERVER` and `$WHIP_SERVER_PORT` at container start, then generates a self-signed
-RSA-3072/SHA-384 certificate with `CN=localhost`, valid 365 days, regenerated on every start. The
-cert carries a SAN list — `localhost`, `127.0.0.1`, `host.docker.internal`, plus `HOST_IP` (compose
-passes it to the nginx container) — so clients other than literal `localhost` can verify it
-(still self-signed, so they must trust it or use `-k`).
+`$MEDIAMTX_SERVER` and `$WHIP_SERVER_PORT` at container start (every start; `/etc/nginx` is
+tmpfs), then ensures a certificate exists in `/opt/nginx/certs`, a host bind mount of
+`configs/nginx/certs/` (git-ignored). On first start it generates a self-signed RSA-3072/SHA-384
+certificate with `CN=localhost`, valid 365 days, and writes the SAN list to `.generated-san`
+beside it. Later starts reuse it; regeneration happens only when the cert is missing, expired,
+or the SAN list differs from the marker (i.e. `HOST_IP` changed), and the script logs it. If
+`cert.pem`/`key.pem` exist without the marker they are treated as operator-provided and never
+touched. The SAN list — `localhost`, `127.0.0.1`, `host.docker.internal`, plus `HOST_IP` (compose
+passes it to the nginx container) — lets clients other than literal `localhost` verify it. The
+certificate is public at `GET /cert.pem` so clients can pin it rather than use `-k`. The script
+runs under `sh` (not bash) despite living next to bash scripts; keep it POSIX.
+
+Ownership: nginx runs as `2999:2999` with no root, and a fresh host directory isn't writable by
+that uid, so compose runs a one-shot `nginx-cert-init` service (root, `chown -R 2999:2999`)
+that nginx `depends_on` with `service_completed_successfully`. Consequence for operators: the
+host user can read `cert.pem` (644) but needs `sudo` to drop in their own cert or delete the
+generated one.
 
 One server block, `listen 15443 ssl`, TLSv1.3 only, `secp384r1`, HSTS + `X-Content-Type-Options`
 + `X-Frame-Options SAMEORIGIN`, `client_max_body_size 500M` (large because ads travel as base64).
 
 | Location | Upstream | Notes |
 |---|---|---|
+| `= /cert.pem` | (static) `alias /opt/nginx/certs/cert.pem` | Public TLS certificate for client pinning; the key is never served |
 | `/dsps-api/` | `dlstreamer-pipeline-server:8080/` | Trailing slash on `proxy_pass` strips the prefix |
 | `/aig-api/` | `aig-server:5003/` | Same prefix stripping; adds `X-Forwarded-Prefix: /aig-api` (aig-server doesn't read it) |
 | `/swaggerui/` | `aig-server:5003/swaggerui/` | |

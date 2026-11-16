@@ -12,14 +12,49 @@ https://<HOST_IP>:5000/mcp
 
 Port `5100` is not published directly on the host; all access goes through the TLS-terminating nginx proxy.
 
-The nginx certificate is self-signed and regenerated on every `nginx` container
-restart (`configs/nginx/nginx-cert-gen.sh`). Its Subject Alternative Names cover
-`localhost`, `127.0.0.1`, `host.docker.internal`, and `HOST_IP` (if set to a
-real IP/hostname in `.env`) — connect using one of those, or add another SAN
-entry for your case. An agent connecting from a container on the same host
-(e.g. via `host.docker.internal`) can trust this certificate automatically at
-its own startup using a trust-on-first-use fetch; see the qsr-agent project's
-`docs/architecture.md` ("Remote MCP TLS trust") for an example of that pattern.
+### TLS trust
+
+The nginx certificate is self-signed. It is generated once by
+`configs/nginx/nginx-cert-gen.sh` into `configs/nginx/certs/` on the host and
+reused on every start, so it survives `docker compose restart nginx`, a host
+reboot and `make up`. It is regenerated only when it is missing, has expired, or
+its Subject Alternative Names no longer match `HOST_IP`; nginx logs a line when
+that happens, and any client that pinned the old certificate must fetch the new
+one. Its Subject Alternative Names cover `localhost`, `127.0.0.1`,
+`host.docker.internal`, and `HOST_IP` (if set to a real IP/hostname in `.env`) —
+connect using one of those.
+
+Clients get the certificate in one of two ways:
+
+- On the signage host: read `configs/nginx/certs/cert.pem` directly.
+- From anywhere else: `GET https://<HOST_IP>:5000/cert.pem` serves it. The first
+  fetch is trust-on-first-use, so do it once, over a network you trust, and keep
+  the file — do not refetch it on every connection.
+
+```bash
+curl -k -o signage-cert.pem https://<HOST_IP>:5000/cert.pem
+```
+
+Before pinning a fetched copy, confirm it is the certificate the signage host
+is actually serving. Compare the SHA-256 fingerprint on both sides; they must
+match:
+
+```bash
+# On the signage host
+openssl x509 -in configs/nginx/certs/cert.pem -noout -fingerprint -sha256
+# On the client
+openssl x509 -in signage-cert.pem -noout -fingerprint -sha256
+```
+
+Pin that file in the client (examples below) instead of disabling verification.
+The action tools change the live display, so a client that skips verification
+can be redirected to a different server without noticing.
+
+To use a certificate from your own CA instead, place `cert.pem` and `key.pem`
+(PEM, unencrypted key) in `configs/nginx/certs/` and run `make up`. The script
+uses them as-is and never regenerates them. The directory is owned by the
+container user after the first start, so copying into it needs `sudo`; the same
+applies when deleting the generated files to force a new identity.
 
 ## Available Tools
 
@@ -50,14 +85,16 @@ When `select_dynamic_ad`, `trigger_ad` or `trigger_video_ad` refuses a request (
 Requires Node.js (install via [nvm](https://github.com/nvm-sh/nvm) if you don't already have it).
 
 ```bash
-NODE_TLS_REJECT_UNAUTHORIZED=0 npx @modelcontextprotocol/inspector
+NODE_EXTRA_CA_CERTS=./signage-cert.pem npx @modelcontextprotocol/inspector
 ```
 
 In the Inspector UI:
 
 - **Transport:** Streamable HTTP
 - **URL:** `https://<HOST_IP>:5000/mcp`
-- Allow insecure/self-signed certificates (the nginx proxy uses a self-signed certificate)
+
+`NODE_EXTRA_CA_CERTS` makes Node trust the pinned certificate for the
+Inspector's proxy, so verification stays on.
 
 Use "List Tools" to see the tools above, then call them directly to verify responses.
 
@@ -75,11 +112,10 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 
-def get_ssl_context() -> ssl.SSLContext:
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    return ctx
+def get_ssl_context(cert_path: str = "signage-cert.pem") -> ssl.SSLContext:
+    # Trust only the pinned signage certificate; hostname verification stays on,
+    # so host_ip must be one of its SAN entries.
+    return ssl.create_default_context(cafile=cert_path)
 
 
 async def run_mcp_client(host_ip: str, port: int = 5000):
@@ -139,7 +175,11 @@ To push events to an agent, set these in `.env`:
   call per event it receives, so a deployment opts in (for example `QSR_EVENT_TYPES=ad_displayed`).
 - `QSR_STORE_ID`: the store identifier the agent expects. Defaults to `qsr-001`.
 
-The `web-ui` container sends through the proxy settings from your environment, so add the agent host to `no_proxy`.
+The `web-ui` container sends through the proxy settings from your environment. `HOST_IP` is
+already excluded, so an agent on the signage host needs nothing extra; for an agent on another
+machine add its host to `no_proxy`. A corporate proxy that refuses the address shows up in the
+web-ui log as `rejected with HTTP 403` followed by the proxy's HTML block page, while a rejection
+by the agent itself carries its JSON error.
 Delivery runs in the background and retries three times; a client error other than HTTP 429 is not retried. A failed or slow agent never delays ad rendering.
 
 The log is not persisted and there is no replay: the delivery queue is in memory, so events queued while the agent is unreachable are lost when the `web-ui` container restarts.

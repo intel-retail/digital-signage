@@ -137,9 +137,11 @@ services:
       - "${HOST_IP:-127.0.0.1}:${COTURN_UDP_PORT}:3478/udp"
     command:
       - "-v"
-      - "--lt-cred-mech"
-      - "--realm=digital-signage"
+      - "--external-ip=${HOST_IP}"
       - "--user=${MTX_WEBRTCICESERVERS2_0_USERNAME:?Set MTX_WEBRTCICESERVERS2_0_USERNAME}:${MTX_WEBRTCICESERVERS2_0_PASSWORD:?Set MTX_WEBRTCICESERVERS2_0_PASSWORD}"
+      - "--realm=turn.local"
+      - "--no-tls"
+      - "--lt-cred-mech"
     networks:
     - app_network
 

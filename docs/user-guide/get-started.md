@@ -150,11 +150,11 @@ This command validates your environment configuration and checks that the requir
 Open Google Chrome and navigate to:
 
 ```text
-https://localhost:5000
+https://<HOST_IP>:5000
 ```
 
 > [!NOTE]
-> For remote access, set `HOST_IP` in `.env` to the host's reachable IPv4 address, recreate the containers, and replace `localhost` in the URL with that address. Published ports are loopback-only by default; `localhost` is not a valid value for `HOST_IP`.
+> Replace `<HOST_IP>` with the `HOST_IP` value in `.env`, which defaults to `127.0.0.1` for access from the host only. For remote access, set `HOST_IP` to the host's reachable IPv4 address and recreate the containers. `localhost` is not a valid value for `HOST_IP`.
 
 You should see the live video stream and dynamic advertisements.
 
@@ -162,7 +162,7 @@ You should see the live video stream and dynamic advertisements.
 > For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
 >
 > ```bash
-> google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000
+> google-chrome --process-per-site --disable-plugins --disable-gpu 'https://<HOST_IP>:5000'
 > ```
 >
 > Alternatively, in Chrome go to **Settings → System** and disable **Use graphics acceleration when available**, then relaunch Chrome.

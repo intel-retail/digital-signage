@@ -95,7 +95,7 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 - On low-resource systems, launch Chrome with GPU acceleration disabled:
 
   ```bash
-  google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000
+   google-chrome --process-per-site --disable-plugins --disable-gpu 'https://<HOST_IP>:5000'
   ```
 
 - Alternatively, in Chrome go to **Settings → System** and disable:
@@ -120,6 +120,7 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
   ```bash
   docker version
+   cd digital-signage
    docker compose pull model-download
   ```
 

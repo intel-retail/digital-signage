@@ -51,7 +51,9 @@ machine:
 - It becomes the TURN URL handed to the browser: `turn:${HOST_IP}:${COTURN_UDP_PORT}`.
 - It is appended to `no_proxy` for the pipeline server, MediaMTX and nginx.
 - nginx adds it to the self-signed certificate's Subject Alternative Names (alongside `localhost`,
-  `127.0.0.1`, `host.docker.internal`), regenerated on every nginx start.
+  `127.0.0.1`, `host.docker.internal`). The certificate persists in `configs/nginx/certs/`, and a
+  changed `HOST_IP` is one of the three things that make nginx regenerate it (the others: missing,
+  expired) — clients that pinned the old one must refetch it.
 
 For remote access set the host's real IPv4 (`hostname -I | awk '{print $1}'`) and run `make up`
 so the containers are recreated with the new port bindings.

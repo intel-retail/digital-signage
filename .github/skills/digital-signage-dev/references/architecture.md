@@ -38,7 +38,9 @@ independent symptoms.
 
 Eight services start by default, all `read_only: true` with `no-new-privileges`, on the
 `app_network` bridge. A ninth, `model-download`, sits behind the `model-download` compose profile
-and is only started by `scripts/download_models.sh` (see below).
+and is only started by `scripts/download_models.sh` (see below). A one-shot `nginx-cert-init`
+(container `nginx_cert_init`, root, no network) also runs on every `up` to `chown` the TLS cert
+directory for nginx and then exits; `scripts/check-stack.sh` deliberately doesn't list it.
 
 | Service / container | Image | Internal port | Depends on |
 |---|---|---|---|
@@ -49,7 +51,7 @@ and is only started by `scripts/download_models.sh` (see below).
 | `dlstreamer-pipeline-server` | `intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24` | 8080 | `mediamtx` |
 | `aig-server` | built from `aig/Dockerfile` | 5003 | `ase-qdrant` |
 | `web-ui` | built from `web-ui/Dockerfile` | 5000 (Flask), 5100 (MCP) | `mediamtx`, `aig-server` |
-| `nginx` (container `nginx_proxy`) | `nginx:1.31.7` | 15443 → **host 5000** | `web-ui`, `mqtt-broker`, `mediamtx`, `coturn` |
+| `nginx` (container `nginx_proxy`) | `nginx:1.31.8` | 15443 → **host 5000** | `nginx-cert-init` (completed), `web-ui`, `mqtt-broker`, `mediamtx`, `coturn` |
 | `model-download` (profile only) | `intel/model-download:2026.2.0` | 8000 → host `127.0.0.1:${MODEL_DOWNLOAD_PORT}` | — |
 
 Only two host ports exist during normal runs: **5000** (nginx, HTTPS) and **`COTURN_UDP_PORT`**
@@ -161,6 +163,7 @@ whatever `HOST_IP` and your network allow. Tool list and behaviour: `web-ui-serv
 |---|---|---|
 | `qdrant_data`, `qdrant_snapshots` | ase-qdrant `/qdrant/storage`, `/qdrant/snapshots` | **No** — `make down` passes `-v` |
 | `vol_pipeline_root`, `vol_nginx_tmpfs` | tmpfs | No |
+| `./configs/nginx/certs` | nginx `/opt/nginx/certs` (host bind; TLS cert + key, git-ignored) | Yes |
 | `./aig/models` | aig-server `/opt/models` (host bind) | Yes |
 | `./aig/sharedata` | aig-server `/opt/sharedata` (host bind; ad images land in `imgs/`) | Yes |
 | `./aig/src` | aig-server `/home/aigserver/src` (host bind) | Yes |
@@ -221,7 +224,8 @@ configs/
   pid/videos/              sample .avi files
   mosquitto/config/        anonymous listener on 1883
   nginx/nginx.conf         TLS termination + all routing (envsubst template)
-  nginx/nginx-cert-gen.sh  self-signed cert generation on every start
+  nginx/nginx-cert-gen.sh  renders nginx.conf; generates the self-signed cert once, reuses it after
+  nginx/certs/             persisted cert.pem/key.pem (host bind), contents never committed
 
 scripts/                   download_models.sh (model-download microservice), check-stack.sh
 performance-tools/         git submodule for `make benchmark-*` (empty until `make update-submodules`)

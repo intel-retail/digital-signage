@@ -312,6 +312,21 @@ services:
       - ./web-ui/pre-defined-ads:/app/pre-defined-ads:ro
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
+  # One-shot: the TLS cert directory is a host bind mount, and nginx runs as 2999
+  # with no root, so ownership has to be fixed before it can write there.
+  nginx-cert-init:
+    image: nginx:1.31.8 # Keep in step with the nginx service image below
+    container_name: nginx_cert_init
+    user: "0:0"
+    security_opt:
+    - no-new-privileges
+    network_mode: none
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - chown -R 2999:2999 /opt/nginx/certs && chmod 755 /opt/nginx/certs
+    volumes:
+      - ./configs/nginx/certs:/opt/nginx/certs:rw
+
   nginx:
     image: nginx:1.31.8
     container_name: nginx_proxy
@@ -333,17 +348,23 @@ services:
     volumes:
       - ./configs/nginx/nginx.conf:/tmp/default.conf.template:ro
       - ./configs/nginx/nginx-cert-gen.sh:/usr/local/bin/nginx-cert-gen.sh:ro
-      - vol_nginx_tmpfs:/opt/nginx/certs:rw
+      - ./configs/nginx/certs:/opt/nginx/certs:rw # Persistent TLS identity; survives `make down -v`
       - vol_nginx_tmpfs:/var/cache/nginx:rw
       - vol_nginx_tmpfs:/run:rw
       - vol_nginx_tmpfs:/etc/nginx/:rw
     networks:
       - app_network
     depends_on:
-      - web-ui
-      - mqtt-broker
-      - mediamtx
-      - coturn
+      nginx-cert-init:
+        condition: service_completed_successfully
+      web-ui:
+        condition: service_started
+      mqtt-broker:
+        condition: service_started
+      mediamtx:
+        condition: service_started
+      coturn:
+        condition: service_started
 
   model-download:
     profiles: ["model-download"]

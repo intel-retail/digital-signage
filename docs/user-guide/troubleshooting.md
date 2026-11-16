@@ -120,10 +120,10 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
   ```bash
   docker version
-   docker pull intel/model-download:2026.2.0
+   docker compose pull model-download
   ```
 
-- If `MODEL_DOWNLOAD_IMAGE` in `.env` has been changed, pull that image instead.
+- The Compose service uses `MODEL_DOWNLOAD_IMAGE` from `.env`.
 - Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
 - Re-run `make download_models`; the command prints the model-download container logs when an API request or job fails.
 - Verify the model request paths in `scripts/download_models.sh` point to the repository model directories.

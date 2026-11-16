@@ -8,7 +8,7 @@ This guide provides step-by-step instructions for cloning the Digital Signage re
 ## Step 1: Clone the Repository
 
 ```bash
-git clone -b main https://github.com/intel-retail/digital-signage
+git clone -b release-2026.3.0 https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 

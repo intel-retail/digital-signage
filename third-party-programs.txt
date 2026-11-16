@@ -18,26 +18,26 @@ Docker images pulled from Docker Hub:
 =====================================
 
 License-Identifier: MIT
-- bluenviron/mediamtx:1.21.2
+- bluenviron/mediamtx:1.21.4
 ----------------------------------------------------------------------
 
 License-Identifier: EPL-2.0 OR EPL-1.0
-- eclipse-mosquitto:2.0.22
+- eclipse-mosquitto:2.1.2-alpine
 ----------------------------------------------------------------------
 
 License-Identifier: Apache-2.0
 - intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
 - intel/model-download:2026.2.0
-- qdrant/qdrant:v1.19.2-unprivileged
+- qdrant/qdrant:v1.20.1-unprivileged
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-3-Clause
-- coturn/coturn:4.18.0-alpine
+- coturn/coturn:4.19.0-alpine
 
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-2-Clause
-- nginx:1.31.6
+- nginx:1.31.8
 
 ---------------------------------------------------------------------------------------------------------------------------
 

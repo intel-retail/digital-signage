@@ -16,7 +16,7 @@ The Context-Aware, Cross-Selling Digital Signage application is a fully containe
 
 To see system requirements and step-by-step installation instructions, start here:
 
-- [Get Started](docs/user-guide/get-started.md): Quickstart and detailed setup steps for local Docker Compose or Helm deployments.
+- [Get Started](docs/user-guide/get-started.md): Quickstart and detailed setup steps for Docker Compose.
 - [System Requirements](docs/user-guide/get-started/system-requirements.md): Hardware and software prerequisites.
 
 ## Architecture and Functionality Overview

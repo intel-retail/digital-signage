@@ -95,7 +95,7 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 - On low-resource systems, launch Chrome with GPU acceleration disabled:
 
   ```bash
-  google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000
+   google-chrome --process-per-site --disable-plugins --disable-gpu 'https://<HOST_IP>:5000'
   ```
 
 - Alternatively, in Chrome go to **Settings → System** and disable:
@@ -120,9 +120,11 @@ Ad generation (AIG) runs on the GPU. When Chrome also uses GPU acceleration, the
 
   ```bash
   docker version
-   docker pull intel/model-download:latest
+   cd digital-signage
+   docker compose pull model-download
   ```
 
+- The Compose service uses `MODEL_DOWNLOAD_IMAGE` from `.env`.
 - Confirm internet access and proxy settings. See [Configure Docker](./get-started.md#configure-docker).
 - Re-run `make download_models`; the command prints the model-download container logs when an API request or job fails.
 - Verify the model request paths in `scripts/download_models.sh` point to the repository model directories.

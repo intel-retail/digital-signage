@@ -56,7 +56,7 @@ To configure Docker:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone -b main https://github.com/intel-retail/digital-signage
+git clone -b release-2026.3.0 https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
@@ -140,18 +140,21 @@ Edit the `.env` file in the repository root and set the following required varia
 make up
 ```
 
-This command validates your environment configuration, stops any previous stack, downloads and prepares the required models, then starts all services.
+This command validates your environment configuration and checks that the required models from Step 3 are present, then stops any previous stack and starts all services.
+
+> [!WARNING]
+> By default, `make up` runs `make down`, which removes the Compose named volumes as well as the containers. This deletes persisted data such as manually provisioned Qdrant ads and pipeline cache. Back up any data you need before redeploying. To skip this teardown, run `make up UP_SKIP_DOWN=true`.
 
 ## Step 6: Access the Web UI
 
 Open Google Chrome and navigate to:
 
 ```text
-https://localhost:5000
+https://<HOST_IP>:5000
 ```
 
 > [!NOTE]
-> For remote access, set `HOST_IP` in `.env` to the host's reachable IPv4 address, recreate the containers, and replace `localhost` in the URL with that address. Published ports are loopback-only by default; `localhost` is not a valid value for `HOST_IP`.
+> Replace `<HOST_IP>` with the `HOST_IP` value in `.env`, which defaults to `127.0.0.1` for access from the host only. For remote access, set `HOST_IP` to the host's reachable IPv4 address and recreate the containers. `localhost` is not a valid value for `HOST_IP`.
 
 You should see the live video stream and dynamic advertisements.
 
@@ -159,7 +162,7 @@ You should see the live video stream and dynamic advertisements.
 > For local systems with limited compute resources, launch Chrome with GPU acceleration disabled:
 >
 > ```bash
-> google-chrome --process-per-site --disable-plugins --disable-gpu https://localhost:5000
+> google-chrome --process-per-site --disable-plugins --disable-gpu 'https://<HOST_IP>:5000'
 > ```
 >
 > Alternatively, in Chrome go to **Settings → System** and disable **Use graphics acceleration when available**, then relaunch Chrome.
@@ -183,7 +186,7 @@ docker logs -f <container_name>
 
 ## Undeploy
 
-To stop and remove all containers and volumes:
+To stop and remove all containers and named volumes (including persisted data):
 
 ```bash
 make down

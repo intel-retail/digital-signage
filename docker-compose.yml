@@ -285,7 +285,8 @@ services:
     networks:
       - app_network
     environment:
-      - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker
+      - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP} # HOST_IP: QSR_EVENTS_URL must not go through a corporate proxy
+      - NO_PROXY=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - FLASK_ENV=production

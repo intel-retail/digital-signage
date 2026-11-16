@@ -175,7 +175,11 @@ To push events to an agent, set these in `.env`:
   call per event it receives, so a deployment opts in (for example `QSR_EVENT_TYPES=ad_displayed`).
 - `QSR_STORE_ID`: the store identifier the agent expects. Defaults to `qsr-001`.
 
-The `web-ui` container sends through the proxy settings from your environment, so add the agent host to `no_proxy`.
+The `web-ui` container sends through the proxy settings from your environment. `HOST_IP` is
+already excluded, so an agent on the signage host needs nothing extra; for an agent on another
+machine add its host to `no_proxy`. A corporate proxy that refuses the address shows up in the
+web-ui log as `rejected with HTTP 403` followed by the proxy's HTML block page, while a rejection
+by the agent itself carries its JSON error.
 Delivery runs in the background and retries three times; a client error other than HTTP 429 is not retried. A failed or slow agent never delays ad rendering.
 
 The log is not persisted and there is no replay: the delivery queue is in memory, so events queued while the agent is unreachable are lost when the `web-ui` container restarts.

@@ -140,7 +140,10 @@ Edit the `.env` file in the repository root and set the following required varia
 make up
 ```
 
-This command validates your environment configuration, stops any previous stack, downloads and prepares the required models, then starts all services.
+This command validates your environment configuration and checks that the required models from Step 3 are present, then stops any previous stack and starts all services.
+
+> [!WARNING]
+> By default, `make up` runs `make down`, which removes the Compose named volumes as well as the containers. This deletes persisted data such as manually provisioned Qdrant ads and pipeline cache. Back up any data you need before redeploying. To skip this teardown, run `make up UP_SKIP_DOWN=true`.
 
 ## Step 6: Access the Web UI
 
@@ -183,7 +186,7 @@ docker logs -f <container_name>
 
 ## Undeploy
 
-To stop and remove all containers and volumes:
+To stop and remove all containers and named volumes (including persisted data):
 
 ```bash
 make down

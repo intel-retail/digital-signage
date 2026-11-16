@@ -26,6 +26,26 @@ Generates an advertisement image from text input and optional overlay parameters
 
 ---
 
+### `POST /aig/mvid/`
+
+Generates an animated video advertisement from a text description using the optional LTX-Video model. See [Download LTX-Video Model](get-started.md#download-ltx-video-model-optional-for-trigger_video_ad) for setup.
+
+**Request Body (JSON):**
+
+```json
+{
+  "description": "A 35mm photo with bananas, 8k",
+  "device": "GPU",
+  "seed": 12345
+}
+```
+
+`description` and `device` (`CPU`, `GPU`, or `NPU`) are required. `seed` and the `price_details`, `promo_details`, `logo_details`, `slogan_details`, and `framed_details` overlay objects are optional.
+
+**Response:** Generated looping animated WEBP (`image/webp` binary stream).
+
+---
+
 ### `POST /ase/predef/`
 
 Stores a predefined advertisement image and its metadata in Qdrant.

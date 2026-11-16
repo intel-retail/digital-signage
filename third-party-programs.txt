@@ -26,8 +26,8 @@ License-Identifier: EPL-2.0 OR EPL-1.0
 ----------------------------------------------------------------------
 
 License-Identifier: Apache-2.0
-- intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
-- intel/model-download:2026.3.0-rc1
+- intel/dlstreamer-pipeline-server:2026.3.0-ubuntu24
+- intel/model-download:2026.3.0
 - qdrant/qdrant:v1.20.1-unprivileged
 ----------------------------------------------------------------------
 

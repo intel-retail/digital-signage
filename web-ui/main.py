@@ -1252,12 +1252,12 @@ def trigger_ad_core(item, display_seconds=60, promo_text=None, slogan=None):
     }
 
 
-def trigger_video_ad_core(item=None, description=None):
+def trigger_video_ad_core(item=None, description=None, display_seconds=None):
     """Resolve exactly one of a catalog item or a free-text description, then display a video ad, live
-    on screen for VIDEO_AD_DISPLAY_SECONDS, looping continuously. MCP-only (trigger_video_ad tool);
-    never called from the camera-driven flow. Exactly one of item/description is required - not both,
-    since combining them would apply one item's price/promo/slogan/frame overlays over unrelated
-    AI-generated content described by the other.
+    on screen for display_seconds (default VIDEO_AD_DISPLAY_SECONDS), looping continuously. MCP-only
+    (trigger_video_ad tool); never called from the camera-driven flow. Exactly one of item/description is
+    required - not both, since combining them would apply one item's price/promo/slogan/frame overlays
+    over unrelated AI-generated content described by the other.
 
     - item only: predefined video if provisioned for the item, else AI-generated using the catalog's
       dynamic_ad_prompt and price/promo/slogan/frame overlays.
@@ -1278,6 +1278,7 @@ def trigger_video_ad_core(item=None, description=None):
         return {'error': 'Provide either item or description.'}
     if item_given and description_given:
         return {'error': 'Provide only one of item or description, not both.'}
+    display_seconds = normalize_display_seconds(display_seconds, default=VIDEO_AD_DISPLAY_SECONDS)
 
     resolved = None
     associations = None
@@ -1298,7 +1299,7 @@ def trigger_video_ad_core(item=None, description=None):
     if not ad_generator_Obj._video_generation_lock.acquire(blocking=False):
         return {'error': 'Another video ad generation is already in progress; try again in a few seconds.'}
 
-    def _generate_and_set(label, assocs, desc_override, status_label):
+    def _generate_and_set(label, assocs, desc_override, status_label, secs):
         ad_generator_Obj.video_override_generating = True
         ad_generator_Obj.video_override_item = status_label
         ad_generator_Obj.video_override_cancelled = False
@@ -1319,12 +1320,12 @@ def trigger_video_ad_core(item=None, description=None):
                         ad_generator_Obj.agent_override_cancelled = True
                     else:
                         ad_generator_Obj.agent_override_item = None
-                ad_generator_Obj.video_override_until = time.time() + VIDEO_AD_DISPLAY_SECONDS
+                ad_generator_Obj.video_override_until = time.time() + secs
                 ad_generator_Obj.video_list_of_clients = []  # reset so every polling client gets it once
                 # Banner mirrors the image-ad convention ("Agent-commanded: <item>") instead of the raw
                 # generation-time string, since trigger_video_ad is always agent-commanded (never camera-driven).
                 ad_generator_Obj.video_override_media = (video_bytes, mimetype, f"Agent-commanded: {status_label}")  # set last: single atomic swap
-                logger.info(f"Video ad ready for '{status_label}' ({VIDEO_AD_DISPLAY_SECONDS}s, {mimetype}, {gen_label})")
+                logger.info(f"Video ad ready for '{status_label}' ({secs}s, {mimetype}, {gen_label})")
                 events.emit(events.AD_DISPLAYED, product=status_label,
                             variant='predefined' if gen_label.startswith('Pre-defined') else 'generated',
                             media='video', trigger='agent')
@@ -1336,16 +1337,16 @@ def trigger_video_ad_core(item=None, description=None):
             ad_generator_Obj._video_generation_lock.release()
 
     try:
-        threading.Thread(target=_generate_and_set, args=(resolved, associations, description, display_label), daemon=True).start()
+        threading.Thread(target=_generate_and_set, args=(resolved, associations, description, display_label, display_seconds), daemon=True).start()
     except RuntimeError:
         ad_generator_Obj._video_generation_lock.release()
         return {'error': 'Failed to start video ad generation; try again in a few seconds.'}
-    logger.info(f"Video ad generation started for '{display_label}', returning immediately")
+    logger.info(f"Video ad generation started for '{display_label}' ({display_seconds}s), returning immediately")
     return {
         'status': 'generating',
         'item': display_label,
-        'display_seconds': VIDEO_AD_DISPLAY_SECONDS,
-        'message': f"Video ad for '{display_label}' is being generated and will appear on the display once ready, looping for {VIDEO_AD_DISPLAY_SECONDS}s. This can take a few minutes."
+        'display_seconds': display_seconds,
+        'message': f"Video ad for '{display_label}' is being generated and will appear on the display once ready, looping for {display_seconds}s. This can take a few minutes."
     }
 
 

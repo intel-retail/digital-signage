@@ -136,8 +136,8 @@ def build_mcp_app():
                 "resolves a shopping context to a product and displays its ad (a predefined image if one "
                 "exists, otherwise an AI-generated image); trigger_ad(item, display_seconds, promo_text, "
                 "slogan) directly displays a specific catalog item's ad by name, bypassing context resolution; "
-                "trigger_video_ad(item, description) displays a looping video ad, live on screen for "
-                f"{main.VIDEO_AD_DISPLAY_SECONDS} seconds - item for a catalog product (predefined video if "
+                "trigger_video_ad(item, description, display_seconds) displays a looping video ad, live on screen for "
+                f"display_seconds (default {main.VIDEO_AD_DISPLAY_SECONDS}) - item for a catalog product (predefined video if "
                 "provisioned, else AI-generated with catalog overlays), or description for free text describing "
                 "the video's content directly; exactly one of the two is required, not both; "
                 "clear_ad() clears any active override and returns to the camera-driven flow. "
@@ -209,8 +209,9 @@ def build_mcp_app():
                 f"few seconds, live for {result['display_seconds']}s.")
 
     @mcp.tool()
-    def trigger_video_ad(item: str = "", description: str = "") -> str:
-        """Display a looping video ad, live on screen for VIDEO_AD_DISPLAY_SECONDS. Provide exactly one
+    def trigger_video_ad(item: str = "", description: str = "", display_seconds: int = 0) -> str:
+        """Display a looping video ad, live on screen for `display_seconds` (default: the server's
+        VIDEO_AD_DISPLAY_SECONDS; the clip loops for the whole time). Provide exactly one
         of `item` or `description` (not both, since their overlays/content would be unrelated):
         - item only: a catalog product by name; uses its predefined video if provisioned, otherwise
           generates one with the catalog's price/promo/slogan/frame overlays.
@@ -227,7 +228,10 @@ def build_mcp_app():
             raise ValueError("Provide either item or description.")
         if not main._is_blank(item) and not main._is_blank(description):
             raise ValueError("Provide only one of item or description, not both.")
-        result = main.trigger_video_ad_core(item=item or None, description=description or None)
+        if display_seconds:
+            _validate_display_seconds(display_seconds)
+        result = main.trigger_video_ad_core(item=item or None, description=description or None,
+                                             display_seconds=display_seconds or None)
         if result.get('error'):
             raise ValueError(result['error'])
         return (f"Video ad for '{result['item']}' is generating now (this can take a few minutes) and will "

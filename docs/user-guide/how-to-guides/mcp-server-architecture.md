@@ -126,12 +126,10 @@ sequenceDiagram
     participant Client as MCP Client<br/>(Inspector / LLM agent)
     participant Nginx as nginx proxy<br/>(TLS, :5000)
     participant MCP as MCP server thread<br/>(FastMCP, :5100)
-
     Client->>+Nginx: HTTPS POST /mcp (initialize)
     Nginx->>+MCP: proxy_pass http://web-ui:5100/mcp
     MCP-->>-Client: initialize result (capabilities)
     deactivate Nginx
-
     Client->>+Nginx: tools/list
     Nginx->>+MCP: forward
     MCP-->>-Client: [describe, get_current_ad, get_catalog,<br/>select_dynamic_ad, trigger_ad, trigger_video_ad, clear_ad] + schemas
@@ -162,7 +160,6 @@ sequenceDiagram
     participant Nginx as nginx proxy<br/>(TLS, :5000)
     participant MCP as MCP server thread<br/>(FastMCP, :5100)
     participant Main as main.py<br/>(__main__ / Flask app)
-
     Client->>+Nginx: tools/call "trigger_ad" {item, display_seconds}
     Nginx->>+MCP: forward (proxy_buffering off, streamable-http)
     MCP->>+Main: _app() -> sys.modules['__main__']
@@ -197,7 +194,6 @@ sequenceDiagram
     participant Main as main.py<br/>(__main__ / Flask app)
     participant AdGen as Ad_Generator<br/>(generate_advertisement)
     participant AIG as AIG server<br/>(:5003)
-
     activate Main
     Main->>+AdGen: generate_advertisement(item, associations)
     AdGen->>+AIG: POST /ase/predef/query/ad (check predefined)
@@ -236,7 +232,6 @@ sequenceDiagram
     participant Nginx as nginx proxy<br/>(TLS, :5000)
     participant MCP as MCP server thread<br/>(FastMCP, :5100)
     participant Main as main.py<br/>(__main__ / Flask app)
-
     Client->>+Nginx: tools/call "get_current_ad"
     Nginx->>+MCP: forward
     MCP->>+Main: get_active_ad_info()
@@ -274,15 +269,12 @@ flowchart TB
     classDef proxy  fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100
     classDef tool   fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
     classDef flask  fill:#E0F7FA,stroke:#00ACC1,stroke-width:2px,color:#006064
-
     subgraph Client["MCP Client"]
         C1["LLM agent / Inspector"]
     end
-
     subgraph Proxy["nginx (TLS termination)"]
         N1["/mcp location<br/>proxy_pass web-ui:5100"]
     end
-
     subgraph WebUI["web-ui container"]
         subgraph MCPThread["MCP server thread (:5100)"]
             direction LR
@@ -296,11 +288,9 @@ flowchart TB
         end
         F1["Flask routes<br/>/, /portrait,<br/>/get_current_advertisement"]
     end
-
     C1 <==>|"HTTPS: initialize / tools-list / tools-call"| N1
     N1 <==>|"HTTP proxy"| MCPThread
     C1 -.->|"REST (unrelated path)"| F1
-
     class C1 client
     class N1 proxy
     class T1,T2,T3,T4,T5,T6,T7 tool
@@ -332,7 +322,6 @@ flowchart LR
     classDef state  fill:#F3E5F5,stroke:#8E24AA,stroke-width:2px,color:#4A148C
     classDef lock   fill:#FCE4EC,stroke:#D81B60,stroke-width:2px,stroke-dasharray:5 3,color:#880E4F
     classDef flask  fill:#E0F7FA,stroke:#00ACC1,stroke-width:2px,color:#006064
-
     subgraph WebUI["web-ui container"]
         direction LR
         subgraph MCPThread["MCP server thread (:5100)"]
@@ -343,7 +332,6 @@ flowchart LR
             T5["trigger_ad"]
             T6["clear_ad"]
         end
-
         F1["Flask routes<br/>/, /portrait,<br/>/get_current_advertisement"]
         MQ["MQTT subscriber<br/>(camera detections)"]
 
@@ -356,7 +344,6 @@ flowchart LR
             S5[("_generation_lock")]
         end
     end
-
     T2 --> S3
     T2 --> S4
     T3 --> S1
@@ -366,11 +353,9 @@ flowchart LR
     T5 --> S1
     T5 -->|"acquire/release"| S5
     T6 --> S3
-
     MQ -->|"camera-detected item"| S1
     F1 -->|"reads"| S3
     F1 -->|"reads"| S4
-
     class T2,T3,T4,T5,T6 tool
     class S1,S2,S3,S4 state
     class S5 lock
@@ -402,32 +387,27 @@ flowchart TB
     classDef state  fill:#F3E5F5,stroke:#8E24AA,stroke-width:2px,color:#4A148C
     classDef flask  fill:#E0F7FA,stroke:#00ACC1,stroke-width:2px,color:#006064
     classDef aig    fill:#FFFDE7,stroke:#F9A825,stroke-width:2px,color:#F57F17
-
     subgraph Callers["web-ui container — callers of generate_advertisement"]
         direction LR
         T4["select_dynamic_ad"]
         T5["trigger_ad"]
         MQ["MQTT subscriber<br/>(camera detections)"]
     end
-
     subgraph AIGServer["aig-server container (:5003)"]
         direction LR
         A1["/ase/predef/query/ad<br/>(predefined lookup)"]
         A2["/aig/minf/<br/>(dynamic image generation, model_lock)"]
     end
-
     subgraph SharedState["Shared in-memory state (Ad_Generator instance)"]
         direction LR
         S3[("agent_override_ad /<br/>_until / _item / _generating<br/>override_epoch")]
         S4[("last_generated_ad<br/>last_selected_item")]
     end
-
     T4 & T5 -->|"generate_advertisement"| A1
     MQ -->|"generate_advertisement when no override"| A1
     A1 -->|"miss"| A2
     A1 & A2 -->|"image bytes"| S3
     S3 -->|"captured ad, expiry timestamp"| S4
-
     class T4,T5 tool
     class S3,S4 state
     class MQ flask
@@ -459,7 +439,6 @@ flowchart TB
     classDef state  fill:#F3E5F5,stroke:#8E24AA,stroke-width:2px,color:#4A148C
     classDef lock   fill:#FCE4EC,stroke:#D81B60,stroke-width:2px,stroke-dasharray:5 3,color:#880E4F
     classDef aig    fill:#FFFDE7,stroke:#F9A825,stroke-width:2px,color:#F57F17
-
     subgraph WebUI["web-ui container"]
         subgraph MCPThread["MCP server thread (:5100)"]
             direction LR
@@ -467,25 +446,21 @@ flowchart TB
             T6["clear_ad"]
             T7["trigger_video_ad"]
         end
-
         subgraph SharedState["Shared in-memory state (Ad_Generator instance)"]
             S1[("product_associations<br/>from ProductAssociations.csv")]
             S6[("video_override_media /<br/>_until / _item / _generating<br/>product_video_paths")]
             S7[("_video_generation_lock")]
         end
     end
-
     subgraph AIGServer["aig-server container (:5003)"]
         A3["/aig/mvid/<br/>(video generation, LTX-Video)"]
     end
-
     T2 --> S6
     T6 --> S6
     T7 --> S1
     T7 -->|"acquire/release"| S7
     T7 -->|"predefined video miss"| A3
     A3 -->|"animated WEBP"| S6
-
     class T2,T6,T7 tool
     class S1,S6 state
     class S7 lock

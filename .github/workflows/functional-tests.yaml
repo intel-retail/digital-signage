@@ -1,0 +1,481 @@
+#
+# Apache v2 license
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+name: "[Digital Signage] Functional Tests"
+run-name: "[Digital Signage] Functional Tests (by @${{ github.actor }} via ${{ github.event_name }})"
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Branch or tag to checkout"
+        required: false
+        type: string
+        default: main
+      build:
+        description: "Build Docker images before testing (yes/no)"
+        required: false
+        type: string
+        default: "yes"
+      weekly_build_date:
+        description: "Weekly image build date (YYYYMMDD); only used when build=no"
+        required: false
+        type: string
+        default: ""
+      tests:
+        description: >
+          Use all-tests or a comma-separated list of test filenames or pytest node IDs.
+          Files: test_configuration, test_api, test_deployment, test_advertisements,
+          test_security, test_stability, test_GPU_docker, test_NPU_docker.
+        required: false
+        type: string
+        default: all-tests
+      include_gpu_tests:
+        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        required: false
+        type: string
+        default: "no"
+      runner_label:
+        description: "GitHub-hosted or self-hosted runner label"
+        required: false
+        type: string
+        default: ubuntu-24.04
+  workflow_call:
+    inputs:
+      tag:
+        description: "Branch or tag to checkout (empty uses the caller ref)"
+        required: false
+        type: string
+        default: ""
+      build:
+        description: "Build Docker images before testing (yes/no)"
+        required: false
+        type: string
+        default: "yes"
+      weekly_build_date:
+        description: "Weekly image build date (YYYYMMDD); only used when build=no"
+        required: false
+        type: string
+        default: ""
+      tests:
+        description: "all-tests or comma-separated test filenames or pytest node IDs"
+        required: false
+        type: string
+        default: all-tests
+      include_gpu_tests:
+        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        required: false
+        type: string
+        default: "no"
+      runner_label:
+        description: "GitHub-hosted or self-hosted runner label"
+        required: false
+        type: string
+        default: ubuntu-24.04
+
+permissions:
+  contents: read
+
+jobs:
+  functional-tests:
+    name: Digital Signage ${{ inputs.tests || 'all-tests' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: read
+    env:
+      TESTS: ${{ inputs.tests || 'all-tests' }}
+      INCLUDE_GPU_TESTS: ${{ inputs.include_gpu_tests || 'no' }}
+      BUILD: ${{ inputs.build || 'yes' }}
+      WEEKLY_BUILD_DATE_INPUT: ${{ inputs.weekly_build_date || '' }}
+
+    steps:
+      - name: Print workflow inputs
+        env:
+          TAG: ${{ inputs.tag || github.ref }}
+        run: |
+          set -euo pipefail
+          echo "tag/ref          : $TAG"
+          echo "build            : $BUILD"
+          echo "weekly_build_date: $WEEKLY_BUILD_DATE_INPUT"
+          echo "tests            : $TESTS"
+          echo "include_gpu_tests: $INCLUDE_GPU_TESTS"
+          BUILD_NORMALIZED="$(echo "$BUILD" | xargs)"
+          echo "BUILD_NORMALIZED=$BUILD_NORMALIZED" >> "$GITHUB_ENV"
+
+      - name: Validate weekly_build_date input
+        run: |
+          if [[ -n "$WEEKLY_BUILD_DATE_INPUT" && "$BUILD_NORMALIZED" != "no" ]]; then
+            echo "weekly_build_date is only supported when build=no." >&2
+            exit 1
+          fi
+          if [[ -n "$WEEKLY_BUILD_DATE_INPUT" && ! "$WEEKLY_BUILD_DATE_INPUT" =~ ^[0-9]{8}$ ]]; then
+            echo "weekly_build_date must use YYYYMMDD format." >&2
+            exit 1
+          fi
+
+      - name: Checkout Digital Signage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+
+      - name: Set weekly image date
+        if: ${{ env.BUILD_NORMALIZED == 'no' && env.WEEKLY_BUILD_DATE_INPUT != '' }}
+        run: |
+          sed -i "s/^WEEKLY_BUILD_DATE=.*/WEEKLY_BUILD_DATE=${WEEKLY_BUILD_DATE_INPUT}/" .env
+          echo "Set WEEKLY_BUILD_DATE=${WEEKLY_BUILD_DATE_INPUT} for AIG and Web UI images"
+
+      - name: Resolve selected test files
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILES=(
+            test_configuration
+            test_api
+            test_deployment
+            test_advertisements
+            test_security
+            test_stability
+            test_GPU_docker
+            test_NPU_docker
+          )
+          SELECTED=()
+          IFS=',' read -ra REQUESTED <<< "$TESTS"
+          ALL_TESTS=false
+          if [[ "${#REQUESTED[@]}" -eq 1 && ( "${REQUESTED[0]}" == "all-tests" || "${REQUESTED[0]}" == "all" ) ]]; then
+            ALL_TESTS=true
+            for file in "${FILES[@]}"; do
+              if [[ "$INCLUDE_GPU_TESTS" != "yes" && ( "$file" == "test_GPU_docker" || "$file" == "test_NPU_docker" ) ]]; then
+                continue
+              fi
+              SELECTED+=("${file}.py")
+            done
+          else
+            for item in "${REQUESTED[@]}"; do
+              item="$(echo "$item" | xargs)"
+              [[ -n "$item" ]] || continue
+              file="${item%%::*}"
+              file="${file%.py}"
+              valid=false
+              for allowed in "${FILES[@]}"; do
+                [[ "$file" == "$allowed" ]] && valid=true && break
+              done
+              if [[ "$valid" != "true" ]]; then
+                echo "Unknown test file in tests input: $file" >&2
+                exit 2
+              fi
+              node_suffix=""
+              if [[ "$item" == *"::"* ]]; then
+                node_suffix="::${item#*::}"
+              fi
+              SELECTED+=("${file}.py${node_suffix}")
+            done
+          fi
+          if [[ "${#SELECTED[@]}" -eq 0 ]]; then
+            echo "No tests selected" >&2
+            exit 2
+          fi
+
+          RUN_LIVE=false
+          RUN_SECURITY=false
+          for target in "${SELECTED[@]}"; do
+            file="${target%%::*}"
+            file="${file%.py}"
+            [[ "$file" != "test_configuration" ]] && RUN_LIVE=true
+            [[ "$file" == "test_security" ]] && RUN_SECURITY=true
+          done
+          {
+            echo "RUN_LIVE=$RUN_LIVE"
+            echo "RUN_SECURITY=$RUN_SECURITY"
+            for file in "${FILES[@]}"; do
+              case "$file" in
+                test_GPU_docker) key="GPU" ;;
+                test_NPU_docker) key="NPU" ;;
+                *) key="${file#test_}"; key="${key^^}" ;;
+              esac
+              targets=()
+              for target in "${SELECTED[@]}"; do
+                target_file="${target%%::*}"
+                target_file="${target_file%.py}"
+                [[ "$target_file" == "$file" ]] && targets+=("$target")
+              done
+              if [[ "${#targets[@]}" -gt 0 ]]; then
+                echo "RUN_${key}=true"
+                delimiter="END_${key}_$RANDOM"
+                echo "TEST_${key}_TARGETS<<$delimiter"
+                printf '%s\n' "${targets[@]}"
+                echo "$delimiter"
+              else
+                echo "RUN_${key}=false"
+              fi
+            done
+          } >> "$GITHUB_ENV"
+          echo "Selected pytest targets: ${SELECTED[*]}"
+
+      - name: Configure disposable WebRTC credentials
+        if: ${{ env.RUN_LIVE == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          username="$(python3 -c 'import secrets,string; print("".join(secrets.choice(string.ascii_letters) for _ in range(10)))')"
+          password="$(python3 -c 'import secrets,string; print(secrets.choice(string.ascii_letters) + secrets.choice(string.digits) + "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(14)))')"
+          sed -i "s/^HOST_IP=.*/HOST_IP=127.0.0.1/" .env
+          sed -i "s/^MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${username}/" .env
+          sed -i "s/^MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${password}/" .env
+
+      - name: Build Docker images
+        if: ${{ env.RUN_LIVE == 'true' && env.BUILD_NORMALIZED == 'yes' }}
+        run: make build
+
+      - name: Install Nmap
+        if: ${{ env.RUN_SECURITY == 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap
+
+      - name: Install functional-test dependencies
+        working-directory: tests/functional
+        run: |
+          python3 -m venv env
+          source env/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r ../requirements.txt
+
+      - name: Run Configuration functional tests
+        if: ${{ !cancelled() && env.RUN_CONFIGURATION == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_CONFIGURATION_TARGETS"
+          echo "========== Collecting Configuration tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_configuration.html --junitxml=junit-test_configuration.xml --log-file=tests-test_configuration.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "CONFIGURATION_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run API functional tests
+        if: ${{ !cancelled() && env.RUN_API == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_API_TARGETS"
+          echo "========== Collecting API tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_api.html --junitxml=junit-test_api.xml --log-file=tests-test_api.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "API_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run Deployment functional tests
+        if: ${{ !cancelled() && env.RUN_DEPLOYMENT == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_DEPLOYMENT_TARGETS"
+          echo "========== Collecting Deployment tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_deployment.html --junitxml=junit-test_deployment.xml --log-file=tests-test_deployment.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "DEPLOYMENT_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run Advertisement functional tests
+        if: ${{ !cancelled() && env.RUN_ADVERTISEMENTS == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_ADVERTISEMENTS_TARGETS"
+          echo "========== Collecting Advertisement tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_advertisements.html --junitxml=junit-test_advertisements.xml --log-file=tests-test_advertisements.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "ADVERTISEMENTS_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run Security functional tests
+        if: ${{ !cancelled() && env.RUN_SECURITY == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_SECURITY_TARGETS"
+          echo "========== Collecting Security tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_security.html --junitxml=junit-test_security.xml --log-file=tests-test_security.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "SECURITY_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run Stability functional tests
+        if: ${{ !cancelled() && env.RUN_STABILITY == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_STABILITY_TARGETS"
+          echo "========== Collecting Stability tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_stability.html --junitxml=junit-test_stability.xml --log-file=tests-test_stability.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "STABILITY_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run GPU functional tests
+        if: ${{ !cancelled() && env.RUN_GPU == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_GPU_TARGETS"
+          echo "========== Collecting GPU tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_GPU_docker.html --junitxml=junit-test_GPU_docker.xml --log-file=tests-test_GPU_docker.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "GPU_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Run NPU functional tests
+        if: ${{ !cancelled() && env.RUN_NPU == 'true' }}
+        working-directory: tests/functional
+        run: |
+          set -euo pipefail
+          targets=()
+          while IFS= read -r target; do [[ -n "$target" ]] && targets+=("$target"); done <<< "$TEST_NPU_TARGETS"
+          echo "========== Collecting NPU tests =========="
+          ./env/bin/pytest --collect-only -q "${targets[@]}" 2>&1 || true
+          set +e
+          ./env/bin/pytest -vv -s --tb=short --self-contained-html --html=report-test_NPU_docker.html --junitxml=junit-test_NPU_docker.xml --log-file=tests-test_NPU_docker.log "${targets[@]}"
+          pytest_rc=$?
+          set -e
+          echo "NPU_EXIT_CODE=$pytest_rc" >> "$GITHUB_ENV"
+          exit "$pytest_rc"
+
+      - name: Generate functional-test summary
+        if: ${{ !cancelled() }}
+        working-directory: tests/functional
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          import xml.etree.ElementTree as ET
+          from collections import defaultdict
+
+          suites = [
+              ("Configuration", "CONFIGURATION", "junit-test_configuration.xml"),
+              ("API", "API", "junit-test_api.xml"),
+              ("Deployment", "DEPLOYMENT", "junit-test_deployment.xml"),
+              ("Advertisements", "ADVERTISEMENTS", "junit-test_advertisements.xml"),
+              ("Security", "SECURITY", "junit-test_security.xml"),
+              ("Stability", "STABILITY", "junit-test_stability.xml"),
+              ("GPU", "GPU", "junit-test_GPU_docker.xml"),
+              ("NPU", "NPU", "junit-test_NPU_docker.xml"),
+          ]
+
+          def format_time(seconds):
+              seconds = float(seconds)
+              minutes = int(seconds) // 60
+              return f"{minutes}m{seconds - minutes * 60:.0f}s" if minutes else f"{seconds:.1f}s"
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Digital Signage Functional Test Summary\n\n")
+              summary.write("| Test file | Status | Run | Pass | Fail | Skip | Errors | Time |\n")
+              summary.write("|---|---:|---:|---:|---:|---:|---:|---:|\n")
+              failures = []
+              for label, key, report in suites:
+                  exit_code = os.environ.get(f"{key}_EXIT_CODE")
+                  if exit_code is None:
+                      continue
+                  if not os.path.exists(report):
+                      summary.write(f"| {label} | No JUnit report (exit {exit_code}) | 0 | 0 | 0 | 0 | 0 | - |\n")
+                      continue
+
+                  root = ET.parse(report).getroot()
+                  counts = defaultdict(int)
+                  elapsed = 0.0
+                  for testcase in root.findall(".//testcase"):
+                      counts["run"] += 1
+                      elapsed += float(testcase.get("time", 0))
+                      failure = testcase.find("failure")
+                      error = testcase.find("error")
+                      if failure is not None:
+                          counts["fail"] += 1
+                          failures.append(("FAIL", label, testcase.get("name", "unknown"), failure.get("message", "")))
+                      elif error is not None:
+                          counts["errors"] += 1
+                          failures.append(("ERROR", label, testcase.get("name", "unknown"), error.get("message", "")))
+                      elif testcase.find("skipped") is not None:
+                          counts["skip"] += 1
+                      else:
+                          counts["pass"] += 1
+
+                  status = "PASSED" if exit_code == "0" else f"FAILED (exit {exit_code})"
+                  summary.write(
+                      f"| {label} | {status} | {counts['run']} | {counts['pass']} | "
+                      f"{counts['fail']} | {counts['skip']} | {counts['errors']} | {format_time(elapsed)} |\n"
+                  )
+
+              if failures:
+                  summary.write("\n### Failures and Errors\n\n")
+                  for kind, suite, test_name, message in failures:
+                      message = message.replace("|", "\\|").replace("\n", " ")[:300]
+                      summary.write(f"- **{kind}** `{suite}::{test_name}`: {message}\n")
+
+      - name: Print failure diagnostics
+        if: failure()
+        working-directory: tests/functional
+        shell: bash
+        run: |
+          echo "=== Recent pytest logs ==="
+          for logfile in tests-*.log; do
+            [[ -f "$logfile" ]] || continue
+            echo "=== $logfile ==="
+            tail -n 400 "$logfile"
+          done
+          echo "=== Container status ==="
+          docker ps -a || true
+          for container in mqtt-broker ase-qdrant mediamtx coturn dlstreamer-pipeline-server aig-server web-ui nginx_proxy model-download; do
+            if docker inspect "$container" >/dev/null 2>&1; then
+              echo "=== Recent logs: $container ==="
+              docker logs --tail 100 "$container" 2>&1 || true
+            fi
+          done
+
+      - name: Clean up Digital Signage stack
+        if: always() && env.RUN_LIVE == 'true'
+        run: make down || true
+
+      - name: Upload pytest reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digital-signage-${{ inputs.tests || 'all-tests' }}-test-report
+          path: |
+            tests/functional/report-*.html
+            tests/functional/junit-*.xml
+            tests/functional/tests-*.log
+          if-no-files-found: warn

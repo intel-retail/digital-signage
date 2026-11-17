@@ -1,4 +1,8 @@
 setuptools==84.2.1
+# Use CPU-only torch wheels to avoid pulling in nvidia-cuda-* packages
+# (torch is a transitive dependency of sentence-transformers/diffusers)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.9.1
 # OpenVINO and Intel optimizations
 # Pin openvino/openvino_tokenizers to the exact versions openvino_genai is
 # compiled against (ABI-sensitive); see openvino_genai's PyPI "Dependencies"

@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - Added benchmarking for ad selection, generation, delivery, and browser rendering. ([#137]) ([#148])
 
 ### Changed
+- `trigger_video_ad` accepts an optional `display_seconds` (bounded like the image-ad tools) so an agent can honour an operator's requested duration; it still defaults to `VIDEO_AD_DISPLAY_SECONDS`. ([#187])
 - MCP read tools (`describe`, `get_current_ad`, `get_catalog`) return structured content with the `readOnlyHint` annotation; `select_dynamic_ad` refuses context values the rules file does not know and both image-ad tools bound `display_seconds`; agent event delivery is opt-in per type through `QSR_EVENT_TYPES`.
 - Replaced the ASE ChromaDB backend with Qdrant. ([#118])
 - Moved PID and AIG model downloads to the model-download microservice and consolidated model preparation into `make download_models`. ([#119])
@@ -28,6 +29,7 @@ All notable changes to this project are documented in this file.
 - Updated documentation navigation and references, fixed docs build links, and added submodule-clone instructions. ([#87]) ([#144]) ([#153]) ([9c5a9de]) ([7770edb]) ([861c5fb])
 
 ---
+[#187]: https://github.com/intel-retail/digital-signage/issues/187
 [#155]: https://github.com/intel-retail/digital-signage/pull/155
 [#153]: https://github.com/intel-retail/digital-signage/pull/153
 [#152]: https://github.com/intel-retail/digital-signage/pull/152

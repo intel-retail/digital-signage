@@ -112,15 +112,12 @@ sequenceDiagram
     participant Main as main.py<br/>(__main__ / Flask app)
     participant AdGen as Ad_Generator<br/>(generate_advertisement)
     participant AIG as AIG server<br/>(:5003)
-
     Client->>Nginx: HTTPS POST /mcp (initialize)
     Nginx->>MCP: proxy_pass http://web-ui:5100/mcp
     MCP-->>Client: initialize result (capabilities)
-
     Client->>Nginx: tools/list
     Nginx->>MCP: forward
     MCP-->>Client: [describe, get_current_ad, get_catalog,<br/>select_dynamic_ad, trigger_ad, clear_ad] + schemas
-
     Client->>Nginx: tools/call "trigger_ad" {item, display_seconds}
     Nginx->>MCP: forward (proxy_buffering off, streamable-http)
     MCP->>Main: _app() -> sys.modules['__main__']
@@ -129,7 +126,6 @@ sequenceDiagram
     Main->>Main: acquire _generation_lock (non-blocking)
     Main-->>MCP: {'status': 'generating', 'item': resolved, ...}
     MCP-->>Client: "Ad for '<item>' is generating now..." (immediate)
-
     Note over Main,AIG: background daemon thread (async, after response sent)
     Main->>AdGen: generate_advertisement(item, associations)
     AdGen->>AIG: POST /ase/predef/query/ad (check predefined)
@@ -141,7 +137,6 @@ sequenceDiagram
     AdGen->>Main: last_generated_ad captured
     Main->>Main: agent_override_ad = captured<br/>agent_override_until = now + secs
     Main->>Main: release _generation_lock
-
     Client->>Nginx: tools/call "get_current_ad"
     Nginx->>MCP: forward
     MCP->>Main: get_active_ad_info()
@@ -159,11 +154,9 @@ flowchart LR
     subgraph Client["MCP Client"]
         C1[LLM agent / Inspector]
     end
-
     subgraph Proxy["nginx (TLS termination)"]
         N1["/mcp location\nproxy_pass web-ui:5100"]
     end
-
     subgraph WebUI["web-ui container"]
         subgraph MCPThread["MCP server thread (:5100)"]
             T1[describe]
@@ -173,7 +166,6 @@ flowchart LR
             T5[trigger_ad]
             T6[clear_ad]
         end
-
         subgraph SharedState["Shared in-memory state (Ad_Generator instance)"]
             S1[(product_associations\nfrom ProductAssociations.csv)]
             S2[(context_rules\nfrom context_rules.json)]
@@ -181,19 +173,15 @@ flowchart LR
             S4[(last_generated_ad\nlast_selected_item)]
             S5[(_generation_lock)]
         end
-
         F1["Flask routes\n/, /portrait,\n/get_current_advertisement"]
         MQ["MQTT subscriber\n(camera detections)"]
     end
-
     subgraph AIGServer["aig-server container (:5003)"]
         A1["/ase/predef/query/ad\n(predefined lookup)"]
         A2["/aig/minf/\n(dynamic image generation, model_lock)"]
     end
-
     C1 <-->|"HTTPS: initialize / tools-list / tools-call"| N1
     N1 <-->|"HTTP proxy"| T1 & T2 & T3 & T4 & T5 & T6
-
     T2 --> S3
     T2 --> S4
     T3 --> S1
@@ -203,12 +191,10 @@ flowchart LR
     T5 --> S1
     T5 -->|"acquire/release"| S5
     T6 --> S3
-
     T4 & T5 -->|generate_advertisement| A1
     A1 -->|"miss"| A2
     A1 & A2 -->|image bytes| S3
     S3 -->|captured ad, expiry timestamp| S4
-
     MQ -->|camera-detected item| S1
     MQ -->|generate_advertisement when no override| A1
     F1 -->|reads| S3

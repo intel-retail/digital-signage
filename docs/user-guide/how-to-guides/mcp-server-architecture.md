@@ -107,19 +107,7 @@ The full interaction is shown in four steps; each diagram continues from the one
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    actorBkg: "#E3F2FD"
-    actorBorder: "#1E88E5"
-    actorTextColor: "#0D47A1"
-    signalColor: "#37474F"
-    signalTextColor: "#263238"
-    activationBkgColor: "#E8F5E9"
-    activationBorderColor: "#43A047"
-  sequence:
-    mirrorActors: false
-    messageAlign: center
+config: {"theme":"base","themeVariables":{"actorBkg":"#E3F2FD","actorBorder":"#1E88E5","actorTextColor":"#0D47A1","signalColor":"#37474F","signalTextColor":"#263238","activationBkgColor":"#E8F5E9","activationBorderColor":"#43A047"},"sequence":{"mirrorActors":false,"messageAlign":"center"}}
 ---
 sequenceDiagram
     autonumber
@@ -140,19 +128,7 @@ sequenceDiagram
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    actorBkg: "#E3F2FD"
-    actorBorder: "#1E88E5"
-    actorTextColor: "#0D47A1"
-    signalColor: "#37474F"
-    signalTextColor: "#263238"
-    activationBkgColor: "#E8F5E9"
-    activationBorderColor: "#43A047"
-  sequence:
-    mirrorActors: false
-    messageAlign: center
+config: {"theme":"base","themeVariables":{"actorBkg":"#E3F2FD","actorBorder":"#1E88E5","actorTextColor":"#0D47A1","signalColor":"#37474F","signalTextColor":"#263238","activationBkgColor":"#E8F5E9","activationBorderColor":"#43A047"},"sequence":{"mirrorActors":false,"messageAlign":"center"}}
 ---
 sequenceDiagram
     autonumber
@@ -175,19 +151,7 @@ sequenceDiagram
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    actorBkg: "#E3F2FD"
-    actorBorder: "#1E88E5"
-    actorTextColor: "#0D47A1"
-    signalColor: "#37474F"
-    signalTextColor: "#263238"
-    activationBkgColor: "#E8F5E9"
-    activationBorderColor: "#43A047"
-  sequence:
-    mirrorActors: false
-    messageAlign: center
+config: {"theme":"base","themeVariables":{"actorBkg":"#E3F2FD","actorBorder":"#1E88E5","actorTextColor":"#0D47A1","signalColor":"#37474F","signalTextColor":"#263238","activationBkgColor":"#E8F5E9","activationBorderColor":"#43A047"},"sequence":{"mirrorActors":false,"messageAlign":"center"}}
 ---
 sequenceDiagram
     autonumber
@@ -212,19 +176,7 @@ sequenceDiagram
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    actorBkg: "#E3F2FD"
-    actorBorder: "#1E88E5"
-    actorTextColor: "#0D47A1"
-    signalColor: "#37474F"
-    signalTextColor: "#263238"
-    activationBkgColor: "#E8F5E9"
-    activationBorderColor: "#43A047"
-  sequence:
-    mirrorActors: false
-    messageAlign: center
+config: {"theme":"base","themeVariables":{"actorBkg":"#E3F2FD","actorBorder":"#1E88E5","actorTextColor":"#0D47A1","signalColor":"#37474F","signalTextColor":"#263238","activationBkgColor":"#E8F5E9","activationBorderColor":"#43A047"},"sequence":{"mirrorActors":false,"messageAlign":"center"}}
 ---
 sequenceDiagram
     autonumber
@@ -248,21 +200,7 @@ The data flow is shown in four views that share the same components: how request
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    fontSize: 18px
-    primaryColor: "#FFFFFF"
-    primaryBorderColor: "#607D8B"
-    primaryTextColor: "#263238"
-    lineColor: "#546E7A"
-    clusterBkg: "#FAFAFA"
-    clusterBorder: "#B0BEC5"
-  flowchart:
-    curve: linear
-    nodeSpacing: 30
-    rankSpacing: 60
-    padding: 16
+config: {"theme":"base","themeVariables":{"fontSize":"18px","primaryColor":"#FFFFFF","primaryBorderColor":"#607D8B","primaryTextColor":"#263238","lineColor":"#546E7A","clusterBkg":"#FAFAFA","clusterBorder":"#B0BEC5"},"flowchart":{"curve":"linear","nodeSpacing":30,"rankSpacing":60,"padding":16}}
 ---
 flowchart TB
     classDef client fill:#E3F2FD,stroke:#1E88E5,stroke-width:2px,color:#0D47A1
@@ -301,21 +239,7 @@ flowchart TB
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    fontSize: 18px
-    primaryColor: "#FFFFFF"
-    primaryBorderColor: "#607D8B"
-    primaryTextColor: "#263238"
-    lineColor: "#546E7A"
-    clusterBkg: "#FAFAFA"
-    clusterBorder: "#B0BEC5"
-  flowchart:
-    curve: linear
-    nodeSpacing: 24
-    rankSpacing: 140
-    padding: 16
+config: {"theme":"base","themeVariables":{"fontSize":"18px","primaryColor":"#FFFFFF","primaryBorderColor":"#607D8B","primaryTextColor":"#263238","lineColor":"#546E7A","clusterBkg":"#FAFAFA","clusterBorder":"#B0BEC5"},"flowchart":{"curve":"linear","nodeSpacing":24,"rankSpacing":140,"padding":16}}
 ---
 flowchart LR
     classDef tool   fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
@@ -366,21 +290,7 @@ flowchart LR
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    fontSize: 18px
-    primaryColor: "#FFFFFF"
-    primaryBorderColor: "#607D8B"
-    primaryTextColor: "#263238"
-    lineColor: "#546E7A"
-    clusterBkg: "#FAFAFA"
-    clusterBorder: "#B0BEC5"
-  flowchart:
-    curve: linear
-    nodeSpacing: 30
-    rankSpacing: 60
-    padding: 16
+config: {"theme":"base","themeVariables":{"fontSize":"18px","primaryColor":"#FFFFFF","primaryBorderColor":"#607D8B","primaryTextColor":"#263238","lineColor":"#546E7A","clusterBkg":"#FAFAFA","clusterBorder":"#B0BEC5"},"flowchart":{"curve":"linear","nodeSpacing":30,"rankSpacing":60,"padding":16}}
 ---
 flowchart TB
     classDef tool   fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
@@ -418,21 +328,7 @@ flowchart TB
 
 ```mermaid
 ---
-config:
-  theme: base
-  themeVariables:
-    fontSize: 18px
-    primaryColor: "#FFFFFF"
-    primaryBorderColor: "#607D8B"
-    primaryTextColor: "#263238"
-    lineColor: "#546E7A"
-    clusterBkg: "#FAFAFA"
-    clusterBorder: "#B0BEC5"
-  flowchart:
-    curve: linear
-    nodeSpacing: 30
-    rankSpacing: 60
-    padding: 16
+config: {"theme":"base","themeVariables":{"fontSize":"18px","primaryColor":"#FFFFFF","primaryBorderColor":"#607D8B","primaryTextColor":"#263238","lineColor":"#546E7A","clusterBkg":"#FAFAFA","clusterBorder":"#B0BEC5"},"flowchart":{"curve":"linear","nodeSpacing":30,"rankSpacing":60,"padding":16}}
 ---
 flowchart TB
     classDef tool   fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20

@@ -61,10 +61,25 @@ def setup_environment(tmp_path_factory):
     result = exec_command(["make", "check_models"], capture_output=True)
     if result.returncode != 0:
         logger.info("Model artifacts are missing; running make download_models")
-        result = exec_command(
-            ["make", "download_models", "SKIP_LTX_VIDEO_EXPORT=true"],
-            timeout=7200,
-        )
+        try:
+            result = exec_command(
+                ["make", "download_models", "SKIP_LTX_VIDEO_EXPORT=true"],
+                timeout=7200,
+            )
+        finally:
+            cleanup_result = exec_command(
+                [
+                    "docker", "compose", "--project-directory", str(APP_ROOT),
+                    "--profile", "model-download", "-f", str(APP_ROOT / "docker-compose.yml"),
+                    "rm", "--stop", "--force", "model-download",
+                ],
+                capture_output=True,
+                timeout=120,
+            )
+            assert_condition(
+                cleanup_result.returncode == 0,
+                f"Failed to remove model-download container: {cleanup_result.stdout}{cleanup_result.stderr}",
+            )
         assert_condition(result.returncode == 0, f"make download_models failed with exit status {result.returncode}")
         result = exec_command(["make", "check_models"], capture_output=True)
     assert_condition(result.returncode == 0, result.stdout + result.stderr)

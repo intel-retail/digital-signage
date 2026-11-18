@@ -655,8 +655,6 @@ class Ad_Generator(threading.Thread):
             logger.info(f"Generating advertisement for product: {label} ")
             
             # Make API call to AIG server
-            if publish:
-                self.last_ad_trace = None
             aig_response = None
             total_start_time = time.time()
             data_available_predefined = False

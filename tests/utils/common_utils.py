@@ -40,6 +40,14 @@ def assert_condition(condition, message=""):
     assert condition, message  # nosec B101 # assertions intentionally fail functional tests
 
 
+def _device_mount_path(device):
+    path = Path("/dev") / device
+    try:
+        return str(path) if path.is_dir() and any(path.iterdir()) else "/dev/null"
+    except OSError:
+        return "/dev/null"
+
+
 def exec_command(
         command: Sequence[str],
         *,
@@ -51,7 +59,15 @@ def exec_command(
     if command and os.path.basename(str(command[0])) == "make" and "-e" not in command[1:]:
         command.insert(1, "-e")
     kwargs.setdefault("cwd", APP_ROOT)
-    kwargs.setdefault("env", {**os.environ, "PWD": str(APP_ROOT)})
+    command_env = kwargs.get("env")
+    if command_env is None:
+        command_env = {**os.environ, "PWD": str(APP_ROOT)}
+    else:
+        command_env = dict(command_env)
+    if command[:2] == ["docker", "compose"]:
+        command_env.setdefault("DRI_MOUNT_PATH", _device_mount_path("dri"))
+        command_env.setdefault("ACCEL_MOUNT_PATH", _device_mount_path("accel"))
+    kwargs["env"] = command_env
     kwargs.setdefault("timeout", 30)
     return subprocess.run(  # nosec B603 # test-defined argument lists execute with shell=False
         command,

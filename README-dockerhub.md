@@ -12,7 +12,7 @@ The Advertise Image Generator (AIG) server is an AI microservice that generates 
 
 > **Note**: The tags suffixed with `-weekly` and `-rcX` are developmental builds, may not be stable.
 
-### [2026.2.0](https://docs.openedgeplatform.intel.com/2026.2/edge-ai-suites/ai-suite-retail/digital-signage/release-notes.html#version-2026-2)
+### [2026.2.0](https://docs.openedgeplatform.intel.com/2026.2/edge-ai-suites/ai-suite-retail/digital-signage/release-notes.html#version-2026-2-0)
 
 #### Deploy using Docker Compose
 

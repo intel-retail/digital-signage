@@ -135,7 +135,13 @@ services:
     ports:
       - "${HOST_IP:-127.0.0.1}:${COTURN_UDP_PORT}:3478"
       - "${HOST_IP:-127.0.0.1}:${COTURN_UDP_PORT}:3478/udp"
-    command: ["-v"]  # Verbose mode for logging
+    command:
+      - "-v"
+      - "--external-ip=${HOST_IP}"
+      - "--user=${MTX_WEBRTCICESERVERS2_0_USERNAME:?Set MTX_WEBRTCICESERVERS2_0_USERNAME}:${MTX_WEBRTCICESERVERS2_0_PASSWORD:?Set MTX_WEBRTCICESERVERS2_0_PASSWORD}"
+      - "--realm=turn.local"
+      - "--no-tls"
+      - "--lt-cred-mech"
     networks:
     - app_network
 

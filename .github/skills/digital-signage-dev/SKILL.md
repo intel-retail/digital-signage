@@ -43,7 +43,7 @@ directory. If there is no checkout, stop and ask the user to clone
 `https://github.com/intel-retail/digital-signage`. Run `make` commands from the repo root.
 
 When a change alters documented behavior, update the matching page under `docs/user-guide/`
-(also published at <https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/index.html>) in the same change.
+(also published at <https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/index.html>) in the same change.
 
 ## Architecture at a glance
 

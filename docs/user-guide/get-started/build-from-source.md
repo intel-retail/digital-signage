@@ -18,4 +18,4 @@ cd digital-signage
 make build
 ```
 
-Follow the remaining setup and deployment steps in the [Get Started guide](https://github.com/intel-retail/digital-signage/blob/main/docs/user-guide/get-started.md#step-3-download-ai-models).
+Follow the remaining setup and deployment steps in the [Get Started guide](https://github.com/intel-retail/digital-signage/blob/release-2026.3.0/docs/user-guide/get-started.md#step-3-download-ai-models).

@@ -42,14 +42,14 @@ this skill folder). Paths therefore use three bases:
 |---|---|---|
 | **Skill directory** (`<skill-dir>`, the folder containing this `SKILL.md`) | `references/…`, `evals/…` | Always bundled with the skill |
 | **Repo root** (Step 0) | `Makefile`, `.env`, `docker-compose.yml`, `scripts/…`, `configs/…`, `aig/…`, `web-ui/…`, `docs/user-guide/…` | Read from the user's checkout at runtime; never expected inside `<skill-dir>` |
-| **User guide** | Pages linked under "User guide" | Published at <https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/index.html>; page `<page>.html` there is also in the checkout as `docs/user-guide/<page>.md` |
+| **User guide** | Pages linked under "User guide" | Published at <https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/index.html>; page `<page>.html` there is also in the checkout as `docs/user-guide/<page>.md` |
 
 **Step 0 — locate the repo root.** It is the directory containing `Makefile`,
 `docker-compose.yml`, `aig/` and `web-ui/`. Resolve it in this order: a path the user gave; cwd
 or one of its parents; `git rev-parse --show-toplevel`. Do not derive it from `<skill-dir>`.
 `cd` there before any `make` command — the Makefile reads `.env` from the current directory.
 If no checkout exists, stop and offer the **Clone the Repository** commands from
-[Get Started](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html) (`git clone https://github.com/intel-retail/digital-signage`).
+[Get Started](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html) (`git clone -b release-2026.3.0 https://github.com/intel-retail/digital-signage`).
 
 ## User guide (primary source for prerequisites and procedures)
 
@@ -68,12 +68,12 @@ Name the source you used (URL or checkout path) in your report.
 
 | Page | Use it for |
 |---|---|
-| [System requirements](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started/system-requirements.html) | Processor, RAM, storage, GPU, OS, Docker and browser requirements |
-| [Get Started](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html) | Docker configuration (non-root, proxy, log rotation), clone, build, model download, `.env`, deploy, access, verify |
-| [Build from source](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started/build-from-source.html) | `make build` |
-| [Change inference device](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/change-inference-device.html), [Switch simulation video](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/switch-simulation-video.html), [Configure an RTSP camera](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/configure-rtsp-camera.html), [Configure predefined ads](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/configure-predefined-ads.html), [Use a Geti model](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/use-geti-model.html) | Post-deploy configuration |
-| [Troubleshooting](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/troubleshooting.html) | Known runtime issues |
-| [API reference](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/api-reference.html) | Documented REST endpoints (not all of them — see `references/api-usage.md`) |
+| [System requirements](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started/system-requirements.html) | Processor, RAM, storage, GPU, OS, Docker and browser requirements |
+| [Get Started](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html) | Docker configuration (non-root, proxy, log rotation), clone, build, model download, `.env`, deploy, access, verify |
+| [Build from source](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started/build-from-source.html) | `make build` |
+| [Change inference device](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/change-inference-device.html), [Switch simulation video](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/switch-simulation-video.html), [Configure an RTSP camera](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/configure-rtsp-camera.html), [Configure predefined ads](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/configure-predefined-ads.html), [Use a Geti model](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/how-to-guides/use-geti-model.html) | Post-deploy configuration |
+| [Troubleshooting](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/troubleshooting.html) | Known runtime issues |
+| [API reference](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/api-reference.html) | Documented REST endpoints (not all of them — see `references/api-usage.md`) |
 
 The skill's `references/` carry what the guide does not (full variable reference, symptom matrix,
 undocumented endpoints). If the guide and the live `Makefile` disagree, follow the `Makefile` and
@@ -141,7 +141,7 @@ script path. `make help` lists them all.
 
 ### Step 1 — Prerequisites
 
-Compare the host against [System requirements](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started/system-requirements.html) before
+Compare the host against [System requirements](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started/system-requirements.html) before
 building: Ubuntu 24.04 LTS (26.04 also validated), Docker Engine 24.x or higher with Compose v2, an Intel Core Ultra
 (Series 2) or above with at least 16 cores, 16 GB RAM (32 GB recommended), 500 GB free storage,
 an Intel iGPU (plus about 8 GB of extra GPU/shared memory, so 32 GB RAM, if video ads are used), Chrome, and internet access for model downloads and image pulls. Check with
@@ -149,7 +149,7 @@ an Intel iGPU (plus about 8 GB of extra GPU/shared memory, so 32 GB RAM, if vide
 shortfall as a warning — the stack may still run on lesser hardware, but say so. Also confirm
 `curl` and Python 3 are installed (the model download script needs both).
 
-Then follow **Configure Docker** in [Get Started](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html): run Docker as non-root,
+Then follow **Configure Docker** in [Get Started](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/digital-signage/get-started.html): run Docker as non-root,
 configure the Docker proxy if the host needs one, and enable log rotation. Verify with
 `docker info >/dev/null 2>&1`. If it fails, **stop**, report the host blocker, and point the
 user to that section rather than retrying.

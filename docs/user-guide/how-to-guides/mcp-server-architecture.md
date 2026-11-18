@@ -6,10 +6,10 @@ See [use-mcp-agent-tools.md](use-mcp-agent-tools.md) for end-user connection ins
 
 ## Overview
 
-The MCP server ([web-ui/mcp_server.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/mcp_server.py)) runs in-process
+The MCP server ([web-ui/mcp_server.py](https://github.com/intel-retail/digital-signage/blob/release-2026.3.0/web-ui/mcp_server.py)) runs in-process
 alongside the Flask app in the `web-ui` container, on port `5100`, using the `FastMCP`
 Streamable HTTP transport. It is started as a daemon thread from
-[web-ui/main.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/main.py) after `initialize_app()` completes, so a
+[web-ui/main.py](https://github.com/intel-retail/digital-signage/blob/release-2026.3.0/web-ui/main.py) after `initialize_app()` completes, so a
 failure to import `mcp` or bind the port only disables the MCP thread — Flask, MQTT,
 and AIG keep running.
 
@@ -91,7 +91,7 @@ as the QSR agent rely on this to avoid recording a refused action as executed.
 
 ## Events
 
-[web-ui/events.py](https://github.com/intel-retail/digital-signage/blob/main/web-ui/events.py) builds the
+[web-ui/events.py](https://github.com/intel-retail/digital-signage/blob/release-2026.3.0/web-ui/events.py) builds the
 `product_detected` and `ad_displayed` events, logs each as a `SIGNAGE_EVENT {json}` line and, when
 `QSR_EVENTS_URL` is set, delivers it from a background thread. `main.py` emits `product_detected` from the
 MQTT detection path (with a per-label cooldown) and `ad_displayed` when an ad goes live, from both the camera

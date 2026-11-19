@@ -100,7 +100,7 @@ PID and Web UI run inside the E2E capture in `benchmark-all`, so they share `e2e
 | Field or pattern | Meaning |
 | --- | --- |
 | `timestamp` | UTC time the summary was produced. |
-| `device` | AIG device used, `CPU` or `GPU`. |
+| `device` | AIG device used, `CPU`, `GPU` or `NPU`. |
 | `capture_elapsed_ms` | Actual benchmark capture duration in milliseconds. |
 | `predefined_calls`, `dynamic_calls` | Number of ASe search and AIG generation calls. |
 | `predefined_sla_met`, `dynamic_sla_met` | Count of calls that met the configured SLA, not a boolean. ASe target is under 5 s; dynamic AIG is under 15 s warm or 60 s for the first call when cold-start is enabled. |

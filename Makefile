@@ -130,7 +130,7 @@ build-performance-tools:
 
 .PHONY: benchmark-configure-devices
 benchmark-configure-devices:
-	@python3 -c 'import json,sys; from pathlib import Path; pid_device,aig_device,pid_file,env_file=sys.argv[1:]; assert pid_device in ("CPU","GPU","NPU"), "PID_DEVICE must be CPU, GPU, or NPU"; assert aig_device in ("CPU","GPU"), "AIG_DEVICE must be CPU or GPU"; pid_path=Path(pid_file); config=json.loads(pid_path.read_text()); detection=config["config"]["pipelines"][0]["payload"]["parameters"]["detection-properties"]; pid_changed=detection["device"] != pid_device; detection["device"]=pid_device; pid_path.write_text(json.dumps(config,indent=4)+"\n") if pid_changed else None; env_path=Path(env_file); lines=env_path.read_text().splitlines(); key="AIG_INFERENCE_DEVICE="; found=any(line.startswith(key) for line in lines); updated=[key+aig_device if line.startswith(key) else line for line in lines]; updated=updated if found else updated+[key+aig_device]; env_path.write_text("\n".join(updated)+"\n") if updated != lines else None; print(f"PID_DEVICE={pid_device} in {pid_path}; AIG_DEVICE={aig_device} in {env_path}")' "$(PID_DEVICE)" "$(AIG_DEVICE)" "$(PID_CONFIG)" "$(AIG_ENV_FILE)"
+	@python3 -c 'import json,sys; from pathlib import Path; pid_device,aig_device,pid_file,env_file=sys.argv[1:]; assert pid_device in ("CPU","GPU","NPU"), "PID_DEVICE must be CPU, GPU, or NPU"; assert aig_device in ("CPU","GPU","NPU"), "AIG_DEVICE must be CPU, GPU, or NPU"; pid_path=Path(pid_file); config=json.loads(pid_path.read_text()); detection=config["config"]["pipelines"][0]["payload"]["parameters"]["detection-properties"]; pid_changed=detection["device"] != pid_device; detection["device"]=pid_device; pid_path.write_text(json.dumps(config,indent=4)+"\n") if pid_changed else None; env_path=Path(env_file); lines=env_path.read_text().splitlines(); key="AIG_INFERENCE_DEVICE="; found=any(line.startswith(key) for line in lines); updated=[key+aig_device if line.startswith(key) else line for line in lines]; updated=updated if found else updated+[key+aig_device]; env_path.write_text("\n".join(updated)+"\n") if updated != lines else None; print(f"PID_DEVICE={pid_device} in {pid_path}; AIG_DEVICE={aig_device} in {env_path}")' "$(PID_DEVICE)" "$(AIG_DEVICE)" "$(PID_CONFIG)" "$(AIG_ENV_FILE)"
 
 .PHONY: benchmark-stack-reset
 benchmark-stack-reset:
@@ -305,7 +305,7 @@ help:
 	@echo "  make update-submodules - Clone/update git submodules"
 	@echo "  make benchmark-pid - Benchmark PID inference (PID_DEVICE=CPU|GPU|NPU, BENCHMARK_WARMUP_SECONDS=300)"
 	@echo "  Benchmark targets reset the stack and wait 300 seconds; set BENCHMARK_WARMUP_SECONDS to override"
-	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=GPU, BENCHMARK_ITERATIONS=10)"
+	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=CPU|GPU|NPU, BENCHMARK_ITERATIONS=10)"
 	@echo "  make benchmark-web-ui - Collect Web UI selection metrics for 300 seconds"
 	@echo "  make benchmark-qdrant - Benchmark vector search, memory and ad indexing"
 	@echo "  make benchmark-metrics - Collect host metrics only (METRICS_DURATION=300)"

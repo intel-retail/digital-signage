@@ -126,7 +126,7 @@ services:
     - app_network
 
   coturn:
-    image: coturn/coturn:4.18.0-alpine
+    image: coturn/coturn:4.19.0-alpine
     container_name: coturn
     read_only: true
     user: "1000:1000"
@@ -140,7 +140,7 @@ services:
     - app_network
 
   ase-qdrant:
-    image: qdrant/qdrant:v1.20.0-unprivileged
+    image: qdrant/qdrant:v1.20.1-unprivileged
     hostname: ase-qdrant
     container_name: ase-qdrant
     user: "1000:1000"

@@ -36,7 +36,7 @@ on:
         type: string
         default: all-tests
       include_gpu_tests:
-        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        description: "Include GPU-dependent advertisement and GPU/NPU tests in all-tests (yes/no)"
         required: false
         type: string
         default: "no"
@@ -68,7 +68,7 @@ on:
         type: string
         default: all-tests
       include_gpu_tests:
-        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        description: "Include GPU-dependent advertisement and GPU/NPU tests in all-tests (yes/no)"
         required: false
         type: string
         default: "no"
@@ -152,7 +152,7 @@ jobs:
           if [[ "${#REQUESTED[@]}" -eq 1 && ( "${REQUESTED[0]}" == "all-tests" || "${REQUESTED[0]}" == "all" ) ]]; then
             ALL_TESTS=true
             for file in "${FILES[@]}"; do
-              if [[ "$INCLUDE_GPU_TESTS" != "yes" && ( "$file" == "test_GPU_docker" || "$file" == "test_NPU_docker" ) ]]; then
+              if [[ "$INCLUDE_GPU_TESTS" != "yes" && ( "$file" == "test_advertisements" || "$file" == "test_GPU_docker" || "$file" == "test_NPU_docker" ) ]]; then
                 continue
               fi
               SELECTED+=("${file}.py")
@@ -229,6 +229,14 @@ jobs:
           sed -i "s/^HOST_IP=.*/HOST_IP=127.0.0.1/" .env
           sed -i "s/^MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${username}/" .env
           sed -i "s/^MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${password}/" .env
+
+      - name: Prepare writable ad storage
+        if: ${{ env.RUN_LIVE == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p aig/sharedata/imgs
+          chmod -R a+rwX aig/sharedata
+          echo "Prepared writable ad storage for functional tests"
 
       - name: Build Docker images
         if: ${{ env.RUN_LIVE == 'true' && env.BUILD_NORMALIZED == 'yes' }}

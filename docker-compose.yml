@@ -5,7 +5,7 @@
 
 services:
   mqtt-broker:
-    image: eclipse-mosquitto:2.1.2-alpine
+    image: eclipse-mosquitto:2.1.4-alpine
     hostname: mqtt-broker
     read_only: true
     container_name: mqtt-broker
@@ -126,7 +126,7 @@ services:
     - app_network
 
   coturn:
-    image: coturn/coturn:4.19.0-alpine
+    image: coturn/coturn:4.19.2-alpine
     container_name: coturn
     read_only: true
     user: "1000:1000"
@@ -146,7 +146,7 @@ services:
     - app_network
 
   ase-qdrant:
-    image: qdrant/qdrant:v1.20.1-unprivileged
+    image: qdrant/qdrant:v1.20.2-unprivileged
     hostname: ase-qdrant
     container_name: ase-qdrant
     user: "1000:1000"
@@ -318,7 +318,7 @@ services:
       - ./web-ui/context_rules.json:/app/context_rules.json:ro
   
   nginx:
-    image: nginx:1.31.8
+    image: nginx:1.31.9
     container_name: nginx_proxy
     read_only: true
     user: "2999:2999" # Use a non-root user for security

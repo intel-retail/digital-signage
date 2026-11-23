@@ -12,6 +12,11 @@ on:
     - cron: "0 14 * * *"
   workflow_dispatch:
     inputs:
+      repository:
+        description: "Repository containing the functional tests (empty uses the current repository)"
+        required: false
+        type: string
+        default: ""
       tag:
         description: "Branch or tag to checkout"
         required: false
@@ -47,6 +52,11 @@ on:
         default: ubuntu-24.04
   workflow_call:
     inputs:
+      repository:
+        description: "Repository containing the functional tests (empty uses the caller repository)"
+        required: false
+        type: string
+        default: ""
       tag:
         description: "Branch or tag to checkout (empty uses the caller ref)"
         required: false
@@ -123,6 +133,7 @@ jobs:
       - name: Checkout Digital Signage
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 

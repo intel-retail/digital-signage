@@ -110,7 +110,7 @@ Edit the `.env` file in the repository root and set the following required varia
 
 > [!NOTE]
 > On Ubuntu 26.04, set `DLSTREAMER_PIPELINE_SERVER_IMAGE` in `.env` to
-> `intel/dlstreamer-pipeline-server:2026.3.0-ubuntu26-rc1` before deployment.
+> `intel/dlstreamer-pipeline-server:2026.3.0-ubuntu26-rc2` before deployment.
 > The default image targets Ubuntu 24.04.
 
 | Variable                           | Description                                                                                       |

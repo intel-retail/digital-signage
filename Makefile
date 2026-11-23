@@ -45,7 +45,7 @@ download_models:
 
 COLLECT_METRICS ?= true
 UP_SKIP_DOWN ?= false
-BENCHMARK_WARMUP_SECONDS ?= 300
+BENCHMARK_WARMUP_SECONDS ?= 60
 SKIP_BENCHMARK_STACK_RESET ?= false
 RESULTS_ROOT := $(or $(RESULTS_PATH),results)
 # One folder per make invocation; benchmark-all passes RUN_ID to sub-makes so they share it.
@@ -59,6 +59,9 @@ AIG_DEVICE ?= $(or $(BENCHMARK_DEVICE),GPU)
 PID_DEVICE ?= CPU
 PID_CONFIG ?= configs/pid/config.json
 AIG_ENV_FILE ?= $(ENV_FILE)
+# Published ports bind to HOST_IP, not localhost, so derive the AIG/ASe endpoint from it.
+BENCHMARK_BASE_URL ?= https://$(or $(HOST_IP),127.0.0.1):5000/aig-api
+BENCHMARK_INSECURE ?= true
 SKIP_BENCHMARK_DEVICE_CONFIG ?= false
 SKIP_PERFORMANCE_TOOLS_BUILD ?= false
 # Benchmark targets start every service with instrumentation on; normal runs leave it off.
@@ -110,9 +113,9 @@ define run_with_metrics
 endef
 
 BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --device $(PID_DEVICE) --no-restart --output $(RUN_DIR) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
-BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
+BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(BENCHMARK_BASE_URL),--base-url $(BENCHMARK_BASE_URL),) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
 BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_web_ui.py --duration $(or $(BENCHMARK_DURATION),300) --output $(RUN_DIR)
-BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
+BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR) $(if $(BENCHMARK_BASE_URL),--ase-url $(BENCHMARK_BASE_URL),) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,)
 # PID (passive) and Web UI trace capture run concurrently over the same live-pipeline window.
 BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; pid_status=0; wait $$pid_job || pid_status=$$?; if [ $$pid_status -ne 0 ]; then exit $$pid_status; fi; exit $$web_status )
 CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_consolidate_e2e.py --results $(RUN_DIR)

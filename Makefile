@@ -45,7 +45,7 @@ download_models:
 
 COLLECT_METRICS ?= true
 UP_SKIP_DOWN ?= false
-BENCHMARK_WARMUP_SECONDS ?= 60
+BENCHMARK_WARMUP_SECONDS ?= 300
 SKIP_BENCHMARK_STACK_RESET ?= false
 RESULTS_ROOT := $(or $(RESULTS_PATH),results)
 # One folder per make invocation; benchmark-all passes RUN_ID to sub-makes so they share it.

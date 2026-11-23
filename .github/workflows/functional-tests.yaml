@@ -12,6 +12,11 @@ on:
     - cron: "0 14 * * *"
   workflow_dispatch:
     inputs:
+      repository:
+        description: "Repository containing the functional tests (empty uses the current repository)"
+        required: false
+        type: string
+        default: ""
       tag:
         description: "Branch or tag to checkout"
         required: false
@@ -36,7 +41,7 @@ on:
         type: string
         default: all-tests
       include_gpu_tests:
-        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        description: "Include GPU-dependent advertisement and GPU/NPU tests in all-tests (yes/no)"
         required: false
         type: string
         default: "no"
@@ -47,6 +52,11 @@ on:
         default: ubuntu-24.04
   workflow_call:
     inputs:
+      repository:
+        description: "Repository containing the functional tests (empty uses the caller repository)"
+        required: false
+        type: string
+        default: ""
       tag:
         description: "Branch or tag to checkout (empty uses the caller ref)"
         required: false
@@ -68,7 +78,7 @@ on:
         type: string
         default: all-tests
       include_gpu_tests:
-        description: "Include GPU and NPU tests in all-tests (yes/no)"
+        description: "Include GPU-dependent advertisement and GPU/NPU tests in all-tests (yes/no)"
         required: false
         type: string
         default: "no"
@@ -123,6 +133,7 @@ jobs:
       - name: Checkout Digital Signage
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
@@ -152,7 +163,7 @@ jobs:
           if [[ "${#REQUESTED[@]}" -eq 1 && ( "${REQUESTED[0]}" == "all-tests" || "${REQUESTED[0]}" == "all" ) ]]; then
             ALL_TESTS=true
             for file in "${FILES[@]}"; do
-              if [[ "$INCLUDE_GPU_TESTS" != "yes" && ( "$file" == "test_GPU_docker" || "$file" == "test_NPU_docker" ) ]]; then
+              if [[ "$INCLUDE_GPU_TESTS" != "yes" && ( "$file" == "test_advertisements" || "$file" == "test_GPU_docker" || "$file" == "test_NPU_docker" ) ]]; then
                 continue
               fi
               SELECTED+=("${file}.py")
@@ -229,6 +240,14 @@ jobs:
           sed -i "s/^HOST_IP=.*/HOST_IP=127.0.0.1/" .env
           sed -i "s/^MTX_WEBRTCICESERVERS2_0_USERNAME=.*/MTX_WEBRTCICESERVERS2_0_USERNAME=${username}/" .env
           sed -i "s/^MTX_WEBRTCICESERVERS2_0_PASSWORD=.*/MTX_WEBRTCICESERVERS2_0_PASSWORD=${password}/" .env
+
+      - name: Prepare writable ad storage
+        if: ${{ env.RUN_LIVE == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p aig/sharedata/imgs
+          chmod -R a+rwX aig/sharedata
+          echo "Prepared writable ad storage for functional tests"
 
       - name: Build Docker images
         if: ${{ env.RUN_LIVE == 'true' && env.BUILD_NORMALIZED == 'yes' }}
@@ -444,6 +463,7 @@ jobs:
                   for kind, suite, test_name, message in failures:
                       message = message.replace("|", "\\|").replace("\n", " ")[:300]
                       summary.write(f"- **{kind}** `{suite}::{test_name}`: {message}\n")
+                  PYEOF
 
       - name: Print failure diagnostics
         if: failure()

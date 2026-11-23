@@ -26,13 +26,20 @@ from utils.deployment_utils import (
 logger = logging.getLogger(__name__)
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    setattr(item, f"rep_{report.when}", report)
+
+
 @pytest.fixture
 def deployed_containers(setup_environment):
     return get_deployed_containers()
 
 
 @pytest.fixture
-def setup_environment(tmp_path_factory):
+def setup_environment(request, tmp_path_factory):
     logger.info("TC_SETUP_001: Preparing Digital Signage functional-test environment")
     logger.info("TC_SETUP_001 Step 1/4: Generating temporary WebRTC test credentials")
     host_ip = "127.0.0.1"
@@ -95,6 +102,13 @@ def setup_environment(tmp_path_factory):
         logger.info("TC_SETUP_001: Stack is ready and web UI is subscribed to MQTT")
         yield
     finally:
+        call_report = getattr(request.node, "rep_call", None)
+        if call_report is not None and call_report.failed:
+            logger.error("Functional test failed; collecting application logs before teardown")
+            for name in ("web-ui", "aig-server", "mqtt-broker"):
+                result = exec_command(["docker", "logs", "--tail", "200", name], capture_output=True)
+                logger.error("Recent logs for %s:\n%s", name, result.stdout + result.stderr)
+
         logger.info("TC_SETUP_001 Cleanup: Running make down and removing test volumes")
         down_result = exec_command(["make", "down"], capture_output=True, timeout=120)
         if down_result.stdout:

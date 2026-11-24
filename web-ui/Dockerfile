@@ -16,8 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     libgthread-2.0-0 \
     python3-dev \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential && \
+    apt-get install -y --no-install-recommends --only-upgrade zlib1g libc-bin libc6 && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY ./requirements.txt /app/

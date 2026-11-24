@@ -60,8 +60,12 @@ PID_DEVICE ?= CPU
 PID_CONFIG ?= configs/pid/config.json
 AIG_ENV_FILE ?= $(ENV_FILE)
 # Published ports bind to HOST_IP, not localhost, so derive the AIG/ASe endpoint from it.
-BENCHMARK_BASE_URL ?= https://$(or $(HOST_IP),127.0.0.1):5000/aig-api
-BENCHMARK_INSECURE ?= true
+DEFAULT_BENCHMARK_BASE_URL := https://$(or $(HOST_IP),127.0.0.1):5000/aig-api
+BENCHMARK_BASE_URL ?= $(DEFAULT_BENCHMARK_BASE_URL)
+# Only bypass TLS verification by default for the local self-signed stack endpoint, and only
+# when no CA bundle is configured; a user-supplied BENCHMARK_BASE_URL or CA bundle still verifies
+# certificates unless BENCHMARK_INSECURE=true is set explicitly.
+BENCHMARK_INSECURE ?= $(if $(or $(REQUESTS_CA_BUNDLE),$(CURL_CA_BUNDLE)),false,$(if $(filter $(BENCHMARK_BASE_URL),$(DEFAULT_BENCHMARK_BASE_URL)),true,false))
 SKIP_BENCHMARK_DEVICE_CONFIG ?= false
 SKIP_PERFORMANCE_TOOLS_BUILD ?= false
 # Benchmark targets start every service with instrumentation on; normal runs leave it off.

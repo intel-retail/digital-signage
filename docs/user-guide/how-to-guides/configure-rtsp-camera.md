@@ -19,7 +19,7 @@ camera stream for real-time product detection.
    Replace `<USERNAME>`, `<PASSWORD>`, `<RTSP_CAMERA_IP>`, `<PORT>`, and `<FEED>` with your camera’s values.
 
    > [!NOTE]
-   > To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
+   > To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
 
 2. **Set the camera IP** in `.env`:
 
@@ -34,4 +34,4 @@ camera stream for real-time product detection.
    make up
    ```
 
-For further guidance on RTSP with DL Streamer Pipeline Server, see the [DL Streamer RTSP guide](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html).
+For further guidance on RTSP with DL Streamer Pipeline Server, see the [DL Streamer RTSP guide](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-libraries/dlstreamer-pipeline-server/advanced-guide/detailed_usage/camera/rtsp.html).

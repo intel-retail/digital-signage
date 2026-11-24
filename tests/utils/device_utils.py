@@ -130,7 +130,7 @@ def wait_for_device_detection(instance_id, timeout=120):
                 if isinstance(tensor, dict)
                 and isinstance(tensor.get("label"), str)
                 and tensor["label"].strip()
-                and isinstance(tensor.get("confidence", 0), (int, float))
+                and isinstance(tensor.get("confidence"), (int, float))
                 and tensor["confidence"] > 0
             ]
             if tensors:

@@ -45,7 +45,7 @@ def test_restart_recovery(controlled_advertisements, get_endpoint, name):
     wait_for_http_ready(get_endpoint)
     logger.info("TC_STAB_001 Step 4/4: Publishing a detection and checking ad recovery")
     publish_detection(controlled_advertisements["primary_product"])
-    response = wait_for_advertisement(get_endpoint)
+    response = wait_for_advertisement(get_endpoint, require_ad_id=True)
     assert_condition(response.headers.get("X-Ad-Id") is not None, "Ad delivery did not recover")
     logger.info("TC_STAB_001: Ad delivery recovered after restarting %s (ad ID=%s)", name, response.headers.get("X-Ad-Id"))
 
@@ -60,7 +60,7 @@ def test_stability(controlled_advertisements, get_endpoint):
     while time.monotonic() < deadline:
         logger.info("Publishing a controlled detection and checking the current ad")
         publish_detection(controlled_advertisements["primary_product"])
-        response = wait_for_advertisement(get_endpoint, timeout=30)
+        response = wait_for_advertisement(get_endpoint, timeout=30, require_ad_id=True)
         ad_id = response.headers.get("X-Ad-Id")
         assert_condition(ad_id is not None, "Camera advertisement is missing its generation ID")
         ad_ids.add(ad_id)

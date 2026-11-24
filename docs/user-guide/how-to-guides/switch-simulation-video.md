@@ -22,7 +22,7 @@ product detection. You can replace it with your own video file.
    ```
 
    > [!NOTE]
-   > To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
+   > To use different bounding box colors with `gvawatermark`, refer to the [GVA Watermark element documentation](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-libraries/dlstreamer/elements/gvawatermark.html).
 
 3. **Redeploy** the application:
 

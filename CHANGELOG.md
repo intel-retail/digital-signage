@@ -5,10 +5,14 @@ All notable changes to this project are documented in this file.
 ## [2026.3] - December 2026
 
 ### Added
-- Added experimental Intel NPU inference for AIG SDXL-Turbo image ads; video ads remain GPU-only. ([#155])
-- Added AI-generated video ads using LTX-Video, exposed through the `trigger_video_ad` MCP tool. ([#114])
+- Added experimental Intel NPU inference for AIG SDXL-Turbo image ads; video ads supported CPU and GPU, but not NPU. ([#155]) ([#114])
+- Added AI-generated video ads using LTX-Video, exposed through the `trigger_video_ad` MCP tool and the AIG API. ([#114])
 - Added MCP server tools for agent-driven ad selection and display control. ([#92])
 - Added benchmarking for ad selection, generation, delivery, and browser rendering. ([#137]) ([#148])
+- Added product-detection and ad-display events for external agents. ([#167])
+- Added Intel NPU support to the AIG benchmark. ([#192])
+- Added a deployment health check and in-repository agent guidance. ([#42])
+- Added automated functional tests for deployment, configuration, ad workflows, and device support. ([#185])
 
 ### Changed
 - Replaced the ASE ChromaDB backend with Qdrant. ([#118])
@@ -17,17 +21,60 @@ All notable changes to this project are documented in this file.
 - Updated Python dependencies across components, tests, and simulators. ([#151]) ([#143]) ([#136]) ([#133]) ([#107]) ([#106]) ([#94]) ([#65]) ([#53])
 - Updated Docker Compose and GitHub Actions dependencies and scan actions. ([#150]) ([#142]) ([#141]) ([#132]) ([#126]) ([#122]) ([#121]) ([#110]) ([#99]) ([#98]) ([#97]) ([#96]) ([#89]) ([#76]) ([#73]) ([#71]) ([#69]) ([#67]) ([#60]) ([#52]) ([#50]) ([#49]) ([#48]) ([#47]) ([#46])
 - Improved update and contributor workflows with grouped Dependabot updates, pip support, Ubuntu version filtering, CODEOWNERS, and a bug-report template. ([#108]) ([#51]) ([#45]) ([#123]) ([#124]) ([a527afc])
+- Bound published ports to the configured host address, with loopback as the default. ([#161])
+- Updated Digital Signage and supporting container image tags, including the DL Streamer Pipeline Server release candidate. ([#162]) ([#163]) ([#176]) ([#199]) ([#201]) ([#202]) ([#206])
+- Updated the PyTorch version used by AIG and refreshed the third-party software notices. ([#191]) ([#156])
+
+### Removed
+- Removed NVIDIA CUDA dependencies from the AIG image by switching to CPU-only PyTorch wheels. ([#183])
+
+### Fixed
+- Restored camera-driven ads after agent-triggered image or video ads ended and prevented stale agent images from reappearing after a video took over. ([6a74eaf]) ([6d48ef5]) ([b42e5a1]) ([5df4007])
+- Fixed Coturn authentication and external address configuration for WebRTC clients. ([c14f8e2])
+- Improved GPU ad workflow test reliability and diagnostics. ([#198])
 
 ### Security
 - Fixed vulnerable package versions in AIG and web UI and resolved Bandit findings. ([#152]) ([#147])
 - Added Zizmor scans, tightened CI workflow permissions, and added OpenSSF Scorecard checks. ([#134]) ([#130]) ([af27fb2]) ([3520213])
+- Updated zlib and glibc in the web UI container to address Trivy findings. ([#203])
+- Updated Python packages, Docker Compose dependencies, GitHub Actions, and MediaMTX. ([#158]) ([#159]) ([#160]) ([#165]) ([#166])
 
 ### Documentation
 - Expanded documentation for MCP-based ad control, AI-generated video ads, model downloads, and performance benchmarking. ([#92]) ([#114]) ([#119]) ([#137]) ([#148])
 - Updated documentation navigation and references, fixed docs build links, and added submodule-clone instructions. ([#87]) ([#144]) ([#153]) ([9c5a9de]) ([7770edb]) ([861c5fb])
+- Added Ubuntu 26.04 deployment guidance, clarified Intel NPU setup, and documented how camera-driven ads resumed after agent ads ended. ([#163]) ([#200]) ([1a73b01])
+- Updated the changelog and release notes, refreshed release references, and fixed documentation formatting and Mermaid diagrams. ([#154]) ([#175]) ([#182]) ([#186]) ([#190]) ([#205])
 
 ---
+[#206]: https://github.com/intel-retail/digital-signage/pull/206
+[#205]: https://github.com/intel-retail/digital-signage/pull/205
+[#203]: https://github.com/intel-retail/digital-signage/pull/203
+[#202]: https://github.com/intel-retail/digital-signage/pull/202
+[#201]: https://github.com/intel-retail/digital-signage/pull/201
+[#200]: https://github.com/intel-retail/digital-signage/pull/200
+[#199]: https://github.com/intel-retail/digital-signage/pull/199
+[#198]: https://github.com/intel-retail/digital-signage/pull/198
+[#192]: https://github.com/intel-retail/digital-signage/pull/192
+[#191]: https://github.com/intel-retail/digital-signage/pull/191
+[#190]: https://github.com/intel-retail/digital-signage/pull/190
+[#186]: https://github.com/intel-retail/digital-signage/pull/186
+[#185]: https://github.com/intel-retail/digital-signage/pull/185
+[#183]: https://github.com/intel-retail/digital-signage/pull/183
+[#182]: https://github.com/intel-retail/digital-signage/pull/182
+[#176]: https://github.com/intel-retail/digital-signage/pull/176
+[#175]: https://github.com/intel-retail/digital-signage/pull/175
+[#167]: https://github.com/intel-retail/digital-signage/pull/167
+[#166]: https://github.com/intel-retail/digital-signage/pull/166
+[#165]: https://github.com/intel-retail/digital-signage/pull/165
+[#163]: https://github.com/intel-retail/digital-signage/pull/163
+[#162]: https://github.com/intel-retail/digital-signage/pull/162
+[#161]: https://github.com/intel-retail/digital-signage/pull/161
+[#160]: https://github.com/intel-retail/digital-signage/pull/160
+[#159]: https://github.com/intel-retail/digital-signage/pull/159
+[#158]: https://github.com/intel-retail/digital-signage/pull/158
+[#156]: https://github.com/intel-retail/digital-signage/pull/156
 [#155]: https://github.com/intel-retail/digital-signage/pull/155
+[#154]: https://github.com/intel-retail/digital-signage/pull/154
 [#153]: https://github.com/intel-retail/digital-signage/pull/153
 [#152]: https://github.com/intel-retail/digital-signage/pull/152
 [#151]: https://github.com/intel-retail/digital-signage/pull/151
@@ -81,6 +128,13 @@ All notable changes to this project are documented in this file.
 [#47]: https://github.com/intel-retail/digital-signage/pull/47
 [#46]: https://github.com/intel-retail/digital-signage/pull/46
 [#45]: https://github.com/intel-retail/digital-signage/pull/45
+[#42]: https://github.com/intel-retail/digital-signage/pull/42
+[c14f8e2]: https://github.com/intel-retail/digital-signage/commit/c14f8e20aab0b143d9068bdee7a076a68b485074
+[5df4007]: https://github.com/intel-retail/digital-signage/commit/5df400761366370cc4bf21f9c25a0a4dc3fc6596
+[1a73b01]: https://github.com/intel-retail/digital-signage/commit/1a73b018660c4e001a80779457391da8adb4a7ef
+[b42e5a1]: https://github.com/intel-retail/digital-signage/commit/b42e5a131b23eccb4ff06233517981ed3055ed65
+[6d48ef5]: https://github.com/intel-retail/digital-signage/commit/6d48ef59cd5948342e1e49a7162ec604da57a4c4
+[6a74eaf]: https://github.com/intel-retail/digital-signage/commit/6a74eaf7ba45b7968fec4d2debfe39c1647b7f06
 [a527afc]: https://github.com/intel-retail/digital-signage/commit/a527afc6df96ea6ff1fdf2042263b1de5f691c8c
 [af27fb2]: https://github.com/intel-retail/digital-signage/commit/af27fb269881b41f04c7ca5d9ba7cf642759a001
 [3520213]: https://github.com/intel-retail/digital-signage/commit/35202133ea7b8f86d33d2c922a06b01ffb8aa6a2

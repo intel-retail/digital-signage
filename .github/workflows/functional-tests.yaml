@@ -463,7 +463,7 @@ jobs:
                   for kind, suite, test_name, message in failures:
                       message = message.replace("|", "\\|").replace("\n", " ")[:300]
                       summary.write(f"- **{kind}** `{suite}::{test_name}`: {message}\n")
-                  PYEOF
+          PYEOF
 
       - name: Print failure diagnostics
         if: failure()

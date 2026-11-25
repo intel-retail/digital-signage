@@ -35,7 +35,7 @@ def publish_detection(label, confidence=0.9, count=3):
         assert_condition(result.returncode == 0, result.stderr)
 
 
-def wait_for_advertisement(get_endpoint, timeout=120):
+def wait_for_advertisement(get_endpoint, timeout=120, require_ad_id=False):
     logger.info("Waiting up to %s seconds for an advertisement", timeout)
     deadline = time.monotonic() + timeout
     last_report = time.monotonic()
@@ -44,6 +44,11 @@ def wait_for_advertisement(get_endpoint, timeout=120):
         response = get_endpoint("/get_current_advertisement", params={"client_id": client_id})
         assert_condition(response.status_code in (200, 204), f"Current ad: HTTP {response.status_code}")
         if response.status_code == 200:
+            if require_ad_id and response.headers.get("X-Ad-Id") is None:
+                if time.monotonic() >= deadline:
+                    assert_condition(False, "No camera advertisement with a generation ID was delivered")
+                time.sleep(0.5)
+                continue
             assert_condition(response.content, "Advertisement response is empty")
             logger.info("Advertisement delivered as %s", response.headers.get("Content-Type", "unknown media"))
             return response

@@ -1,6 +1,6 @@
 # Release Notes: Digital Signage
 
-## Version 2026.3
+## Version 2026.3.0
 
 **December 2026**
 

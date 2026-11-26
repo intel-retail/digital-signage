@@ -200,3 +200,39 @@ The model-download container writes directly into `./aig/models`, so failures ar
    ```
 
 3. If the failure persists, review the model-download logs emitted by `make download_models` and verify host network/proxy access to Hugging Face.
+
+---
+
+## 8. Event Delivery from `web-ui` Fails with HTTP 403 Behind a Proxy
+
+**Issue**:
+
+The `web-ui` container cannot deliver events to an external service that runs on the same host and is addressed by the host IP (for example `http://<HOST_IP>:<port>/...`). The receiver is never reached and the request fails with `403 Forbidden`.
+
+**Reason**:
+
+The corporate proxy variables are passed into the `web-ui` container. If the host IP is not part of the container's `no_proxy` list, requests to `<HOST_IP>` are sent to the proxy, which rejects them instead of forwarding them to the host.
+
+**Solution**:
+
+1. Set `HOST_IP` in `.env` to the IPv4 address of the host that runs the receiver.
+2. In `docker-compose.yml`, make sure the `web-ui` service lists `${HOST_IP}` in both `no_proxy` and `NO_PROXY`:
+
+   ```yaml
+   - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
+   - NO_PROXY=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
+   ```
+
+3. Recreate the container. A restart does not re-read the environment:
+
+   ```bash
+   docker compose up -d --force-recreate web-ui
+   ```
+
+4. Verify that the host IP is bypassed, and that the receiver answers with something other than `403`:
+
+   ```bash
+   docker exec <web-ui-container> env | grep -i no_proxy
+   ```
+
+   If the receiver is still blocked, also add the host subnet (for example `10.0.0.0/24`) to `no_proxy`.

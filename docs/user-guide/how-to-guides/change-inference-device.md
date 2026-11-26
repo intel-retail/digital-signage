@@ -8,6 +8,23 @@ By default, PID performs inference on `CPU` and AIG uses `GPU`. You can customiz
 | AIG image ads (SDXL-Turbo) | Yes | Yes | Yes (experimental) |
 | AIG video ads (LTX-Video) | Yes | Yes | No, falls back to `GPU` |
 
+**Do not configure PID and AIG to use `NPU` concurrently.** `configs/pid/config.json`
+(`detection-properties.device`) and `.env` (`AIG_INFERENCE_DEVICE`) are configured independently and are
+not cross-validated. Setting both to `NPU` runs two independent OpenVINO processes against the same
+device — continuous PID detection inference and bursty AIG generation — which the NPU's Level Zero
+driver does not reliably arbitrate. The resulting failure surfaces in `aig-server` as:
+`ZE_RESULT_ERROR_UNKNOWN ... an action is required to complete the desired operation` (observed on
+Panther Lake). Verify both settings before enabling NPU on either component:
+
+```bash
+grep -o '"device"[^,}]*' configs/pid/config.json   # PID
+grep AIG_INFERENCE_DEVICE .env                      # AIG
+```
+
+
+If both report `NPU`, set one to `CPU` or `GPU` and redeploy.
+
+
 ## PID (Product Identification)
 
 Update the `device` parameter in `configs/pid/config.json`:
@@ -105,6 +122,7 @@ Then redeploy (see [Apply Changes](#apply-changes)). `AIG_INFERENCE_DEVICE` is c
 | Permission denied on `/dev/accel/accel0` | The container user is not in the device's group. Add the group ID to `group_add`. |
 | Very long first request after a restart | The compile cache is empty, the image size changed, or `aig/npu_cache` is not writable by `UID` (check `ls -ld aig/npu_cache`). |
 | `503` on every image request | Check the `aig-server` log for `Failed to load model on NPU`, fix the cause and restart `aig-server`. |
+| `ZE_RESULT_ERROR_UNKNOWN ... an action is required to complete the desired operation` in `aig-server` | PID (`configs/pid/config.json`) and AIG (`AIG_INFERENCE_DEVICE`) are both set to `NPU`, causing concurrent NPU access. Set one of them to `CPU` or `GPU`. |
 
 To confirm which device is in use, check the log for `EXECUTION_DEVICES: NPU` after
 `Loading Text2Image model on device: NPU`:

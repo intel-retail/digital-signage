@@ -1,6 +1,6 @@
 # Release Notes: Digital Signage
 
-## Version 2026.3
+## Version 2026.3.0
 
 **December 2026**
 
@@ -8,22 +8,27 @@ This release introduces **AI-generated video ads**, **agent-driven MCP controls*
 
 **New**
 
-- **Experimental AIG NPU support**: image ads using SDXL-Turbo can run on Intel NPU with `AIG_INFERENCE_DEVICE=NPU`; video ads remain GPU-only and fall back to GPU.
-- **AI-generated video ads**: added LTX-Video generation through an MCP tool, supporting catalog products and text descriptions.
+- **Experimental AIG NPU support**: image ads using SDXL-Turbo can run on Intel NPU with `AIG_INFERENCE_DEVICE=NPU`; video ads support CPU and GPU, but not NPU.
+- **AI-generated video ads**: added LTX-Video generation through an MCP tool, supporting catalog products and text descriptions. The AIG API also generates looping video ads from text descriptions.
 - **Agent-driven ad controls**: added MCP tools to trigger, clear, inspect, and dynamically select displayed ads.
 - **Performance benchmarking**: added timing instrumentation and reports for ad selection, generation, delivery, and browser rendering.
+- **Agent events**: external agents can receive notifications when products are detected and ads are displayed.
 
 **Improved**
 
 - **Ad search**: replaced the ChromaDB backend with Qdrant.
 - **Model preparation**: moved PID and AIG model downloads to the model-download microservice and unified the download workflow.
 - **Dependencies**: updated Python, Docker Compose, and GitHub Actions dependencies across the project.
-- **Security**: updated vulnerable `mcp` and `setuptools` packages, resolved Bandit findings, and added Zizmor and OpenSSF Scorecard checks.
-- **Documentation**: expanded guidance for MCP, video ads, model downloads, and benchmarking.
+- **Security**: updated vulnerable `mcp` and `setuptools` packages, resolved Bandit findings, and added Zizmor and OpenSSF Scorecard checks. Updated zlib and glibc packages in the web UI container to address security findings.
+- **Documentation**: expanded guidance for MCP, video ads, model downloads, and benchmarking. Added Ubuntu 26.04 deployment guidance.
+- **Deployment diagnostics**: added a stack health check for containers, logs, and endpoints, plus automated functional tests.
+- **Network defaults**: published ports now bind to loopback by default; remote access requires configuring a reachable host address.
 
 **Fixed**
 
 - **Documentation navigation**: fixed table-of-contents and link issues, and added instructions for cloning the benchmarking submodule.
+- **Ad Playback**: camera-driven ads resume when agent-triggered image or video ads end. An older image ad no longer reappears after a newer video ad takes over.
+- **WebRTC Connectivity**: corrected TURN authentication and external address configuration so remote clients can use the relay.
 
 ---
 

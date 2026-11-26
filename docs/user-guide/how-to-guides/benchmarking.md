@@ -86,10 +86,10 @@ Use Make variable assignments before or after the target, for example `make benc
 | `web_ui_benchmark_*_frames.json/.csv` | Per-MQTT-frame Web UI timing fields, including queue/cooldown metrics. |
 | `web_ui_benchmark_*_ads.json/.csv` | Per-generated-ad trace, served, delivery-correlated, and optional browser timings. |
 | `e2e_consolidated_*.json/.csv` | Combined stage table across PID, Web UI, AIG, Qdrant, and resource metrics. |
-| `<aig|qdrant|e2e>_docker_stats.json/.csv` | Per-container CPU/memory samples and averages. |
-| `<aig|qdrant|e2e>_metrics.json` | Full-run host CPU/GPU/NPU/memory/power time series. |
-| `<aig|qdrant|e2e>_platform_info.json` | Host processor, GPU, NPU, memory, and storage description. |
-| `<aig|qdrant|e2e>_raw_metrics/` | Raw collector logs used to build the host metrics JSON. |
+| `<aig\|qdrant\|e2e>_docker_stats.json/.csv` | Per-container CPU/memory samples and averages. |
+| `<aig\|qdrant\|e2e>_metrics.json` | Full-run host CPU/GPU/NPU/memory/power time series. |
+| `<aig\|qdrant\|e2e>_platform_info.json` | Host processor, GPU, NPU, memory, and storage description. |
+| `<aig\|qdrant\|e2e>_raw_metrics/` | Raw collector logs used to build the host metrics JSON. |
 
 PID and Web UI run inside the E2E capture in `benchmark-all`, so they share `e2e_raw_metrics/`; they do not get duplicate PID/Web UI host-metrics folders. The collector runs once for each top-level AIG, Qdrant, and E2E capture.
 
@@ -100,7 +100,7 @@ PID and Web UI run inside the E2E capture in `benchmark-all`, so they share `e2e
 | Field or pattern | Meaning |
 | --- | --- |
 | `timestamp` | UTC time the summary was produced. |
-| `device` | AIG device used, `CPU` or `GPU`. |
+| `device` | AIG device used, `CPU`, `GPU` or `NPU`. |
 | `capture_elapsed_ms` | Actual benchmark capture duration in milliseconds. |
 | `predefined_calls`, `dynamic_calls` | Number of ASe search and AIG generation calls. |
 | `predefined_sla_met`, `dynamic_sla_met` | Count of calls that met the configured SLA, not a boolean. ASe target is under 5 s; dynamic AIG is under 15 s warm or 60 s for the first call when cold-start is enabled. |

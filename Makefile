@@ -59,6 +59,13 @@ AIG_DEVICE ?= $(or $(BENCHMARK_DEVICE),GPU)
 PID_DEVICE ?= CPU
 PID_CONFIG ?= configs/pid/config.json
 AIG_ENV_FILE ?= $(ENV_FILE)
+# Published ports bind to HOST_IP, not localhost, so derive the AIG/ASe endpoint from it.
+DEFAULT_BENCHMARK_BASE_URL := https://$(or $(HOST_IP),127.0.0.1):5000/aig-api
+BENCHMARK_BASE_URL ?= $(DEFAULT_BENCHMARK_BASE_URL)
+# Only bypass TLS verification by default for the local self-signed stack endpoint, and only
+# when no CA bundle is configured; a user-supplied BENCHMARK_BASE_URL or CA bundle still verifies
+# certificates unless BENCHMARK_INSECURE=true is set explicitly.
+BENCHMARK_INSECURE ?= $(if $(or $(REQUESTS_CA_BUNDLE),$(CURL_CA_BUNDLE)),false,$(if $(filter $(BENCHMARK_BASE_URL),$(DEFAULT_BENCHMARK_BASE_URL)),true,false))
 SKIP_BENCHMARK_DEVICE_CONFIG ?= false
 SKIP_PERFORMANCE_TOOLS_BUILD ?= false
 # Benchmark targets start every service with instrumentation on; normal runs leave it off.
@@ -110,9 +117,9 @@ define run_with_metrics
 endef
 
 BENCHMARK_PID_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --device $(PID_DEVICE) --no-restart --output $(RUN_DIR) $(if $(GPU_METRICS),--gpu-metrics $(GPU_METRICS),)
-BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
+BENCHMARK_AIG_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_aig.py --iterations $(or $(BENCHMARK_ITERATIONS),10) --duration $(or $(BENCHMARK_DURATION),300) --device $(AIG_DEVICE) --output $(RUN_DIR) $(if $(BENCHMARK_BASE_URL),--base-url $(BENCHMARK_BASE_URL),) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,) $(if $(filter true,$(BENCHMARK_COLD_START)),--cold-start,)
 BENCHMARK_WEB_UI_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_web_ui.py --duration $(or $(BENCHMARK_DURATION),300) --output $(RUN_DIR)
-BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR)
+BENCHMARK_QDRANT_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_qdrant.py --sizes $(or $(QDRANT_SIZES),100 1000) --queries $(or $(QDRANT_QUERIES),30) --output $(RUN_DIR) $(if $(BENCHMARK_BASE_URL),--ase-url $(BENCHMARK_BASE_URL),) $(if $(filter true,$(BENCHMARK_INSECURE)),--insecure,)
 # PID (passive) and Web UI trace capture run concurrently over the same live-pipeline window.
 BENCHMARK_E2E_CMD = ( python3 performance-tools/benchmark-scripts/benchmark_signage_pid.py --duration $(or $(BENCHMARK_DURATION),300) --no-restart --output $(RUN_DIR) & pid_job=$$!; web_status=0; $(BENCHMARK_WEB_UI_CMD) || web_status=$$?; pid_status=0; wait $$pid_job || pid_status=$$?; if [ $$pid_status -ne 0 ]; then exit $$pid_status; fi; exit $$web_status )
 CONSOLIDATE_CMD = python3 performance-tools/benchmark-scripts/benchmark_signage_consolidate_e2e.py --results $(RUN_DIR)
@@ -130,7 +137,7 @@ build-performance-tools:
 
 .PHONY: benchmark-configure-devices
 benchmark-configure-devices:
-	@python3 -c 'import json,sys; from pathlib import Path; pid_device,aig_device,pid_file,env_file=sys.argv[1:]; assert pid_device in ("CPU","GPU","NPU"), "PID_DEVICE must be CPU, GPU, or NPU"; assert aig_device in ("CPU","GPU"), "AIG_DEVICE must be CPU or GPU"; pid_path=Path(pid_file); config=json.loads(pid_path.read_text()); detection=config["config"]["pipelines"][0]["payload"]["parameters"]["detection-properties"]; pid_changed=detection["device"] != pid_device; detection["device"]=pid_device; pid_path.write_text(json.dumps(config,indent=4)+"\n") if pid_changed else None; env_path=Path(env_file); lines=env_path.read_text().splitlines(); key="AIG_INFERENCE_DEVICE="; found=any(line.startswith(key) for line in lines); updated=[key+aig_device if line.startswith(key) else line for line in lines]; updated=updated if found else updated+[key+aig_device]; env_path.write_text("\n".join(updated)+"\n") if updated != lines else None; print(f"PID_DEVICE={pid_device} in {pid_path}; AIG_DEVICE={aig_device} in {env_path}")' "$(PID_DEVICE)" "$(AIG_DEVICE)" "$(PID_CONFIG)" "$(AIG_ENV_FILE)"
+	@python3 -c 'import json,sys; from pathlib import Path; pid_device,aig_device,pid_file,env_file=sys.argv[1:]; assert pid_device in ("CPU","GPU","NPU"), "PID_DEVICE must be CPU, GPU, or NPU"; assert aig_device in ("CPU","GPU","NPU"), "AIG_DEVICE must be CPU, GPU, or NPU"; pid_path=Path(pid_file); config=json.loads(pid_path.read_text()); detection=config["config"]["pipelines"][0]["payload"]["parameters"]["detection-properties"]; pid_changed=detection["device"] != pid_device; detection["device"]=pid_device; pid_path.write_text(json.dumps(config,indent=4)+"\n") if pid_changed else None; env_path=Path(env_file); lines=env_path.read_text().splitlines(); key="AIG_INFERENCE_DEVICE="; found=any(line.startswith(key) for line in lines); updated=[key+aig_device if line.startswith(key) else line for line in lines]; updated=updated if found else updated+[key+aig_device]; env_path.write_text("\n".join(updated)+"\n") if updated != lines else None; print(f"PID_DEVICE={pid_device} in {pid_path}; AIG_DEVICE={aig_device} in {env_path}")' "$(PID_DEVICE)" "$(AIG_DEVICE)" "$(PID_CONFIG)" "$(AIG_ENV_FILE)"
 
 .PHONY: benchmark-stack-reset
 benchmark-stack-reset:
@@ -305,7 +312,7 @@ help:
 	@echo "  make update-submodules - Clone/update git submodules"
 	@echo "  make benchmark-pid - Benchmark PID inference (PID_DEVICE=CPU|GPU|NPU, BENCHMARK_WARMUP_SECONDS=300)"
 	@echo "  Benchmark targets reset the stack and wait 300 seconds; set BENCHMARK_WARMUP_SECONDS to override"
-	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=GPU, BENCHMARK_ITERATIONS=10)"
+	@echo "  make benchmark-aig - Benchmark ASe search and AIG generation (AIG_DEVICE=CPU|GPU|NPU, BENCHMARK_ITERATIONS=10)"
 	@echo "  make benchmark-web-ui - Collect Web UI selection metrics for 300 seconds"
 	@echo "  make benchmark-qdrant - Benchmark vector search, memory and ad indexing"
 	@echo "  make benchmark-metrics - Collect host metrics only (METRICS_DURATION=300)"

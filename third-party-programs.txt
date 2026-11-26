@@ -22,22 +22,22 @@ License-Identifier: MIT
 ----------------------------------------------------------------------
 
 License-Identifier: EPL-2.0 OR EPL-1.0
-- eclipse-mosquitto:2.0.22
+- eclipse-mosquitto:2.1.4-alpine
 ----------------------------------------------------------------------
 
 License-Identifier: Apache-2.0
-- intel/dlstreamer-pipeline-server:2026.2.0-ubuntu24
-- intel/model-download:2026.2.0
-- qdrant/qdrant:v1.19.2-unprivileged
+- intel/dlstreamer-pipeline-server:2026.3.0-ubuntu24
+- intel/model-download:2026.3.0
+- qdrant/qdrant:v1.20.2-unprivileged
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-3-Clause
-- coturn/coturn:4.18.0-alpine
+- coturn/coturn:4.19.2-alpine
 
 ----------------------------------------------------------------------
 
 License-Identifier: BSD-2-Clause
-- nginx:1.31.6
+- nginx:1.31.9
 
 ---------------------------------------------------------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ paho-mqtt==2.1.0
 
 License-Identifier: MIT
 mcp==1.30.0
-setuptools==84.1.0
+setuptools==84.2.1
 
 
 aig-server (License-Identifier: Apache-2.0):
@@ -95,6 +95,10 @@ flask==3.1.3
 flask-restx==1.3.2
 ----------------------------------------------------------------------
 
+License-Identifier: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib
+torch==2.15
+----------------------------------------------------------------------
+
 License-Identifier: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
 numpy==2.5.4
 ----------------------------------------------------------------------
@@ -107,15 +111,15 @@ License-Identifier: Apache-2.0
 openvino==2026.4.1
 openvino_tokenizers==2026.4.1.0
 openvino_genai==2026.4.1.0
-diffusers==0.41.0
-qdrant-client==1.19.1
-sentence-transformers==6.1.0
+diffusers==0.42.1
+qdrant-client==1.20.0
+sentence-transformers==6.2.0
 ----------------------------------------------------------------------
 
 License-Identifier: MIT
 urllib3==2.8.0
 jaraco.context==6.1.2
-setuptools==84.1.0
+setuptools==84.2.1
 
 ---------------------------------------------------------------------------------------------------------------------------
 

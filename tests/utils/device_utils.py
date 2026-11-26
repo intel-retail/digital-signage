@@ -111,6 +111,7 @@ def wait_for_pipeline(api_request, previous_ids, timeout=180):
 def wait_for_device_detection(instance_id, timeout=120):
     logger.info("Waiting up to %s seconds for detections from pipeline %s", timeout, instance_id)
     deadline = time.monotonic() + timeout
+    last_shape_log = 0.0
     while time.monotonic() < deadline:
         result = exec_command(
             ["docker", "exec", "mqtt-broker", "mosquitto_sub", "-h", "127.0.0.1",
@@ -122,19 +123,25 @@ def wait_for_device_detection(instance_id, timeout=120):
                 message = json.loads(result.stdout)
             except json.JSONDecodeError:
                 continue
-            pipeline = message.get("pipeline", {})
-            if pipeline.get("instance_id") != instance_id:
-                continue
             tensors = [
                 tensor
                 for metadata in message.get("metadata", {}).get("gva_meta", [])
                 for tensor in metadata.get("tensor", [])
-                if tensor.get("label") and tensor.get("confidence", 0) > 0
+                if isinstance(tensor, dict)
+                and isinstance(tensor.get("label"), str)
+                and tensor["label"].strip()
+                and isinstance(tensor.get("confidence"), (int, float))
+                and tensor["confidence"] > 0
             ]
             if tensors:
                 logger.info("Received detection from pipeline %s: %s (confidence=%.3f)",
                             instance_id, tensors[0]["label"], tensors[0]["confidence"])
                 return tensors[0]
+            if time.monotonic() - last_shape_log >= 30:
+                pipeline_id = message.get("pipeline", {}).get("instance_id")
+                logger.debug("Received MQTT message without a valid detection; pipeline instance=%s; keys=%s",
+                             pipeline_id, sorted(message.keys()))
+                last_shape_log = time.monotonic()
     assert_condition(False, f"No real detections received from DL Streamer instance {instance_id}")
 
 

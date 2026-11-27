@@ -291,7 +291,8 @@ services:
     networks:
       - app_network
     environment:
-      - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker
+      - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
+      - NO_PROXY=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - FLASK_ENV=production

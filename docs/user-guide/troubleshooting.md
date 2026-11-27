@@ -200,3 +200,40 @@ The model-download container writes directly into `./aig/models`, so failures ar
    ```
 
 3. If the failure persists, review the model-download logs emitted by `make download_models` and verify host network/proxy access to Hugging Face.
+
+---
+
+## 8. MCP Server and MCP Client on the Same Host Fail with HTTP 403 Behind a Proxy
+
+**Issue**:
+
+When an MCP client (for example an AI agent) runs on the same host as Digital Signage and the host is behind a corporate proxy, calls between the MCP server in the `web-ui` container and the client, which are addressed by the host IP, fail with `403 Forbidden`.
+
+**Reason**:
+
+The corporate proxy variables are passed into the containers. If the host IP is not in the `no_proxy` list of the container (or of the client), traffic to `<HOST_IP>` is sent to the proxy, which rejects it instead of forwarding it to the host.
+
+**Solution**:
+
+1. Set `HOST_IP` in `.env` to the IPv4 address of the host.
+2. In `docker-compose.yml`, make sure the `web-ui` service lists `${HOST_IP}` in both `no_proxy` and `NO_PROXY`:
+
+   ```yaml
+   - no_proxy=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
+   - NO_PROXY=${no_proxy},mediamtx,aig-server,mqtt-broker,${HOST_IP}
+   ```
+
+3. Recreate the container. A restart does not re-read the environment:
+
+   ```bash
+   docker compose up -d --force-recreate web-ui
+   ```
+
+4. Add the host IP to `no_proxy` on the MCP client side as well, so that its requests to `https://<HOST_IP>:5000/mcp` also bypass the proxy.
+5. Verify that the host IP is bypassed:
+
+   ```bash
+   docker exec <web-ui-container> env | grep -i no_proxy
+   ```
+
+   If requests are still blocked, also add the host subnet (for example `10.0.0.0/24`) to `no_proxy`.
